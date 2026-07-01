@@ -1,0 +1,9 @@
+# Données OSRM brutes (~15 Go) — ne jamais committer
+pipeline/osrm-data/
+*.osm.pbf
+*.osrm
+*.osrm.*
+
+# Divers OS
+.DS_Store
+Thumbs.db

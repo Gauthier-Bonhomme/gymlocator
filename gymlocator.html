@@ -25,6 +25,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f
 #map{width:100%;height:100%}
 .gm{width:28px;height:28px;background:#7c3aed;border:3px solid #fff;border-radius:50%;box-shadow:0 3px 10px rgba(124,58,237,.6);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:transform .12s}
 .gm:hover{transform:scale(1.3)}
+.bestm{width:30px;height:30px;background:#d53e4f;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;box-shadow:0 3px 12px rgba(213,62,79,.7);cursor:pointer;transition:transform .12s}
+.bestm:hover{transform:scale(1.2)}
 .gp{min-width:200px;font-family:'Segoe UI',system-ui,sans-serif}
 .gp-name{font-size:13px;font-weight:700;margin-bottom:8px;line-height:1.4;color:#111}
 .gp-sr{display:flex;gap:9px;align-items:center;margin-bottom:9px}
@@ -94,6 +96,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f
   <div id="togs">
     <button class="tbtn on" id="t-score" onclick="glTog('score')">Score</button>
     <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles 🏋️</button>
+    <button class="tbtn" id="t-best" onclick="glBest()">🎯 Meilleures zones</button>
+    <button class="tbtn on" id="t-flow" onclick="glFlowMode()">🛣️ Flux : gravitaire</button>
     <button class="tbtn" id="t-info" onclick="glInfo()">ℹ️ Méthode</button>
   </div>
 </div>
@@ -134,12 +138,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f
       <div class="src">💶 <span><b>Revenu médian</b> — INSEE Filosofi (via OpenDataSoft)</span></div>
       <div class="src">🏋️ <span><b>Salles de sport</b> — OpenStreetMap (Overpass)</span></div>
       <div class="src">🚗 <span><b>Temps de trajet (zone 15 min)</b> — Valhalla / OpenStreetMap</span></div>
+      <div class="src">🛣️ <span><b>Flux domicile-travail (v2)</b> — INSEE 2015 (via OpenDataSoft)</span></div>
+      <div class="src">🚦 <span><b>Trafic modélisé (v3)</b> — navettes INSEE routées sur OpenStreetMap (OSRM, autoroutes exclues)</span></div>
       <div class="src">🗺️ <span><b>Fond de carte</b> — OpenStreetMap</span></div>
       <h3>Hypothèses</h3>
       <ul>
         <li><b>10 %</b> de la population est adhérente d'une salle (moyenne France, modulée par le revenu local).</li>
         <li><b>1,4 adhérent / m²</b> de salle (fourchette métier 1,2–1,7 ; ≈ 2 500 adhérents pour 1 800 m²).</li>
         <li>Salle cartographiée en <b>polygone</b> → surface mesurée. Salle en <b>point</b> → surface estimée selon le type (low-cost ~1 400 m², généraliste ~600, premium ~800, studio ~250).</li>
+        <li><b>Passage / flux</b> (bouton « 🛣️ Flux », 3 modèles comparables) : <b>v1 gravitaire</b> (commune → pôle le plus proche, ligne droite) · <b>v2 INSEE réel</b> (vraies navettes domicile-travail 2015 >100 actifs, ligne droite) · <b>v3 trafic modélisé</b> = ces navettes <b>routées sur les vraies routes</b> (OSRM/OpenStreetMap), <b>autoroutes exclues</b>, départementales incluses — le plus réaliste ; routes affichées colorées selon le trafic. Limites v3 : navettes 2015 uniquement (hors loisir/commerces), itinéraire le plus rapide.</li>
+        <li>Les <b>studios de yoga</b> sont exclus (mais une salle généraliste proposant aussi du yoga est conservée).</li>
       </ul>
       <div class="warn">⚠️ Les salles proviennent d'OpenStreetMap, qui peut être <b>incomplet</b> : si des salles manquent, une zone peut sembler plus favorable qu'en réalité. Vérifie la liste des salles sur le terrain avant de décider.</div>
     </div>
@@ -205,6 +213,14 @@ const MEMBERS_PER_M2= 1.4;    // ~1,2–1,7 adhérents par m² de salle
 // Surface (m²) estimée d'une salle cartographiée en point (node), selon le type
 const CAT_AREA = {lowcost:1400, premium:800, classic:600, niche:250};
 const NEW_GYM_CAP   = Math.round(1200*MEMBERS_PER_M2); // salle de référence pour le verdict (~1680 adh.)
+// Flux domicile-travail (modèle gravitaire simplifié, sans donnée externe)
+const EMPLOI_MIN  = 15000;  // commune ≥ ce seuil = pôle d'emploi (destination des navetteurs) [modèle v1]
+const ACTIVE_SHARE= 0.45;   // part d'actifs navetteurs dans la population [modèle v1]
+const PASSING_MAX = 2500;   // adhérents potentiels « de passage » au corridor le plus fréquenté (p95)
+// Flux domicile-travail réels INSEE 2015 (corridors > 100 actifs), via OpenDataSoft [modèle v2]
+const FLOW_URL = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/mobilites-professionnelles-en-2015-deplacements-domicile-lieu-de-travail/exports/json?where=nbflux_c15_actocc15p%3E100&select=coordonnees_residence,coordonnees_travail,nbflux_c15_actocc15p';
+// Trafic routier RÉEL mesuré (TMJA réseau national 2019), via OpenDataSoft — extrémités en Lambert-93 [modèle v3]
+const TMJA_URL = 'https://data.82amenagement.fr/api/explore/v2.1/catalog/datasets/trafic-moyen-journalier-annuel-sur-le-reseau-routier-national/exports/json?select=tmja,xd,yd,xf,yf,route';
 
 // Palette heatmap (style Windy, translucide). Faible → fort = bleu → rouge.
 // Pour revenir au sens « rouge=défavorable → vert=idéal », inverser ce tableau.
@@ -220,15 +236,15 @@ const PALETTE = [
 ];
 const HEAT_MAXA = 150;   // opacité max (/255) — translucide pour garder la carte lisible
 
-let map, hLayer, gymLayer, clkLayer, isoLayer, hiLayer;
-let communes=[], gyms=[], cenGrid=null;
+let map, hLayer, gymLayer, clkLayer, isoLayer, hiLayer, bestLayer, roadLayer;
+let communes=[], gyms=[], cenGrid=null, flowV1=null, flowV2=null, flowV3=null, roadSegs=null, flowMode='v1';
 let gymMarkers = new Map();
 let popGrid = Array.from({length:GX*GY}, ()=>[]);
 let gymGrid  = Array.from({length:GX*GY}, ()=>[]);
 let fetchedZones = [];
 let NMin=0, NMax=1, normReady=false;
 let showScore=true, showGyms=true, fetching=false, isoFetching=false;
-let mvT, sugT, ntfT, pbT, nomLast=0;
+let mvT, sugT, ntfT, pbT, nomLast=0, isoLast=0;
 // Session isochrone en cours (par point cliqué) : polygones 15 min voiture/pied + salles concernées
 let isoPoint=null, isoPolys={auto:null,pedestrian:null}, isoGymList=[];
 
@@ -277,8 +293,11 @@ function marketAt(lat,lon){
   const cos=Math.cos(lat*Math.PI/180);let pop=0,cap=0,incW=0,incS=0;
   for(const p of gc(lat,lon,popGrid)){const dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc,r2=p.r*p.r;if(d2<r2*9){const w=p.pop*Math.exp(-d2/(2*r2));pop+=w;if(p.inc){incW+=w;incS+=w*p.inc;}}}
   for(const g of gc(lat,lon,gymGrid)){const dl=lat-g.lat,dc=(lon-g.lon)*cos,d2=dl*dl+dc*dc,r2=g.r*g.r;if(d2<r2*9)cap+=(g.capacity||0)*Math.exp(-d2/(2*r2));}
-  const members=pop*PENETRATION*incomeFactor(incW>0?incS/incW:0);
-  return {pop,members,capacity:cap,unmet:Math.max(0,members-cap)};
+  const resident=pop*PENETRATION*incomeFactor(incW>0?incS/incW:0);
+  const fa=activeFlow();                       // navetteurs « de passage » (modèle v1/v2/off), échelle commune via p95
+  const passing=(fa&&fa.p95>0)?(fa.grid[cellIdx(lat,lon)]/fa.p95)*PASSING_MAX:0;
+  const members=resident+passing;
+  return {pop,members,passing,capacity:cap,unmet:Math.max(0,members-cap)};
 }
 function rawScore(lat,lon){ return marketAt(lat,lon).unmet; }
 function computeNorm(){
@@ -368,6 +387,15 @@ function classifyGym(t){
   if(/orange ?bleue|\bcmg\b|vita ?libert|wellness|usine|episod|club ?med ?gym|amazonia|interval|aquagym/.test(hay)) return 'premium';
   return 'classic';
 }
+// Studio de yoga → exclu. Une salle généraliste qui propose AUSSI du yoga (sport=fitness;yoga) est gardée.
+function isYoga(t){
+  const sport=(t.sport||'').toLowerCase();
+  if(/\bfitness\b/.test(sport))return false;
+  const sports=sport.split(/[;,]/).map(s=>s.trim()).filter(Boolean);
+  if(sports.length&&sports.every(s=>s==='yoga'||s==='pilates'))return true;
+  const hay=((t.name||'')+' '+(t.brand||'')+' '+(t.operator||'')).toLowerCase();
+  return /\byoga\b|bikram|ashtanga|vinyasa|\bhatha\b/.test(hay);
+}
 // ── Taille de la salle (petite vs grande) ──────────────────────────────────────
 function wayCentroid(geom){ let la=0,lo=0; for(const p of geom){la+=p.lat;lo+=p.lon;} return [la/geom.length,lo/geom.length]; }
 function wayAreaM2(geom){ // shoelace approx en m²
@@ -394,9 +422,9 @@ function gymSize(el,cat){
   return {size,mul,area:0};
 }
 // ── Cache des salles (Overpass) ────────────────────────────────────────────────
-function saveGyms(){ idbSet('gyms_v4',{t:Date.now(),gyms,zones:fetchedZones}); }
+function saveGyms(){ idbSet('gyms_v5',{t:Date.now(),gyms,zones:fetchedZones}); }
 async function restoreGyms(){
-  const c=await idbGet('gyms_v4');
+  const c=await idbGet('gyms_v5');
   if(!c||Date.now()-c.t>GYMS_TTL||!Array.isArray(c.gyms)||!c.gyms.length)return;
   for(const g of c.gyms){const idx=gyms.length;gyms.push(g);atg(g,gymGrid);addMarker(g,idx);}
   fetchedZones=c.zones||[];
@@ -468,8 +496,8 @@ way[sport=fitness][leisure!=fitness_station](${s},${w},${n},${e});
     }
     if(lat==null||lon==null)continue;
     const t=el.tags||{};
-    // exclure street workout / équipements extérieurs gratuits
-    if(t.leisure==='fitness_station'||t.fitness_station||t.sport==='calisthenics'||t.sport==='street_workout'||t.outdoor==='yes'||t.access==='no')continue;
+    // exclure street workout / équipements extérieurs gratuits + studios de yoga
+    if(t.leisure==='fitness_station'||t.fitness_station||t.sport==='calisthenics'||t.sport==='street_workout'||t.outdoor==='yes'||t.access==='no'||isYoga(t))continue;
     const k=lat.toFixed(4)+','+lon.toFixed(4);
     if(seen.has(k))continue;seen.add(k);
     const cat=classifyGym(t);
@@ -552,6 +580,23 @@ function gymsInPolygons(geoms){
   return {cap,count,list};
 }
 function isoStyle(mode,mins){ return mode==='pedestrian'?(mins>=15?'#34d399':'#059669'):(mins>=15?'#a78bfa':'#7c3aed'); }
+// Appel Valhalla robuste : ≥1,2 s entre requêtes (fair-use) + 3 tentatives avec backoff
+async function isoFetch(q){
+  const url=ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q));
+  let lastErr;
+  for(let attempt=0;attempt<3;attempt++){
+    const wait=Math.max(0,1200-(Date.now()-isoLast)); if(wait>0)await sleep(wait);
+    isoLast=Date.now();
+    try{
+      const r=await fetch(url);
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const fc=await r.json();
+      if(!fc.features||!fc.features.length)throw new Error('réponse vide');
+      return fc;
+    }catch(e){ lastErr=e; if(attempt<2){setBar(true,'Serveur occupé, nouvelle tentative…');await sleep(1500);} }
+  }
+  throw lastErr;
+}
 window.glIso=async function(lat,lon,mode){
   mode=(mode==='pedestrian')?'pedestrian':'auto';
   if(isoFetching)return;isoFetching=true;
@@ -564,11 +609,9 @@ window.glIso=async function(lat,lon,mode){
   setBar(true,`Zone de chalandise ${lbl}…`);
   try{
     const q={locations:[{lat,lon}],costing:mode,contours:[{time:10},{time:15}],polygons:true,denoise:.5,generalize:mode==='pedestrian'?25:60};
-    const r=await fetch(ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q)));
-    if(!r.ok)throw new Error('iso '+r.status);
-    const fc=await r.json();
+    const fc=await isoFetch(q);
+    setBar(true,`Zone de chalandise ${lbl}…`);
     const feats=(fc.features||[]).sort((a,b)=>b.properties.contour-a.properties.contour);
-    if(!feats.length)throw new Error('vide');
     let poly15=null;
     feats.forEach(f=>{
       const mins=f.properties.contour,col=isoStyle(mode,mins);
@@ -640,6 +683,7 @@ function buildCommunes(arr){
     const cy=Math.max(0,Math.min(CGY-1,Math.floor((c.lat-FR.s)/(FR.n-FR.s)*CGY)));
     cenGrid[cy*CGX+cx].push(com);
   }
+  buildFlow();
 }
 // Densité locale (hab/km²) = densité de la commune dont le centroïde est le plus proche (≈ Voronoi)
 function densityAt(lat,lon){
@@ -654,6 +698,84 @@ function densityAt(lat,lon){
     }
   }
   return best?best.dens:0;
+}
+function cellIdx(lat,lon){ return Math.max(0,Math.min(GX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*GX)))+Math.max(0,Math.min(GY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*GY)))*GX; }
+// Flux domicile-travail (gravitaire) : chaque commune envoie ses actifs vers le pôle
+// d'emploi le plus proche ; on cumule le « passage » sur les cellules traversées par la ligne.
+// Rasterise un segment A→B en ajoutant m à chaque cellule traversée (une seule fois)
+function rasterFlow(grid,aLat,aLon,bLat,bLon,m){
+  const dist=Math.hypot(bLat-aLat,bLon-aLon), steps=Math.max(2,Math.ceil(dist/0.02));
+  let last=-1;
+  for(let s=0;s<=steps;s++){const t=s/steps,idx=cellIdx(aLat+(bLat-aLat)*t,aLon+(bLon-aLon)*t);if(idx!==last){grid[idx]+=m;last=idx;}}
+}
+function gridP95(grid){const v=[];for(let i=0;i<grid.length;i++)if(grid[i]>0)v.push(grid[i]);if(!v.length)return 1;v.sort((a,b)=>a-b);return v[Math.floor(v.length*0.95)]||v[v.length-1];}
+// v1 — gravitaire : chaque commune → pôle d'emploi le plus proche, pondéré par ses actifs
+function buildFlow(){
+  const grid=new Float64Array(GX*GY), poles=communes.filter(c=>c.pop>=EMPLOI_MIN);
+  if(poles.length){
+    const MAXD=0.30;                       // ~33 km max vers le pôle
+    for(const c of communes){
+      if(c.pop>=EMPLOI_MIN)continue;        // les pôles sont des destinations, pas des origines
+      const cos=Math.cos(c.lat*Math.PI/180);
+      let best=null,bd=MAXD*MAXD;
+      for(const p of poles){const dl=c.lat-p.lat,dc=(c.lon-p.lon)*cos,d2=dl*dl+dc*dc;if(d2<bd){bd=d2;best=p;}}
+      if(best)rasterFlow(grid,c.lat,c.lon,best.lat,best.lon,c.pop*ACTIVE_SHARE);
+    }
+  }
+  flowV1={grid,p95:gridP95(grid)};
+}
+// v2 — INSEE réel : corridors résidence→travail (>100 actifs), chargé à la demande + caché
+async function loadFlowV2(){
+  if(flowV2)return true;
+  setBar(true,'Chargement des flux INSEE…');
+  let rec=await idbGet('flux_v1');
+  if(!(rec&&rec.d&&Date.now()-rec.t<COMMUNES_TTL)){
+    try{
+      const r=await fetch(FLOW_URL); if(!r.ok)throw new Error('flux HTTP '+r.status);
+      const d=await r.json();
+      const od=d.map(x=>[x.coordonnees_residence&&x.coordonnees_residence.lat,x.coordonnees_residence&&x.coordonnees_residence.lon,x.coordonnees_travail&&x.coordonnees_travail.lat,x.coordonnees_travail&&x.coordonnees_travail.lon,x.nbflux_c15_actocc15p])
+        .filter(a=>a[0]!=null&&a[2]!=null);
+      rec={t:Date.now(),d:od}; idbSet('flux_v1',rec);
+    }catch(e){ setBar(false); notif('Flux INSEE indisponibles — réessayez','err'); console.warn('fluxV2:',e); return false; }
+  }
+  const grid=new Float64Array(GX*GY);
+  for(const a of rec.d) rasterFlow(grid,a[0],a[1],a[2],a[3],a[4]);
+  flowV2={grid,p95:gridP95(grid)};
+  setBar(false); return true;
+}
+// Lambert-93 (EPSG:2154) → WGS84 [lat,lon] — inverse Lambert conique conforme (constantes IGN)
+function lambert93ToLatLon(X,Y){
+  const e=0.0818191910428158,n=0.725607765053267,C=11754255.426096,Xs=700000,Ys=12655612.049876,lon0=3*Math.PI/180;
+  const dX=X-Xs,dY=Y-Ys,R=Math.sqrt(dX*dX+dY*dY),g=Math.atan2(dX,-dY);
+  const lon=lon0+g/n,liso=-1/n*Math.log(R/C);
+  let phi=2*Math.atan(Math.exp(liso))-Math.PI/2;
+  for(let i=0;i<8;i++){const s=e*Math.sin(phi);phi=2*Math.atan(Math.pow((1+s)/(1-s),e/2)*Math.exp(liso))-Math.PI/2;}
+  return [phi*180/Math.PI,lon*180/Math.PI];
+}
+// v3 — Trafic modélisé : navettes domicile-travail INSEE routées sur le vrai réseau routier
+// (OSRM, hors autoroutes), précalculé hors-ligne. On charge juste assign.json → instantané.
+async function loadFlowV3(){
+  if(flowV3)return true;
+  setBar(true,'Chargement du trafic modélisé…');
+  try{
+    const r=await fetch('assign.json',{cache:'force-cache'}); if(!r.ok)throw new Error('assign '+r.status);
+    const d=await r.json();
+    const grid=new Float64Array(GX*GY), g=d.grid||[];
+    for(let i=0;i<grid.length&&i<g.length;i++)grid[i]=g[i];   // grille déjà agrégée par le routage
+    roadSegs=d.roads||[];
+    flowV3={grid,p95:gridP95(grid)};
+    setBar(false); return true;
+  }catch(e){ setBar(false); notif('Trafic modélisé indisponible (assign.json manquant)','err'); console.warn('flowV3:',e); return false; }
+}
+function activeFlow(){ return flowMode==='off'?null:(flowMode==='v3'?flowV3:flowMode==='v2'?flowV2:flowV1); }
+// Calque « routes » : tronçons colorés/épaissis selon le trafic modélisé (navettes routées)
+function roadColor(t){ const x=Math.max(0,Math.min(1,Math.log10(Math.max(t,1))/5)); return `rgb(${Math.round(40+215*x)},${Math.round(110*(1-x))},${Math.round(210*(1-x))})`; }
+function drawRoads(){
+  roadLayer.clearLayers();
+  if(!roadSegs)return;
+  for(const s of roadSegs){ const x=Math.min(1,Math.log10(Math.max(s[4],1))/5);
+    L.polyline([[s[0],s[1]],[s[2],s[3]]],{color:roadColor(s[4]),weight:1+3.5*x,opacity:.85})
+      .addTo(roadLayer).bindTooltip(`${s[4].toLocaleString('fr')} véh./jour`,{sticky:true}); }
 }
 async function loadFrance(){
   startPB();
@@ -723,6 +845,49 @@ window.glTog=function(l){
   if(l==='gyms'){showGyms=!showGyms;document.getElementById('t-gyms').classList.toggle('on',showGyms);syncVis();}
 };
 window.glInfo=function(show){ document.getElementById('infomodal').style.display=(show===false)?'none':'flex'; };
+// Sélecteur de modèle de flux : Gravitaire (v1) → INSEE réel (v2) → Off, et compare en direct
+window.glFlowMode=async function(){
+  const order=['v1','v2','v3','off'], next=order[(order.indexOf(flowMode)+1)%4];
+  if(next==='v2'&&!await loadFlowV2())return;
+  if(next==='v3'&&!await loadFlowV3())return;
+  flowMode=next;
+  if(flowMode==='v3')drawRoads(); else roadLayer.clearLayers();
+  const lbl=flowMode==='v1'?'gravitaire':flowMode==='v2'?'INSEE réel':flowMode==='v3'?'trafic (navettes)':'off';
+  const btn=document.getElementById('t-flow');
+  btn.textContent='🛣️ Flux : '+lbl; btn.classList.toggle('on',flowMode!=='off');
+  computeNorm(); hLayer.redraw();
+  if(bestLayer.getLayers().length)glBest();   // reclasse les meilleures zones pour la comparaison
+  notif('Modèle de flux : '+(flowMode==='v1'?'gravitaire (v1)':flowMode==='v2'?'INSEE réel 2015 (v2)':flowMode==='v3'?'trafic modélisé · navettes routées (v3)':'désactivé'),'ok');
+};
+// Propose les meilleures zones d'implantation de la vue courante (demande non satisfaite max)
+window.glBest=function(){
+  if(!normReady)return;
+  bestLayer.clearLayers();clkLayer.clearLayers();
+  const b=map.getBounds();
+  const s=Math.max(b.getSouth(),FR.s),n=Math.min(b.getNorth(),FR.n),w=Math.max(b.getWest(),FR.w),e=Math.min(b.getEast(),FR.e);
+  if(n<=s||e<=w){notif('Vue hors de France','err');return;}
+  const NX=60,NY=40,cells=[];
+  for(let i=0;i<NX;i++)for(let j=0;j<NY;j++){
+    const lon=w+(i+.5)*(e-w)/NX,lat=s+(j+.5)*(n-s)/NY,u=rawScore(lat,lon);
+    if(u>0)cells.push({lat,lon,u});
+  }
+  cells.sort((a,b)=>b.u-a.u);
+  const minD=(e-w)/12,picks=[];                 // suppression des voisins trop proches
+  for(const c of cells){ if(picks.length>=8)break; if(picks.every(p=>Math.hypot(p.lat-c.lat,p.lon-c.lon)>minD))picks.push(c); }
+  if(!picks.length){notif('Aucune zone à fort potentiel dans cette vue','warn');return;}
+  picks.forEach((c,i)=>{
+    const rank=i+1,m=marketAt(c.lat,c.lon);
+    const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-15]});
+    L.marker([c.lat,c.lon],{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
+      <div class="gp-name">#${rank} · Zone à fort potentiel</div>
+      <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${Math.round(m.unmet).toLocaleString('fr')}</b> adhérents non desservis <i style="color:#999">(estim.)</i></span></div>
+      <div class="gp-ro"><span class="gp-ic">📍</span><span>${c.lat.toFixed(4)}°N · ${c.lon.toFixed(4)}°E</span></div>
+      <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'auto')">🚗 Chiffres exacts (15 min)</button>
+      <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'pedestrian')">🏃 Chiffres exacts (15 min)</button>
+    </div>`);
+  });
+  notif(map.getZoom()<9?`🎯 ${picks.length} zones · zoomez 9+ pour intégrer les salles`:`🎯 ${picks.length} meilleures zones de la vue`, map.getZoom()<9?'warn':'ok');
+};
 function setBar(on,txt){const el=document.getElementById('bar');el.style.display=on?'flex':'none';if(txt)document.getElementById('bar-txt').textContent=txt;}
 function updZtip(){if(!normReady)return;document.getElementById('ztip').style.display=map.getZoom()<9?'block':'none';}
 function notif(msg,type){
@@ -738,7 +903,7 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function init(){
   map=L.map('map',{center:[46.8,2.3],zoom:6});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
-  gymLayer=L.layerGroup().addTo(map);clkLayer=L.layerGroup().addTo(map);isoLayer=L.layerGroup().addTo(map);hiLayer=L.layerGroup().addTo(map);
+  gymLayer=L.layerGroup().addTo(map);clkLayer=L.layerGroup().addTo(map);isoLayer=L.layerGroup().addTo(map);hiLayer=L.layerGroup().addTo(map);bestLayer=L.layerGroup().addTo(map);roadLayer=L.layerGroup().addTo(map);
   initHeat();initClick();
   const inp=document.getElementById('si'),btn=document.getElementById('sb'),sugs=document.getElementById('sugs');
   inp.addEventListener('input',()=>{clearTimeout(sugT);const q=inp.value.trim();if(q.length<3){sugs.style.display='none';return;}sugT=setTimeout(()=>getSugs(q),500);});

@@ -96,6 +96,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f
   <div id="togs">
     <button class="tbtn on" id="t-score" onclick="glTog('score')">Score</button>
     <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles 🏋️</button>
+    <button class="tbtn" id="t-clear" onclick="glClearGyms()" title="Retirer les salles chargées pour alléger l'affichage">🧹 Vider</button>
     <button class="tbtn" id="t-best" onclick="glBest()">🎯 Meilleures zones</button>
     <button class="tbtn on" id="t-flow" onclick="glFlowMode()">🛣️ Flux : gravitaire</button>
     <button class="tbtn" id="t-info" onclick="glInfo()">ℹ️ Méthode</button>
@@ -146,7 +147,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f
         <li><b>10 %</b> de la population est adhérente d'une salle (moyenne France, modulée par le revenu local).</li>
         <li><b>1,4 adhérent / m²</b> de salle (fourchette métier 1,2–1,7 ; ≈ 2 500 adhérents pour 1 800 m²).</li>
         <li>Salle cartographiée en <b>polygone</b> → surface mesurée. Salle en <b>point</b> → surface estimée selon le type (low-cost ~1 400 m², généraliste ~600, premium ~800, studio ~250).</li>
-        <li><b>Passage / flux</b> (bouton « 🛣️ Flux », 3 modèles comparables) : <b>v1 gravitaire</b> (commune → pôle le plus proche, ligne droite) · <b>v2 INSEE réel</b> (vraies navettes domicile-travail 2015 >100 actifs, ligne droite) · <b>v3 trafic modélisé</b> = ces navettes <b>routées sur les vraies routes</b> (OSRM/OpenStreetMap), <b>autoroutes exclues</b>, départementales incluses — le plus réaliste ; routes affichées colorées selon le trafic. Limites v3 : navettes 2015 uniquement (hors loisir/commerces), itinéraire le plus rapide.</li>
+        <li><b>Passage / flux</b> (bouton « 🛣️ Flux », 3 modèles comparables) : <b>v1 gravitaire</b> (commune → pôle le plus proche, ligne droite) · <b>v2 INSEE réel</b> (vraies navettes domicile-travail 2015 >100 actifs, ligne droite) · <b>v3 trafic modélisé</b> = ces navettes <b>routées sur les vraies routes</b> (OSRM/OpenStreetMap), le routage <b>évite les autoroutes</b> dès le départ (départementales de bout en bout, sans trou), affichées en <b>lignes continues</b> colorées selon le trafic. En v3, le « passage » n'améliore le score qu'<b>à proximité immédiate d'un axe</b> (≤ ~300 m, décroissance douce) — au-delà, aucun effet. Limites v3 : navettes 2015 uniquement (hors loisir/commerces), itinéraire le plus rapide.</li>
         <li>Les <b>studios de yoga</b> sont exclus (mais une salle généraliste proposant aussi du yoga est conservée).</li>
       </ul>
       <div class="warn">⚠️ Les salles proviennent d'OpenStreetMap, qui peut être <b>incomplet</b> : si des salles manquent, une zone peut sembler plus favorable qu'en réalité. Vérifie la liste des salles sur le terrain avant de décider.</div>
@@ -216,7 +217,7 @@ const NEW_GYM_CAP   = Math.round(1200*MEMBERS_PER_M2); // salle de référence p
 // Flux domicile-travail (modèle gravitaire simplifié, sans donnée externe)
 const EMPLOI_MIN  = 15000;  // commune ≥ ce seuil = pôle d'emploi (destination des navetteurs) [modèle v1]
 const ACTIVE_SHARE= 0.45;   // part d'actifs navetteurs dans la population [modèle v1]
-const PASSING_MAX = 2500;   // adhérents potentiels « de passage » au corridor le plus fréquenté (p95)
+const PASSING_MAX = 1000;   // adhérents potentiels « de passage » sur l'axe le plus fréquenté (boost local, non dominant)
 // Flux domicile-travail réels INSEE 2015 (corridors > 100 actifs), via OpenDataSoft [modèle v2]
 const FLOW_URL = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/mobilites-professionnelles-en-2015-deplacements-domicile-lieu-de-travail/exports/json?where=nbflux_c15_actocc15p%3E100&select=coordonnees_residence,coordonnees_travail,nbflux_c15_actocc15p';
 // Trafic routier RÉEL mesuré (TMJA réseau national 2019), via OpenDataSoft — extrémités en Lambert-93 [modèle v3]
@@ -236,8 +237,15 @@ const PALETTE = [
 ];
 const HEAT_MAXA = 150;   // opacité max (/255) — translucide pour garder la carte lisible
 
+// Flux « de passage » localisé aux abords des axes (modèle v3) : décroissance gaussienne coupée ~310 m
+const RF_SIGMA = 0.0013;  // ≈ 145 m : portée du passage autour d'une route
+const RF_CUT   = 0.0028;  // ≈ 310 m : au-delà, le flux de passage n'a plus de sens (#1c)
+const RF_CELL  = 0.005;   // taille de cellule du hash spatial (> RF_CUT/cos → 3×3 voisin suffit)
+const RF_RATIO_CAP = 1.5; // plafond du ratio de flux (évite les scores aberrants sur méga-corridor)
+
 let map, hLayer, gymLayer, clkLayer, isoLayer, hiLayer, bestLayer, roadLayer;
 let communes=[], gyms=[], cenGrid=null, flowV1=null, flowV2=null, flowV3=null, roadSegs=null, flowMode='v1';
+let roadPts=null, roadHash=null, roadFluxScale=0, roadFluxReady=false;   // index spatial du flux routier (v3)
 let gymMarkers = new Map();
 let popGrid = Array.from({length:GX*GY}, ()=>[]);
 let gymGrid  = Array.from({length:GX*GY}, ()=>[]);
@@ -294,8 +302,17 @@ function marketAt(lat,lon){
   for(const p of gc(lat,lon,popGrid)){const dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc,r2=p.r*p.r;if(d2<r2*9){const w=p.pop*Math.exp(-d2/(2*r2));pop+=w;if(p.inc){incW+=w;incS+=w*p.inc;}}}
   for(const g of gc(lat,lon,gymGrid)){const dl=lat-g.lat,dc=(lon-g.lon)*cos,d2=dl*dl+dc*dc,r2=g.r*g.r;if(d2<r2*9)cap+=(g.capacity||0)*Math.exp(-d2/(2*r2));}
   const resident=pop*PENETRATION*incomeFactor(incW>0?incS/incW:0);
-  const fa=activeFlow();                       // navetteurs « de passage » (modèle v1/v2/off), échelle commune via p95
-  const passing=(fa&&fa.p95>0)?(fa.grid[cellIdx(lat,lon)]/fa.p95)*PASSING_MAX:0;
+  // Terme « passage » (navetteurs).
+  //  v3 : localisé aux abords des axes routiers (≤ ~310 m, décroissance gaussienne) → pas de rectangle,
+  //       et le flux n'améliore le score qu'à proximité immédiate d'une route (#1c, #2).
+  //  v1/v2 : grille grossière, mais interpolée bilinéairement → suppression des bords nets (#2).
+  let passing=0;
+  if(flowMode==='v3'){
+    passing=Math.min(RF_RATIO_CAP,roadFlux(lat,lon))*PASSING_MAX;
+  }else if(flowMode!=='off'){
+    const fa=activeFlow();
+    if(fa&&fa.p95>0)passing=Math.max(0,bilinearGrid(fa.grid,lat,lon)/fa.p95)*PASSING_MAX;
+  }
   const members=resident+passing;
   return {pop,members,passing,capacity:cap,unmet:Math.max(0,members-cap)};
 }
@@ -763,19 +780,70 @@ async function loadFlowV3(){
     const grid=new Float64Array(GX*GY), g=d.grid||[];
     for(let i=0;i<grid.length&&i<g.length;i++)grid[i]=g[i];   // grille déjà agrégée par le routage
     roadSegs=d.roads||[];
+    buildRoadIndex();                                        // index spatial → flux localisé aux axes
     flowV3={grid,p95:gridP95(grid)};
     setBar(false); return true;
   }catch(e){ setBar(false); notif('Trafic modélisé indisponible (assign.json manquant)','err'); console.warn('flowV3:',e); return false; }
 }
 function activeFlow(){ return flowMode==='off'?null:(flowMode==='v3'?flowV3:flowMode==='v2'?flowV2:flowV1); }
+// Interpolation bilinéaire de la grille de flux (v1/v2) sur les centres de cellules → gradients lisses (fin des rectangles)
+function bilinearGrid(grid,lat,lon){
+  const fx=(lon-FR.w)/(FR.e-FR.w)*GX-0.5, fy=(lat-FR.s)/(FR.n-FR.s)*GY-0.5;
+  const x0=Math.floor(fx), y0=Math.floor(fy), tx=fx-x0, ty=fy-y0;
+  const at=(x,y)=>(x<0||x>=GX||y<0||y>=GY)?0:grid[x+y*GX];
+  const a=at(x0,y0),b=at(x0+1,y0),c=at(x0,y0+1),d=at(x0+1,y0+1);
+  return a*(1-tx)*(1-ty)+b*tx*(1-ty)+c*(1-tx)*ty+d*tx*ty;
+}
+// ── Index spatial du flux routier (v3) : segments → points de passage, hash ~500 m ──────────────
+const rfKey=(ix,iy)=>ix+','+iy;
+function buildRoadIndex(){
+  roadPts=[]; roadHash=new Map(); roadFluxReady=false;
+  if(!roadSegs||!roadSegs.length)return;
+  for(const s of roadSegs){                         // un point de passage au milieu de chaque segment
+    const la=(s[0]+s[2])/2, lo=(s[1]+s[3])/2;
+    const idx=roadPts.push({lat:la,lon:lo,t:s[4]})-1;
+    const k=rfKey(Math.floor(lo/RF_CELL),Math.floor(la/RF_CELL));
+    let arr=roadHash.get(k); if(!arr){arr=[];roadHash.set(k,arr);} arr.push(idx);
+  }
+  // échelle : p95 du flux localisé mesuré SUR les axes → un axe très fréquenté ≈ PASSING_MAX
+  const sample=[], step=Math.max(1,Math.floor(roadPts.length/4000));
+  for(let i=0;i<roadPts.length;i+=step)sample.push(roadFluxRaw(roadPts[i].lat,roadPts[i].lon));
+  sample.sort((a,b)=>a-b);
+  roadFluxScale=sample.length?(sample[Math.floor(sample.length*0.95)]||sample[sample.length-1]):1;
+  if(roadFluxScale<=0)roadFluxScale=1;
+  roadFluxReady=true;
+}
+// Flux de passage brut à un point : Σ trafic des axes proches, décroissance gaussienne, coupée ~310 m
+function roadFluxRaw(lat,lon){
+  if(!roadHash)return 0;
+  const cos=Math.cos(lat*Math.PI/180), ix=Math.floor(lon/RF_CELL), iy=Math.floor(lat/RF_CELL);
+  const cut2=RF_CUT*RF_CUT, s2=2*RF_SIGMA*RF_SIGMA; let f=0;
+  for(let gx=ix-1;gx<=ix+1;gx++)for(let gy=iy-1;gy<=iy+1;gy++){
+    const arr=roadHash.get(rfKey(gx,gy)); if(!arr)continue;
+    for(const k of arr){const p=roadPts[k],dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc;
+      if(d2<=cut2)f+=p.t*Math.exp(-d2/s2);}
+  }
+  return f;
+}
+function roadFlux(lat,lon){ return roadFluxReady?roadFluxRaw(lat,lon)/roadFluxScale:0; }  // ≈ [0 .. 1+]
 // Calque « routes » : tronçons colorés/épaissis selon le trafic modélisé (navettes routées)
 function roadColor(t){ const x=Math.max(0,Math.min(1,Math.log10(Math.max(t,1))/5)); return `rgb(${Math.round(40+215*x)},${Math.round(110*(1-x))},${Math.round(210*(1-x))})`; }
+// Calque routier : vraies lignes continues, colorées/épaissies selon le trafic. Rendu canvas + filtrage
+// par vue et par zoom (les gros corridors seuls à petit zoom) → fluide même avec des dizaines de milliers d'arêtes.
 function drawRoads(){
   roadLayer.clearLayers();
-  if(!roadSegs)return;
-  for(const s of roadSegs){ const x=Math.min(1,Math.log10(Math.max(s[4],1))/5);
-    L.polyline([[s[0],s[1]],[s[2],s[3]]],{color:roadColor(s[4]),weight:1+3.5*x,opacity:.85})
-      .addTo(roadLayer).bindTooltip(`${s[4].toLocaleString('fr')} véh./jour`,{sticky:true}); }
+  if(!roadSegs||flowMode!=='v3')return;
+  const b=map.getBounds(),z=map.getZoom();
+  const S=b.getSouth(),N=b.getNorth(),W=b.getWest(),E=b.getEast();
+  const minT=z>=13?1:z>=11?200:z>=9?900:z>=7?3000:9000;    // seuil de trafic croissant quand on dézoome
+  const rnd=L.canvas({padding:.2}); let cnt=0;
+  for(const s of roadSegs){                                  // roadSegs trié par trafic décroissant
+    if(s[4]<minT)break;
+    if(Math.max(s[0],s[2])<S||Math.min(s[0],s[2])>N||Math.max(s[1],s[3])<W||Math.min(s[1],s[3])>E)continue;
+    const x=Math.min(1,Math.log10(Math.max(s[4],1))/5);
+    L.polyline([[s[0],s[1]],[s[2],s[3]]],{renderer:rnd,color:roadColor(s[4]),weight:1+3.5*x,opacity:.85,interactive:false}).addTo(roadLayer);
+    if(++cnt>=25000)break;                                   // garde-fou perf
+  }
 }
 async function loadFrance(){
   startPB();
@@ -845,6 +913,17 @@ window.glTog=function(l){
   if(l==='gyms'){showGyms=!showGyms;document.getElementById('t-gyms').classList.toggle('on',showGyms);syncVis();}
 };
 window.glInfo=function(show){ document.getElementById('infomodal').style.display=(show===false)?'none':'flex'; };
+// Retire toutes les salles chargées (allège l'affichage quand beaucoup de salles ralentissent) — #3
+window.glClearGyms=function(){
+  if(!gyms.length){notif('Aucune salle chargée','warn');return;}
+  const n=gyms.length;
+  gymMarkers.forEach(m=>{if(gymLayer.hasLayer(m))gymLayer.removeLayer(m);});
+  gymMarkers.clear(); gymLayer.clearLayers(); hiLayer.clearLayers();
+  gyms=[]; gymGrid=Array.from({length:GX*GY},()=>[]); fetchedZones=[]; isoGymList=[];
+  idbSet('gyms_v5',{t:Date.now(),gyms:[],zones:[]});          // vide aussi le cache
+  computeNorm(); hLayer.redraw(); updCount();
+  notif(`🧹 ${n} salle${n>1?'s':''} retirée${n>1?'s':''} — repannez/zoomez pour recharger`,'ok');
+};
 // Sélecteur de modèle de flux : Gravitaire (v1) → INSEE réel (v2) → Off, et compare en direct
 window.glFlowMode=async function(){
   const order=['v1','v2','v3','off'], next=order[(order.indexOf(flowMode)+1)%4];
@@ -910,7 +989,7 @@ function init(){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){sugs.style.display='none';doSearch(inp.value.trim());}});
   btn.onclick=()=>{sugs.style.display='none';doSearch(inp.value.trim());};
   document.addEventListener('click',e=>{if(!document.getElementById('sw').contains(e.target))sugs.style.display='none';});
-  map.on('moveend',()=>{clearTimeout(mvT);mvT=setTimeout(()=>{updZtip();if(normReady&&map.getZoom()>=9&&!fetching)fetchGyms();},700);});
+  map.on('moveend',()=>{clearTimeout(mvT);if(flowMode==='v3')drawRoads();mvT=setTimeout(()=>{updZtip();if(normReady&&map.getZoom()>=9&&!fetching)fetchGyms();},700);});
   map.on('zoomend',updZtip);
   document.getElementById('infomodal').addEventListener('click',e=>{if(e.target.id==='infomodal')glInfo(false);});
   loadFrance();

@@ -1,0 +1,48 @@
+# Régénère mensuellement les couches précalculées (l'offre SIRENE bouge vite :
+# ~2 200 créations de salles en 30 mois). Déclenchable aussi à la main
+# (onglet Actions → Run workflow). Non testé tant que le dépôt n'est pas poussé.
+name: Rafraîchir les données
+
+on:
+  schedule:
+    - cron: '17 4 3 * *'   # le 3 de chaque mois, 04h17 UTC
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Télécharger les données sources
+        run: |
+          mkdir -p data/filosofi2021
+          curl -sL -o data/filosofi2021.zip "https://www.insee.fr/fr/statistiques/fichier/8735171/Filosofi2021_carreaux_1km_csv.zip"
+          unzip -o data/filosofi2021.zip -d data/filosofi2021
+          curl -s -o data/dataes.json "https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/exports/json?where=equip_type_name%3D%22Salle%20de%20musculation%2Fcardiotraining%22&select=equip_numero,inst_nom,equip_nom,equip_surf,equip_service_date,equip_coordonnees,inst_siret,inst_adresse,inst_cp,new_name,dep_code,equip_ouv_public_bool,equip_prop_type,equip_gest_type"
+          curl -s -o data/sirene.json "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/exports/json?where=activiteprincipaleetablissement%3D%2293.13Z%22%20and%20etatadministratifetablissement%3D%22Actif%22&select=siret,datecreationetablissement,enseigne1etablissement,denominationusuelleetablissement,denominationunitelegale,geolocetablissement,codepostaletablissement,libellecommuneetablissement,trancheeffectifsetablissement"
+
+      - name: Pipeline (les assertions de 03 font échouer le job en cas de dérive)
+        run: |
+          cd build
+          npm install --no-fund --no-audit
+          node 01-demand.mjs
+          node 02-supply.mjs
+          node 03-e2sfca.mjs
+          node 04-backtest.mjs
+
+      - name: Committer si les couches ont changé
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add grid.bin grid.bin.gz gyms.json meta.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Données rafraîchies (pipeline mensuel)"
+            git push
+          fi

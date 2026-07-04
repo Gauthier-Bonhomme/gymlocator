@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GymLocator Pro</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#hdr{height:52px;background:#16161e;border-bottom:1px solid #2a2a3a;display:flex;align-items:center;padding:0 16px;gap:10px;z-index:1200;flex-shrink:0}
+#logo{font-size:14px;font-weight:700;color:#a78bfa;white-space:nowrap}
+#sw{flex:1;max-width:320px;position:relative}
+#si{width:100%;font-size:13px;padding:7px 32px 7px 12px;border:1px solid #2a2a3a;border-radius:8px;background:#1e1e2a;color:#e8e8f0;outline:none;transition:border-color .2s}
+#si:focus{border-color:#a78bfa}
+#si::placeholder{color:#44445a}
+#sb{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:22px;height:22px;background:#7c3aed;border:none;border-radius:5px;color:white;cursor:pointer;font-size:13px}
+#sugs{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a26;border:1px solid #2a2a3a;border-radius:8px;z-index:3000;display:none;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.sug{padding:9px 13px;font-size:12px;cursor:pointer;color:#9999bb;border-bottom:1px solid #22223a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug:last-child{border-bottom:none}.sug:hover{background:#25253a;color:#e8e8f0}
+#togs{display:flex;gap:5px;margin-left:auto}
+.tbtn{font-size:11px;padding:5px 11px;border:1px solid #2a2a3a;border-radius:7px;background:#1e1e2a;color:#777799;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tbtn.on{background:#7c3aed;border-color:#7c3aed;color:white}
+#mw{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.gm{width:28px;height:28px;background:#7c3aed;border:3px solid #fff;border-radius:50%;box-shadow:0 3px 10px rgba(124,58,237,.6);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:transform .12s}
+.gm:hover{transform:scale(1.3)}
+.bestm{width:30px;height:30px;background:#d53e4f;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;box-shadow:0 3px 12px rgba(213,62,79,.7);cursor:pointer;transition:transform .12s}
+.bestm:hover{transform:scale(1.2)}
+.gp{min-width:200px;font-family:'Segoe UI',system-ui,sans-serif}
+.gp-name{font-size:13px;font-weight:700;margin-bottom:8px;line-height:1.4;color:#111}
+.gp-sr{display:flex;gap:9px;align-items:center;margin-bottom:9px}
+.gp-ci{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:white;flex-shrink:0}
+.gp-me{font-size:11px;color:#555;line-height:1.7}
+.gp-dv{border-top:1px solid #eee;margin:7px 0}
+.gp-ro{display:flex;gap:6px;font-size:11px;color:#444;margin-bottom:4px;align-items:flex-start}
+.gp-ic{width:15px;flex-shrink:0;text-align:center}
+.gp-cat{display:inline-block;font-size:9px;padding:2px 8px;border-radius:10px;background:#ede9fe;color:#6d28d9;font-weight:700;margin-bottom:7px;letter-spacing:.02em}
+.iso-btn{margin-top:9px;width:100%;padding:6px 8px;font-size:11px;font-weight:600;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit}
+.iso-btn:hover{background:#6d28d9}.iso-btn:disabled{opacity:.5;cursor:default}
+.iso-btn + .iso-btn{margin-top:5px}
+.iso-salles{cursor:pointer;color:#7c3aed;border-radius:5px;transition:background .12s}
+.iso-salles:hover{background:#f1edff}.iso-salles u{color:#a78bfa}
+#ld0{position:absolute;inset:0;background:#0f0f13;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2000}
+#ld-t{font-size:17px;font-weight:600;color:#e8e8f0}
+#ld-s{font-size:12px;color:#55557a;text-align:center;max-width:340px;line-height:1.6}
+#pbw{width:280px;height:4px;background:#1e1e2a;border-radius:2px;overflow:hidden}
+#pb{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:2px;width:0%;transition:width .3s}
+.spn{width:36px;height:36px;border:3px solid #1e1e2a;border-top-color:#7c3aed;border-radius:50%;animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+#bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#16161eee;border:1px solid #2a2a3a;border-radius:20px;padding:7px 15px;font-size:11px;color:#9999bb;z-index:1000;display:none;gap:9px;align-items:center;white-space:nowrap;backdrop-filter:blur(8px)}
+.bsp{width:11px;height:11px;border:1.5px solid #33335a;border-top-color:#a78bfa;border-radius:50%;animation:rot .7s linear infinite;flex-shrink:0}
+#ztip{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(124,58,237,.9);border-radius:20px;padding:7px 18px;font-size:11px;color:white;z-index:900;display:none;white-space:nowrap;pointer-events:none}
+#ntf{position:absolute;top:12px;left:50%;transform:translateX(-50%);border-radius:20px;padding:7px 16px;font-size:11px;z-index:2100;display:none;white-space:nowrap;pointer-events:none}
+#gcnt{position:absolute;bottom:22px;left:14px;background:#16161ecc;border:1px solid #2a2a3a;border-radius:12px;padding:7px 13px;z-index:900;font-size:11px;color:#9999bb;display:none;backdrop-filter:blur(8px)}
+#leg{position:absolute;bottom:22px;right:14px;background:#16161eee;border:1px solid #2a2a3a;border-radius:12px;padding:13px 15px;z-index:800;min-width:165px;display:none;backdrop-filter:blur(8px)}
+.lt{font-size:9px;color:#55557a;font-weight:700;margin-bottom:7px;text-transform:uppercase;letter-spacing:.07em}
+.lbar{height:7px;border-radius:4px;background:linear-gradient(to right,#3288bd,#66c2a5,#abdda4,#e6f598,#fee08b,#fdae61,#f46d43,#d53e4f);margin-bottom:4px}
+.llbl{display:flex;justify-content:space-between;font-size:9px;color:#55557a;margin-bottom:8px}
+.lsep{border-top:1px solid #2a2a3a;margin:7px 0}
+.lrow{display:flex;align-items:center;gap:7px;font-size:10px;color:#9999bb;margin-bottom:4px}
+.ldot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.lsrc{font-size:9px;color:#33335a;margin-top:6px;line-height:1.7}
+.leaflet-tile-pane{filter:brightness(.85) saturate(.75)}
+
+/* Bannière mode file:// */
+#filewarn{position:absolute;inset:0;background:#0f0f13;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999;padding:40px;text-align:center}
+#filewarn h2{color:#a78bfa;font-size:20px}
+#filewarn p{color:#9999bb;font-size:14px;line-height:1.7;max-width:500px}
+#filewarn code{background:#1e1e2a;border:1px solid #2a2a3a;border-radius:6px;padding:10px 18px;font-size:13px;color:#a78bfa;display:block;margin:8px 0;font-family:monospace}
+#filewarn .note{font-size:12px;color:#55557a}
+
+/* Fenêtre méthode / aide */
+#infomodal{position:absolute;inset:0;background:rgba(8,8,14,.72);display:none;align-items:center;justify-content:center;z-index:3000;backdrop-filter:blur(3px);padding:20px}
+#infobox{position:relative;background:#16161e;border:1px solid #2a2a3a;border-radius:14px;max-width:460px;width:100%;max-height:100%;overflow:auto;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#infobox h2{color:#a78bfa;font-size:16px;margin-bottom:6px;padding-right:24px}
+#infobox h3{color:#e8e8f0;font-size:11px;margin:15px 0 7px;text-transform:uppercase;letter-spacing:.06em}
+#infobox p{font-size:12.5px;color:#b8b8cc;line-height:1.65;margin-bottom:6px}
+#infobox b{color:#e8e8f0;font-weight:600}
+#infobox .f{background:#1e1e2a;border:1px solid #2a2a3a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#cdcde0;line-height:1.9;margin:6px 0}
+#infobox .src{display:flex;gap:8px;font-size:12px;color:#b8b8cc;line-height:1.5;margin-bottom:6px}
+#infobox ul{margin:0 0 0 17px;padding:0}#infobox li{font-size:12.5px;color:#b8b8cc;line-height:1.6;margin-bottom:5px}
+#infobox .warn{margin-top:14px;background:#2a250d;border:1px solid #5c4e1a;border-radius:8px;padding:9px 11px;color:#fbbf24;font-size:11.5px;line-height:1.55}
+#infoclose{position:absolute;top:12px;right:14px;cursor:pointer;color:#777799;font-size:22px;line-height:1;border:none;background:none}
+#infoclose:hover{color:#e8e8f0}
+</style>
+</head>
+<body>
+<div id="hdr">
+  <span id="logo">⚡ GymLocator Pro</span>
+  <div id="sw">
+    <input id="si" type="text" placeholder="Rechercher une ville..."/>
+    <button id="sb">→</button>
+    <div id="sugs"></div>
+  </div>
+  <div id="togs">
+    <button class="tbtn on" id="t-score" onclick="glTog('score')">Score</button>
+    <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles 🏋️</button>
+    <button class="tbtn" id="t-clear" onclick="glClearGyms()" title="Retirer les salles chargées pour alléger l'affichage">🧹 Vider</button>
+    <button class="tbtn" id="t-best" onclick="glBest()">🎯 Meilleures zones</button>
+    <button class="tbtn on" id="t-flow" onclick="glFlowMode()">🛣️ Flux : gravitaire</button>
+    <button class="tbtn" id="t-info" onclick="glInfo()">ℹ️ Méthode</button>
+  </div>
+</div>
+<div id="mw">
+  <div id="map"></div>
+  <div id="ld0">
+    <div class="spn"></div>
+    <div id="ld-t">Chargement de la France...</div>
+    <div id="pbw"><div id="pb"></div></div>
+    <div id="ld-s">Téléchargement des communes INSEE</div>
+  </div>
+  <div id="bar"><div class="bsp"></div><span id="bar-txt">Chargement...</span></div>
+  <div id="ztip">🔍 Zoomez niveau 9+ pour afficher les salles</div>
+  <div id="ntf"></div>
+  <div id="gcnt"></div>
+  <div id="leg">
+    <div class="lt">Demande non satisfaite</div>
+    <div class="lbar"></div>
+    <div class="llbl"><span>Faible / saturé</span><span>Fort potentiel</span></div>
+    <div class="lsep"></div>
+    <div class="lrow"><div class="ldot" style="background:#7c3aed;border:2px solid rgba(255,255,255,.7)"></div>Salle existante (clic = détails)</div>
+    <div class="lsep"></div>
+    <div class="lsrc">Demande = habitants × 10 % × revenu<br>Offre = capacité des salles (~1,4 adh./m²)<br>Pop & revenus : INSEE · Salles : OSM<br>Clic = chiffres + zone 15 min 🚗</div>
+  </div>
+  <!-- Fenêtre Méthode -->
+  <div id="infomodal">
+    <div id="infobox">
+      <button id="infoclose" onclick="glInfo(false)" title="Fermer">×</button>
+      <h2>📊 Comment le score est calculé</h2>
+      <p>Le score d'une zone = la <b>demande non satisfaite</b> : le nombre d'adhérents potentiels que les salles déjà présentes ne captent pas encore.</p>
+      <h3>Le calcul</h3>
+      <div class="f"><b>Demande</b> = population atteignable × 10 % × pouvoir d'achat<br>
+      <b>Offre</b> = Σ ( surface des salles × 1,4 adhérent/m² )<br>
+      <b>Score</b> = max( 0 , Demande − Offre )</div>
+      <p style="font-size:11.5px;color:#8a8aa6">Sur la carte : approximation pondérée par la distance. Au clic « zone 15 min » : calcul <b>exact</b> sur la zone réellement accessible en voiture. La couleur est mise à l'échelle log (pour que les villes moyennes ressortent) ; les chiffres affichés, eux, sont réels.</p>
+      <h3>D'où viennent les données</h3>
+      <div class="src">🧍 <span><b>Population & communes</b> — INSEE (API geo.api.gouv.fr)</span></div>
+      <div class="src">💶 <span><b>Revenu médian</b> — INSEE Filosofi (via OpenDataSoft)</span></div>
+      <div class="src">🏋️ <span><b>Salles de sport</b> — OpenStreetMap (Overpass)</span></div>
+      <div class="src">🚗 <span><b>Temps de trajet (zone 15 min)</b> — Valhalla / OpenStreetMap</span></div>
+      <div class="src">🛣️ <span><b>Flux domicile-travail (v2)</b> — INSEE 2015 (via OpenDataSoft)</span></div>
+      <div class="src">🚦 <span><b>Trafic modélisé (v3)</b> — navettes INSEE routées sur OpenStreetMap (OSRM, autoroutes exclues)</span></div>
+      <div class="src">🗺️ <span><b>Fond de carte</b> — OpenStreetMap</span></div>
+      <h3>Hypothèses</h3>
+      <ul>
+        <li><b>10 %</b> de la population est adhérente d'une salle (moyenne France, modulée par le revenu local).</li>
+        <li><b>1,4 adhérent / m²</b> de salle (fourchette métier 1,2–1,7 ; ≈ 2 500 adhérents pour 1 800 m²).</li>
+        <li>Salle cartographiée en <b>polygone</b> → surface mesurée. Salle en <b>point</b> → surface estimée selon le type (low-cost ~1 400 m², généraliste ~600, premium ~800, studio ~250).</li>
+        <li><b>Passage / flux</b> (bouton « 🛣️ Flux », 3 modèles comparables) : <b>v1 gravitaire</b> (commune → pôle le plus proche, ligne droite) · <b>v2 INSEE réel</b> (vraies navettes domicile-travail 2015 >100 actifs, ligne droite) · <b>v3 trafic modélisé</b> = ces navettes <b>routées sur les vraies routes</b> (OSRM/OpenStreetMap), le routage <b>évite les autoroutes</b> dès le départ (départementales de bout en bout, sans trou), affichées en <b>lignes continues</b> colorées selon le trafic. En v3, le « passage » n'améliore le score qu'<b>à proximité immédiate d'un axe</b> (≤ ~300 m, décroissance douce) — au-delà, aucun effet. Limites v3 : navettes 2015 uniquement (hors loisir/commerces), itinéraire le plus rapide.</li>
+        <li>Les <b>studios de yoga</b> sont exclus (mais une salle généraliste proposant aussi du yoga est conservée).</li>
+      </ul>
+      <div class="warn">⚠️ Les salles proviennent d'OpenStreetMap, qui peut être <b>incomplet</b> : si des salles manquent, une zone peut sembler plus favorable qu'en réalité. Vérifie la liste des salles sur le terrain avant de décider.</div>
+    </div>
+  </div>
+  <!-- Affiché si ouvert en file:// -->
+  <div id="filewarn">
+    <h2>⚠️ Serveur local requis</h2>
+    <p>Ce fichier doit être servi via un serveur HTTP local pour que les salles de sport puissent être chargées. Ouvrez un terminal dans ce dossier et lancez :</p>
+    <code>python -m http.server 8765</code>
+    <p>Puis ouvrez votre navigateur sur :</p>
+    <code>http://localhost:8765/gymlocator.html</code>
+    <p class="note">Python est préinstallé sur Mac et Linux. Sur Windows, téléchargez-le sur python.org.<br>Ou double-cliquez sur <strong>lancer_windows.bat</strong> si vous êtes sur Windows.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+// ── Détection file:// — affiche la bannière d'aide ────────────────────────────
+if(location.protocol === 'file:'){
+  document.getElementById('ld0').style.display = 'none';
+  document.getElementById('filewarn').style.display = 'flex';
+  // On laisse quand même la carte tourner (score sans salles)
+}
+
+const FR  = {s:41.3, n:51.1, w:-5.2, e:9.6};
+const GX=80, GY=50;
+const CGX=150, CGY=140;   // grille fine des centroïdes (≈8 km) pour la densité locale
+const NOM = 'https://nominatim.openstreetmap.org';
+const OVP = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter'
+];
+
+// ── Sources de données & config ────────────────────────────────────────────────
+// Identifiant requis par la politique d'usage de Nominatim (peut être modifié/retiré)
+const CONTACT_EMAIL = 'gauthier.bonhomme30@gmail.com';
+// Revenu médian disponible par commune (INSEE Filosofi 2020, via OpenDataSoft)
+const INCOME_URL = 'https://equipements-sgsocialgouv.opendatasoft.com/api/explore/v2.1/catalog/datasets/insee-2020-geoapi-2023/exports/json?select=code_geographique,med20';
+const REF_INCOME = 22000;      // revenu médian national de référence (€/UC)
+// Isochrones (zone de chalandise) — serveur public FOSSGIS Valhalla, sans clé
+const ISO_URL = 'https://valhalla1.openstreetmap.de/isochrone';
+// Cache local (IndexedDB)
+const CACHE_DB='gymlocator', CACHE_STORE='kv';
+const COMMUNES_TTL=30*864e5;   // 30 jours
+const GYMS_TTL=7*864e5;        // 7 jours
+
+// Pondération de la concurrence par type de salle.
+// cw : intensité concurrentielle (1 = salle généraliste) · rMul : portée de chalandise relative
+const GYM_CATS = {
+  lowcost:{cw:1.25,rMul:1.35,lbl:'Chaîne low-cost'},   // Basic-Fit, Fitness Park…
+  premium:{cw:1.00,rMul:1.10,lbl:'Club premium'},      // L'Orange Bleue, CMG…
+  classic:{cw:0.85,rMul:1.00,lbl:'Salle généraliste'},
+  niche:  {cw:0.40,rMul:0.65,lbl:'Studio / niche'}     // yoga, CrossFit, danse, arts martiaux…
+};
+
+// ── Modèle offre / demande (adhérents) ─────────────────────────────────────────
+const PENETRATION   = 0.10;   // ~10 % de la population est adhérente d'une salle
+const MEMBERS_PER_M2= 1.4;    // ~1,2–1,7 adhérents par m² de salle
+// Surface (m²) estimée d'une salle cartographiée en point (node), selon le type
+const CAT_AREA = {lowcost:1400, premium:800, classic:600, niche:250};
+const NEW_GYM_CAP   = Math.round(1200*MEMBERS_PER_M2); // salle de référence pour le verdict (~1680 adh.)
+// Flux domicile-travail (modèle gravitaire simplifié, sans donnée externe)
+const EMPLOI_MIN  = 15000;  // commune ≥ ce seuil = pôle d'emploi (destination des navetteurs) [modèle v1]
+const ACTIVE_SHARE= 0.45;   // part d'actifs navetteurs dans la population [modèle v1]
+const PASSING_MAX = 1000;   // adhérents potentiels « de passage » sur l'axe le plus fréquenté (boost local, non dominant)
+// Flux domicile-travail réels INSEE 2015 (corridors > 100 actifs), via OpenDataSoft [modèle v2]
+const FLOW_URL = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/mobilites-professionnelles-en-2015-deplacements-domicile-lieu-de-travail/exports/json?where=nbflux_c15_actocc15p%3E100&select=coordonnees_residence,coordonnees_travail,nbflux_c15_actocc15p';
+// Trafic routier RÉEL mesuré (TMJA réseau national 2019), via OpenDataSoft — extrémités en Lambert-93 [modèle v3]
+const TMJA_URL = 'https://data.82amenagement.fr/api/explore/v2.1/catalog/datasets/trafic-moyen-journalier-annuel-sur-le-reseau-routier-national/exports/json?select=tmja,xd,yd,xf,yf,route';
+
+// Palette heatmap (style Windy, translucide). Faible → fort = bleu → rouge.
+// Pour revenir au sens « rouge=défavorable → vert=idéal », inverser ce tableau.
+const PALETTE = [
+  [50,136,189],   // bleu    — défavorable
+  [102,194,165],  // turquoise
+  [171,221,164],  // vert
+  [230,245,152],  // vert-jaune
+  [254,224,139],  // jaune
+  [253,174,97],   // orange
+  [244,109,67],   // orange-rouge
+  [213,62,79]     // rouge   — très favorable
+];
+const HEAT_MAXA = 150;   // opacité max (/255) — translucide pour garder la carte lisible
+
+// Flux « de passage » localisé aux abords des axes (modèle v3) : décroissance gaussienne coupée ~310 m
+const RF_SIGMA = 0.0013;  // ≈ 145 m : portée du passage autour d'une route
+const RF_CUT   = 0.0028;  // ≈ 310 m : au-delà, le flux de passage n'a plus de sens (#1c)
+const RF_CELL  = 0.005;   // taille de cellule du hash spatial (> RF_CUT/cos → 3×3 voisin suffit)
+const RF_RATIO_CAP = 1.5; // plafond du ratio de flux (évite les scores aberrants sur méga-corridor)
+
+let map, hLayer, gymLayer, clkLayer, isoLayer, hiLayer, bestLayer, roadLayer;
+let communes=[], gyms=[], cenGrid=null, flowV1=null, flowV2=null, flowV3=null, roadSegs=null, flowMode='v1';
+let roadPts=null, roadHash=null, roadFluxScale=0, roadFluxReady=false;   // index spatial du flux routier (v3)
+let gymMarkers = new Map();
+let popGrid = Array.from({length:GX*GY}, ()=>[]);
+let gymGrid  = Array.from({length:GX*GY}, ()=>[]);
+let fetchedZones = [];
+let NMin=0, NMax=1, normReady=false;
+let showScore=true, showGyms=true, fetching=false, isoFetching=false;
+let mvT, sugT, ntfT, pbT, nomLast=0, isoLast=0;
+// Session isochrone en cours (par point cliqué) : polygones 15 min voiture/pied + salles concernées
+let isoPoint=null, isoPolys={auto:null,pedestrian:null}, isoGymList=[];
+
+// ── Cache IndexedDB (clé/valeur) ───────────────────────────────────────────────
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(CACHE_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(CACHE_STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbGet(k){try{const db=await idb();return await new Promise((res,rej)=>{const q=db.transaction(CACHE_STORE,'readonly').objectStore(CACHE_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}catch(e){return undefined;}}
+async function idbSet(k,v){try{const db=await idb();await new Promise((res,rej)=>{const tx=db.transaction(CACHE_STORE,'readwrite');tx.objectStore(CACHE_STORE).put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}catch(e){}}
+
+// ── Nominatim : ≤1 req/s + identifiant (politique d'usage OSM) ──────────────────
+async function nomFetch(path){
+  const wait=Math.max(0,1100-(Date.now()-nomLast));
+  if(wait>0)await sleep(wait);
+  nomLast=Date.now();
+  const sep=path.includes('?')?'&':'?';
+  return fetch(`${NOM}${path}${sep}email=${encodeURIComponent(CONTACT_EMAIL)}`);
+}
+
+// ── Rayon & poids ─────────────────────────────────────────────────────────────
+function popR(p){ if(p>200000)return.007;if(p>80000)return.010;if(p>30000)return.015;if(p>10000)return.022;if(p>3000)return.032;if(p>1000)return.045;if(p>300)return.055;return.070; }
+function pw(p){ return Math.log10(Math.max(p,100)/100+1)*2.8; }
+
+function atg(p,g){
+  const W=FR.e-FR.w,H=FR.n-FR.s,m=p.r*3.5;
+  const x0=Math.max(0,Math.floor((p.lon-m-FR.w)/W*GX)),x1=Math.min(GX-1,Math.ceil((p.lon+m-FR.w)/W*GX));
+  const y0=Math.max(0,Math.floor((p.lat-m-FR.s)/H*GY)),y1=Math.min(GY-1,Math.ceil((p.lat+m-FR.s)/H*GY));
+  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)g[x+y*GX].push(p);
+}
+function gc(lat,lon,g){
+  return g[Math.max(0,Math.min(GX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*GX)))+Math.max(0,Math.min(GY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*GY)))*GX];
+}
+
+// ── Score ─────────────────────────────────────────────────────────────────────
+// Facteur pouvoir d'achat : 0.6 (revenu faible) → 1.4 (élevé), neutre à REF_INCOME
+function incomeFactor(inc){ return inc?Math.max(0.6,Math.min(1.4,0.6+(inc-15000)/(REF_INCOME-15000)*0.4)):1; }
+// Revenu médian local (moyenne pondérée par la population proche) — pour l'affichage
+function localIncome(lat,lon){
+  const cos=Math.cos(lat*Math.PI/180);let w=0,s=0;
+  for(const p of gc(lat,lon,popGrid)){const dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc,r2=p.r*p.r;if(d2<r2*9&&p.inc){const g0=p.w*Math.exp(-d2/(2*r2));w+=g0;s+=g0*p.inc;}}
+  return w>0?Math.round(s/w):0;
+}
+// Modèle offre/demande à un point (approximation gaussienne pour la heatmap) :
+//  demande = population atteignable × 10 % × pouvoir d'achat (adhérents potentiels)
+//  offre   = Σ capacité des salles atteignables
+//  unmet   = demande non satisfaite (max 0)
+function marketAt(lat,lon){
+  const cos=Math.cos(lat*Math.PI/180);let pop=0,cap=0,incW=0,incS=0;
+  for(const p of gc(lat,lon,popGrid)){const dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc,r2=p.r*p.r;if(d2<r2*9){const w=p.pop*Math.exp(-d2/(2*r2));pop+=w;if(p.inc){incW+=w;incS+=w*p.inc;}}}
+  for(const g of gc(lat,lon,gymGrid)){const dl=lat-g.lat,dc=(lon-g.lon)*cos,d2=dl*dl+dc*dc,r2=g.r*g.r;if(d2<r2*9)cap+=(g.capacity||0)*Math.exp(-d2/(2*r2));}
+  const resident=pop*PENETRATION*incomeFactor(incW>0?incS/incW:0);
+  // Terme « passage » (navetteurs).
+  //  v3 : localisé aux abords des axes routiers (≤ ~310 m, décroissance gaussienne) → pas de rectangle,
+  //       et le flux n'améliore le score qu'à proximité immédiate d'une route (#1c, #2).
+  //  v1/v2 : grille grossière, mais interpolée bilinéairement → suppression des bords nets (#2).
+  let passing=0;
+  if(flowMode==='v3'){
+    passing=Math.min(RF_RATIO_CAP,roadFlux(lat,lon))*PASSING_MAX;
+  }else if(flowMode!=='off'){
+    const fa=activeFlow();
+    if(fa&&fa.p95>0)passing=Math.max(0,bilinearGrid(fa.grid,lat,lon)/fa.p95)*PASSING_MAX;
+  }
+  const members=resident+passing;
+  return {pop,members,passing,capacity:cap,unmet:Math.max(0,members-cap)};
+}
+function rawScore(lat,lon){ return marketAt(lat,lon).unmet; }
+function computeNorm(){
+  // Échelle ancrée sur la POPULATION : on mesure le score là où les gens vivent,
+  // pondéré par les habitants — ainsi le rural peu peuplé reste en bas d'échelle
+  // (bleu) et seuls les secteurs réellement denses atteignent le haut (rouge).
+  // Couleur en échelle log : la demande non satisfaite est très asymétrique
+  // (Paris l'écrase) ; log1p resserre pour faire ressortir aussi les villes moyennes.
+  // N.B. : compression de COULEUR uniquement — les chiffres affichés restent réels.
+  const arr=[];let total=0;
+  for(const c of communes){const w=Math.max(c.pop,50);arr.push({s:Math.log1p(rawScore(c.lat,c.lon)),w});total+=w;}
+  if(!arr.length){NMin=0;NMax=1;normReady=true;return;}
+  arr.sort((a,b)=>a.s-b.s);
+  const at=q=>{const th=total*q;let acc=0;for(const o of arr){acc+=o.w;if(acc>=th)return o.s;}return arr[arr.length-1].s;};
+  NMin=at(0.12);NMax=at(0.97);if(NMax<=NMin)NMax=NMin+1e-6;normReady=true;
+}
+function ns(lat,lon){ if(!normReady||NMax<=NMin)return 0;return Math.max(0,Math.min(1,(Math.log1p(rawScore(lat,lon))-NMin)/(NMax-NMin))); }
+function rgb(s){ // interpolation linéaire sur PALETTE
+  s=Math.max(0,Math.min(1,s));
+  const n=PALETTE.length-1,f=s*n,i=Math.min(n-1,Math.floor(f)),t=f-i,a=PALETTE[i],b=PALETTE[i+1];
+  return [Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)];
+}
+function slbl(p){ return p>=75?'Très favorable':p>=50?'Modéré':p>=25?'Peu favorable':'Défavorable'; }
+function tR(z){ return z>=14?96:z>=12?64:z>=10?40:z>=9?28:18; }
+
+// ── Heatmap ───────────────────────────────────────────────────────────────────
+function initHeat(){
+  const HL=L.GridLayer.extend({options:{pane:'overlayPane',zIndex:410,tileSize:256},
+    createTile(c){
+      const cv=document.createElement('canvas');cv.width=cv.height=256;
+      if(!normReady||!showScore)return cv;
+      const nw=map.unproject(L.point(c.x*256,c.y*256),c.z),se=map.unproject(L.point((c.x+1)*256,(c.y+1)*256),c.z);
+      if(se.lat>FR.n+.5||nw.lat<FR.s-.5||nw.lng>FR.e+.5||se.lng<FR.w-.5)return cv;
+      const R=tR(c.z),off=document.createElement('canvas');off.width=off.height=R;
+      const oc=off.getContext('2d'),img=oc.createImageData(R,R);let has=false;
+      for(let y=0;y<R;y++)for(let x=0;x<R;x++){
+        const lat=nw.lat-(y+.5)*(nw.lat-se.lat)/R,lon=nw.lng+(x+.5)*(se.lng-nw.lng)/R;
+        if(lat<FR.s-.2||lat>FR.n+.2||lon<FR.w-.2||lon>FR.e+.2)continue;
+        const s=ns(lat,lon);if(s<.02)continue;has=true;
+        const a=Math.round(HEAT_MAXA*Math.pow(s,.65)),[r,g,b]=rgb(s),i=(y*R+x)*4;
+        img.data[i]=r;img.data[i+1]=g;img.data[i+2]=b;img.data[i+3]=a;
+      }
+      if(!has)return cv;oc.putImageData(img,0,0);
+      const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(off,0,0,256,256);return cv;
+    }
+  });hLayer=new HL().addTo(map);
+}
+
+// ── Marqueurs permanents ──────────────────────────────────────────────────────
+function gymPopup(g){
+  const s=ns(g.lat,g.lon),p=Math.round(s*100),[r,gg,b]=rgb(s),col=`rgb(${r},${gg},${b})`;
+  return`<div class="gp">
+    <div class="gp-name">${g.name}</div>
+    <div class="gp-cat">${(GYM_CATS[g.cat]||GYM_CATS.classic).lbl}</div>
+    <div class="gp-sr"><div class="gp-ci" style="background:${col}">${p}</div>
+    <div class="gp-me"><b style="color:${col}">${slbl(p)}</b><br>Score /100<br>Rayon ~${Math.round(g.r*111)} km</div></div>
+    <div class="gp-dv"></div>
+    <div class="gp-ro"><span class="gp-ic">📍</span><span>${g.addr||g.lat.toFixed(4)+'°N '+g.lon.toFixed(4)+'°E'}</span></div>
+    <div class="gp-ro"><span class="gp-ic">📐</span><span>${g.areaM2?`Salle ${g.size} · ~${g.areaM2.toLocaleString('fr')} m²`:`Taille estimée : ${g.size||'moyenne'}`}${g.capacity?` · ~${g.capacity.toLocaleString('fr')} adh. max`:''}</span></div>
+    ${g.phone?`<div class="gp-ro"><span class="gp-ic">📞</span><span>${g.phone}</span></div>`:''}
+    ${g.web?`<div class="gp-ro"><span class="gp-ic">🌐</span><a href="${g.web}" target="_blank" style="color:#7c3aed;font-size:11px">${g.web.replace(/^https?:\/\//,'').slice(0,32)}</a></div>`:''}
+    ${g.hours?`<div class="gp-ro"><span class="gp-ic">🕐</span><span style="font-size:10px">${g.hours}</span></div>`:''}
+    ${g.osmId?`<div class="gp-ro"><span class="gp-ic">🔗</span><a href="https://www.openstreetmap.org/${g.osmType}/${g.osmId}" target="_blank" style="color:#7c3aed;font-size:11px">OpenStreetMap</a></div>`:''}
+    <button class="iso-btn" onclick="glIso(${g.lat},${g.lon},'auto')">🚗 Zone de chalandise 15 min</button>
+    <button class="iso-btn" onclick="glIso(${g.lat},${g.lon},'pedestrian')">🏃 Zone de chalandise 15 min</button>
+  </div>`;
+}
+function addMarker(g,idx){
+  if(gymMarkers.has(idx))return;
+  const ico=L.divIcon({className:'',html:'<div class="gm">🏋️</div>',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});
+  const m=L.marker([g.lat,g.lon],{icon:ico,zIndexOffset:1000});
+  m.bindPopup('',{maxWidth:240});
+  m.on('click',()=>m.setPopupContent(gymPopup(g)));
+  gymMarkers.set(idx,m);
+  if(showGyms)m.addTo(gymLayer);
+}
+function syncVis(){ gymMarkers.forEach(m=>{ if(showGyms){if(!gymLayer.hasLayer(m))m.addTo(gymLayer);}else if(gymLayer.hasLayer(m))gymLayer.removeLayer(m); }); }
+function updCount(){ const el=document.getElementById('gcnt');if(gyms.length){el.style.display='block';el.textContent=`🏋️ ${gyms.length} salle${gyms.length>1?'s':''}`;}else el.style.display='none'; }
+function hasZone(s,w,n,e){ return fetchedZones.some(z=>z.s<=s+.002&&z.w<=w+.002&&z.n>=n-.002&&z.e>=e-.002); }
+
+// ── Classement des salles par type (concurrence) ───────────────────────────────
+function classifyGym(t){
+  const hay=((t.brand||'')+' '+(t.name||'')+' '+(t.operator||'')+' '+(t['name:fr']||'')).toLowerCase();
+  const sport=(t.sport||'').toLowerCase();
+  if(t.crossfit==='yes'||/cross.?fit|yoga|pilates|dans|martial|boxe|boxing|escalade|climb|aïkido|aikido|judo|karate|karaté|taekwondo|capoeira/.test(hay+' '+sport)) return 'niche';
+  if(/basic.?fit|fitness ?park|neoness|on air|keep.?cool|magic ?form|fitness ?factory|liberty ?gym|movida|moving/.test(hay)) return 'lowcost';
+  if(/orange ?bleue|\bcmg\b|vita ?libert|wellness|usine|episod|club ?med ?gym|amazonia|interval|aquagym/.test(hay)) return 'premium';
+  return 'classic';
+}
+// Studio de yoga → exclu. Une salle généraliste qui propose AUSSI du yoga (sport=fitness;yoga) est gardée.
+function isYoga(t){
+  const sport=(t.sport||'').toLowerCase();
+  if(/\bfitness\b/.test(sport))return false;
+  const sports=sport.split(/[;,]/).map(s=>s.trim()).filter(Boolean);
+  if(sports.length&&sports.every(s=>s==='yoga'||s==='pilates'))return true;
+  const hay=((t.name||'')+' '+(t.brand||'')+' '+(t.operator||'')).toLowerCase();
+  return /\byoga\b|bikram|ashtanga|vinyasa|\bhatha\b/.test(hay);
+}
+// ── Taille de la salle (petite vs grande) ──────────────────────────────────────
+function wayCentroid(geom){ let la=0,lo=0; for(const p of geom){la+=p.lat;lo+=p.lon;} return [la/geom.length,lo/geom.length]; }
+function wayAreaM2(geom){ // shoelace approx en m²
+  if(!geom||geom.length<3)return 0;
+  const mx=111320*Math.cos(geom[0].lat*Math.PI/180),my=111320;
+  let a=0; for(let i=0,j=geom.length-1;i<geom.length;j=i++){a+=geom[j].lon*mx*geom[i].lat*my-geom[i].lon*mx*geom[j].lat*my;}
+  return Math.abs(a)/2;
+}
+// Estimation de la taille → libellé + multiplicateur de concurrence/chalandise
+function gymSize(el,cat){
+  let area=0;
+  if(el.type==='way'&&el.geometry&&el.geometry.length>2){
+    const lv=parseFloat((el.tags||{})['building:levels'])||1;
+    area=wayAreaM2(el.geometry)*Math.max(1,lv);
+  }
+  if(area>0){
+    if(area<300)   return {size:'petite', mul:0.7, area:Math.round(area)};
+    if(area<=1000) return {size:'moyenne',mul:1.0, area:Math.round(area)};
+    return                {size:'grande', mul:1.4, area:Math.round(area)};
+  }
+  // node sans géométrie → repli par marque/type
+  const def={lowcost:['grande',1.4],premium:['moyenne',1.0],classic:['moyenne',1.0],niche:['petite',0.7]};
+  const[size,mul]=def[cat]||['moyenne',1.0];
+  return {size,mul,area:0};
+}
+// ── Cache des salles (Overpass) ────────────────────────────────────────────────
+function saveGyms(){ idbSet('gyms_v5',{t:Date.now(),gyms,zones:fetchedZones}); }
+async function restoreGyms(){
+  const c=await idbGet('gyms_v5');
+  if(!c||Date.now()-c.t>GYMS_TTL||!Array.isArray(c.gyms)||!c.gyms.length)return;
+  for(const g of c.gyms){const idx=gyms.length;gyms.push(g);atg(g,gymGrid);addMarker(g,idx);}
+  fetchedZones=c.zones||[];
+  computeNorm();updCount();
+}
+
+// ── Overpass — POST puis GET, 3 serveurs ──────────────────────────────────────
+async function ovpQuery(srv, q){
+  // Essai 1 : POST
+  try{
+    const r=await fetch(srv,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
+    if(!r.ok)throw new Error('POST '+r.status);
+    const d=await r.json();if(d&&d.elements)return d;
+    throw new Error('POST réponse invalide');
+  }catch(e1){
+    // Essai 2 : GET
+    try{
+      const r=await fetch(srv+'?data='+encodeURIComponent(q));
+      if(!r.ok)throw new Error('GET '+r.status);
+      const d=await r.json();if(d&&d.elements)return d;
+      throw new Error('GET réponse invalide');
+    }catch(e2){throw e2;}
+  }
+}
+
+async function fetchGyms(){
+  if(fetching||!normReady||map.getZoom()<9)return;
+  if(location.protocol==='file:')return; // bloqué sans serveur local
+  fetching=true;
+
+  const b=map.getBounds();
+  const s=Math.max(b.getSouth()-.03,FR.s),n=Math.min(b.getNorth()+.03,FR.n);
+  const w=Math.max(b.getWest()-.05,FR.w),e=Math.min(b.getEast()+.05,FR.e);
+  if(hasZone(s,w,n,e)){fetching=false;return;}
+
+  const q=`[out:json][timeout:25];(
+node[leisure=fitness_centre](${s},${w},${n},${e});
+way[leisure=fitness_centre](${s},${w},${n},${e});
+node[amenity=gym](${s},${w},${n},${e});
+way[amenity=gym](${s},${w},${n},${e});
+node[sport=fitness][leisure!=fitness_station](${s},${w},${n},${e});
+way[sport=fitness][leisure!=fitness_station](${s},${w},${n},${e});
+);out geom tags;`;
+
+  let data=null;
+  for(let i=0;i<OVP.length;i++){
+    try{
+      setBar(true,`Serveur ${i+1}/3...`);
+      data=await ovpQuery(OVP[i],q);
+      break;
+    }catch(e){console.warn(`OVP[${i}]:`,e.message);data=null;}
+  }
+
+  if(!data){
+    setBar(false);
+    notif('Serveurs Overpass inaccessibles — réessayez','err');
+    fetching=false;return;
+  }
+
+  const seen=new Set(gyms.map(g=>g.lat.toFixed(4)+','+g.lon.toFixed(4)));
+  let added=0;
+  for(const el of data.elements){
+    // centroïde : node = point ; way/relation = barycentre de la géométrie (out geom)
+    let lat=el.lat,lon=el.lon;
+    if(lat==null){
+      if(el.center){lat=el.center.lat;lon=el.center.lon;}
+      else if(el.geometry&&el.geometry.length){const c=wayCentroid(el.geometry);lat=c[0];lon=c[1];}
+      else if(el.bounds){lat=(el.bounds.minlat+el.bounds.maxlat)/2;lon=(el.bounds.minlon+el.bounds.maxlon)/2;}
+    }
+    if(lat==null||lon==null)continue;
+    const t=el.tags||{};
+    // exclure street workout / équipements extérieurs gratuits + studios de yoga
+    if(t.leisure==='fitness_station'||t.fitness_station||t.sport==='calisthenics'||t.sport==='street_workout'||t.outdoor==='yes'||t.access==='no'||isYoga(t))continue;
+    const k=lat.toFixed(4)+','+lon.toFixed(4);
+    if(seen.has(k))continue;seen.add(k);
+    const cat=classifyGym(t);
+    const sz=gymSize(el,cat);
+    const surf=sz.area||CAT_AREA[cat]||600;                 // m² mesurés ou estimés par type
+    const r=Math.max(0.020,0.030*sz.mul);                   // rayon de chalandise (~2,5–4,5 km), croît avec la taille
+    const g={lat,lon,r,cat,size:sz.size,areaM2:sz.area,capacity:Math.round(surf*MEMBERS_PER_M2),
+      name:t.name||t['name:fr']||'Salle de sport',
+      addr:[t['addr:housenumber'],t['addr:street'],t['addr:city']].filter(Boolean).join(' ')||'',
+      phone:t.phone||t['contact:phone']||'',
+      web:t.website||t['contact:website']||'',
+      hours:t.opening_hours||'',
+      osmId:el.id,osmType:el.type||'node'};
+    const idx=gyms.length;gyms.push(g);atg(g,gymGrid);addMarker(g,idx);added++;
+  }
+
+  fetchedZones.push({s,w,n,e});
+  if(added>0){computeNorm();hLayer.redraw();}
+  saveGyms();
+  setBar(false);updCount();
+  notif(added>0?`✓ +${added} salle${added>1?'s':''} · ${gyms.length} au total`:`Zone à jour · ${gyms.length} salle${gyms.length>1?'s':''}  en cache`,'ok');
+  fetching=false;
+}
+
+// ── Clic carte ────────────────────────────────────────────────────────────────
+function initClick(){
+  map.on('click',e=>{
+    if(!normReady)return;clkLayer.clearLayers();isoLayer.clearLayers();hiLayer.clearLayers();isoPoint=null;
+    const{lat,lng}=e.latlng;
+    if(lat<FR.s-1||lat>FR.n+1||lng<FR.w-1||lng>FR.e+1)return;
+    const s=ns(lat,lng),p=Math.round(s*100),[r,g,b]=rgb(s),col=`rgb(${r},${g},${b})`;
+    const m=marketAt(lat,lng);
+    const inc=localIncome(lat,lng);
+    const incRow=inc?`<div class="gp-ro"><span class="gp-ic">💶</span><span>Revenu médian local ~${inc.toLocaleString('fr')} €/an</span></div>`:'';
+    const warn=map.getZoom()<9?'<div style="font-size:10px;color:#e87;margin-top:5px">Zoom 9+ pour les salles</div>':'';
+    L.circleMarker([lat,lng],{radius:8,color:'white',fillColor:col,fillOpacity:1,weight:2.5})
+     .addTo(clkLayer).bindPopup(`<div class="gp">
+       <div style="font-size:26px;font-weight:700;color:${col};line-height:1">${p}<span style="font-size:13px;color:#aaa;font-weight:400">/100</span></div>
+       <div style="font-size:13px;font-weight:600;margin:3px 0 8px;color:${col}">${slbl(p)}</div>
+       <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${Math.round(m.unmet).toLocaleString('fr')}</b> adhérents non desservis <i style="color:#999">(estim.)</i></span></div>
+       <div class="gp-ro"><span class="gp-ic">👥</span><span>~${Math.round(m.members).toLocaleString('fr')} potentiels · capacité existante ~${Math.round(m.capacity).toLocaleString('fr')}</span></div>
+       <div class="gp-ro"><span class="gp-ic">📍</span><span>${lat.toFixed(5)}°N · ${lng.toFixed(5)}°E</span></div>${incRow}${warn}
+       <button class="iso-btn" onclick="glIso(${lat},${lng},'auto')">🚗 Chiffres exacts (15 min)</button>
+       <button class="iso-btn" onclick="glIso(${lat},${lng},'pedestrian')">🏃 Chiffres exacts (15 min)</button>
+     </div>`,{offset:[0,-6]}).openPopup();
+  });
+}
+
+// ── Isochrone (zone de chalandise réelle, temps de trajet) ──────────────────────
+function gjToLatLngs(geom){
+  const rings=geom.type==='Polygon'?geom.coordinates:geom.coordinates.flat();
+  return rings.map(r=>r.map(c=>[c[1],c[0]]));
+}
+function pip(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}return inside;}
+function polyRing(geom){ return geom.type==='Polygon'?geom.coordinates[0]:geom.coordinates[0][0]; }
+function polyBox(ring){let minx=180,maxx=-180,miny=90,maxy=-90;for(const c of ring){if(c[0]<minx)minx=c[0];if(c[0]>maxx)maxx=c[0];if(c[1]<miny)miny=c[1];if(c[1]>maxy)maxy=c[1];}return{minx,maxx,miny,maxy};}
+// Population dans l'union de polygones = densité locale (hab/km²) × surface de l'union.
+// La population n'est connue qu'au centroïde des communes (trop grossier pour une petite
+// zone piétonne) → on passe par la densité ; l'aire de l'union est obtenue par échantillonnage.
+function isoStats(geoms,lat,lon){
+  if(!geoms.length)return{pop:0,areaKm2:0};
+  const rings=geoms.map(polyRing),boxes=rings.map(polyBox);
+  let minx=180,maxx=-180,miny=90,maxy=-90;
+  for(const b of boxes){if(b.minx<minx)minx=b.minx;if(b.maxx>maxx)maxx=b.maxx;if(b.miny<miny)miny=b.miny;if(b.maxy>maxy)maxy=b.maxy;}
+  const mx=111320*Math.cos(lat*Math.PI/180),my=110540,N=110,cw=(maxx-minx)/N,ch=(maxy-miny)/N;
+  const cellKm2=(cw*mx)*(ch*my)/1e6;
+  // somme sur les cellules de l'union : densité locale (≈ commune la plus proche) × aire de la cellule
+  let pop=0,inside=0;
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++){const x=minx+(i+.5)*cw,y=miny+(j+.5)*ch;
+    let isin=false;for(let k=0;k<rings.length;k++){const b=boxes[k];if(x<b.minx||x>b.maxx||y<b.miny||y>b.maxy)continue;if(pip(x,y,rings[k])){isin=true;break;}}
+    if(isin){inside++;pop+=densityAt(y,x)*cellKm2;}
+  }
+  return {pop:Math.round(pop),areaKm2:inside*cellKm2};
+}
+// Salles dans l'union de polygones (les salles sont des points → test direct)
+function gymsInPolygons(geoms){
+  const rings=geoms.map(polyRing),boxes=rings.map(polyBox);
+  let cap=0,count=0,list=[];
+  for(const g of gyms){for(let k=0;k<rings.length;k++){const b=boxes[k];if(g.lon<b.minx||g.lon>b.maxx||g.lat<b.miny||g.lat>b.maxy)continue;if(pip(g.lon,g.lat,rings[k])){cap+=g.capacity||0;count++;list.push(g);break;}}}
+  return {cap,count,list};
+}
+function isoStyle(mode,mins){ return mode==='pedestrian'?(mins>=15?'#34d399':'#059669'):(mins>=15?'#a78bfa':'#7c3aed'); }
+// Appel Valhalla robuste : ≥1,2 s entre requêtes (fair-use) + 3 tentatives avec backoff
+async function isoFetch(q){
+  const url=ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q));
+  let lastErr;
+  for(let attempt=0;attempt<3;attempt++){
+    const wait=Math.max(0,1200-(Date.now()-isoLast)); if(wait>0)await sleep(wait);
+    isoLast=Date.now();
+    try{
+      const r=await fetch(url);
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const fc=await r.json();
+      if(!fc.features||!fc.features.length)throw new Error('réponse vide');
+      return fc;
+    }catch(e){ lastErr=e; if(attempt<2){setBar(true,'Serveur occupé, nouvelle tentative…');await sleep(1500);} }
+  }
+  throw lastErr;
+}
+window.glIso=async function(lat,lon,mode){
+  mode=(mode==='pedestrian')?'pedestrian':'auto';
+  if(isoFetching)return;isoFetching=true;
+  // nouveau point → réinitialise la session (sinon on cumule voiture + à pied du même point)
+  if(!isoPoint||Math.abs(isoPoint[0]-lat)>1e-6||Math.abs(isoPoint[1]-lon)>1e-6){
+    isoPoint=[lat,lon];isoPolys={auto:null,pedestrian:null};isoGymList=[];isoLayer.clearLayers();
+  }
+  hiLayer.clearLayers();
+  const lbl=mode==='pedestrian'?'à pied':'en voiture';
+  setBar(true,`Zone de chalandise ${lbl}…`);
+  try{
+    const q={locations:[{lat,lon}],costing:mode,contours:[{time:10},{time:15}],polygons:true,denoise:.5,generalize:mode==='pedestrian'?25:60};
+    const fc=await isoFetch(q);
+    setBar(true,`Zone de chalandise ${lbl}…`);
+    const feats=(fc.features||[]).sort((a,b)=>b.properties.contour-a.properties.contour);
+    let poly15=null;
+    feats.forEach(f=>{
+      const mins=f.properties.contour,col=isoStyle(mode,mins);
+      L.polygon(gjToLatLngs(f.geometry),{color:col,weight:2,fillColor:col,fillOpacity:.1,dashArray:mins>=15?'5,4':null})
+        .addTo(isoLayer).bindTooltip(`${mins} min ${lbl}`,{sticky:true});
+      if(mins>=15)poly15=f.geometry;
+    });
+    isoPolys[mode]=poly15;
+    setBar(false);
+    showIsoResult(lat,lon,mode);
+  }catch(e){setBar(false);notif(`Zone ${lbl} indisponible (serveur isochrone occupé)`,'err');console.warn('iso:',e);}
+  isoFetching=false;
+};
+function showIsoResult(lat,lon){
+  const incF=incomeFactor(localIncome(lat,lon));
+  const carP=isoPolys.auto,walkP=isoPolys.pedestrian,polys=[carP,walkP].filter(Boolean);
+  const car=carP?isoStats([carP],lat,lon):null, walk=walkP?isoStats([walkP],lat,lon):null;
+  const uni=isoStats(polys,lat,lon);
+  const uMembers=Math.round(uni.pop*PENETRATION*incF);
+  const sup=gymsInPolygons(polys); isoGymList=sup.list;
+  const unmet=Math.max(0,uMembers-Math.round(sup.cap));
+  const nGyms=Math.floor(unmet/NEW_GYM_CAP);
+  const verdict=nGyms>=1?`✅ De la place pour ~${nGyms} nouvelle${nGyms>1?'s':''} salle${nGyms>1?'s':''}`
+    :(unmet>NEW_GYM_CAP*0.4?'≈ Place pour une petite salle':'⚠️ Marché quasi saturé');
+  const both=!!(carP&&walkP);
+  const rowCar=car?`<div class="gp-ro"><span class="gp-ic">🚗</span><span>voiture : ~${car.pop.toLocaleString('fr')} hab</span></div>`:'';
+  const rowWalk=walk?`<div class="gp-ro"><span class="gp-ic">🏃</span><span>à pied : ~${walk.pop.toLocaleString('fr')} hab</span></div>`:'';
+  const totLbl=both?'Total voiture + à pied (sans doublon)':(carP?'Total (voiture)':'Total (à pied)');
+  const hint=both?'':`<div style="font-size:10.5px;color:#9a9ab0;margin-top:2px">${carP?'➕ ajoute 🏃 pour compter les piétons':'➕ ajoute 🚗 pour compter la voiture'}</div>`;
+  L.popup({offset:[0,-4],maxWidth:285}).setLatLng([lat,lon]).setContent(`<div class="gp">
+    <div class="gp-name">Zone de chalandise · 15 min</div>
+    ${rowCar}${rowWalk}
+    <div class="gp-ro"><span class="gp-ic">👥</span><span><b>${totLbl}</b><br>~${uni.pop.toLocaleString('fr')} hab · ~${uMembers.toLocaleString('fr')} adhérents potentiels</span></div>
+    <div class="gp-ro iso-salles" onclick="glHiGyms()"><span class="gp-ic">🏋️</span><span>${sup.count} salle${sup.count>1?'s':''} · capacité ~${Math.round(sup.cap).toLocaleString('fr')} <u>surligner</u></span></div>
+    <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${unmet.toLocaleString('fr')} adhérents non desservis</b></span></div>
+    <div style="font-size:12px;font-weight:700;margin-top:6px;color:#7c3aed">${verdict}</div>${hint}
+    <button class="iso-btn" onclick="glIso(${lat},${lon},'auto')">🚗 Voiture 15 min</button>
+    <button class="iso-btn" onclick="glIso(${lat},${lon},'pedestrian')">🏃 À pied 15 min</button>
+  </div>`).openOn(map);
+}
+window.glHiGyms=function(){
+  if(hiLayer.getLayers().length){hiLayer.clearLayers();return;}   // bascule on/off
+  for(const g of isoGymList){
+    L.circleMarker([g.lat,g.lon],{radius:13,color:'#fde047',weight:3,fillColor:'#fde047',fillOpacity:.3})
+      .addTo(hiLayer).bindTooltip(`${g.name} · ~${(g.capacity||0).toLocaleString('fr')} adh.`,{direction:'top'});
+  }
+};
+
+// ── INSEE ─────────────────────────────────────────────────────────────────────
+// Revenu médian disponible par commune (INSEE Filosofi) → Map code INSEE -> €
+async function loadIncome(){
+  const m=new Map();
+  try{
+    const r=await fetch(INCOME_URL);
+    if(!r.ok)throw new Error('Filosofi HTTP '+r.status);
+    const rows=await r.json();
+    for(const row of rows){ if(row.med20) m.set(String(row.code_geographique),row.med20); }
+  }catch(e){ console.warn('Revenus indisponibles — score sans pouvoir d\'achat :',e.message); }
+  return m;
+}
+// Construit les communes + index spatial à partir d'un tableau compact
+function buildCommunes(arr){
+  communes=[];popGrid=Array.from({length:GX*GY},()=>[]);cenGrid=Array.from({length:CGX*CGY},()=>[]);
+  for(const c of arr){
+    const r=popR(c.pop),ww=pw(c.pop);
+    const com={lat:c.lat,lon:c.lon,pop:c.pop,inc:c.inc,surf:c.surf||0,dens:c.surf>0?c.pop/c.surf:0,r,w:ww};
+    communes.push(com);atg(com,popGrid);
+    const cx=Math.max(0,Math.min(CGX-1,Math.floor((c.lon-FR.w)/(FR.e-FR.w)*CGX)));
+    const cy=Math.max(0,Math.min(CGY-1,Math.floor((c.lat-FR.s)/(FR.n-FR.s)*CGY)));
+    cenGrid[cy*CGX+cx].push(com);
+  }
+  buildFlow();
+}
+// Densité locale (hab/km²) = densité de la commune dont le centroïde est le plus proche (≈ Voronoi)
+function densityAt(lat,lon){
+  if(!cenGrid)return 0;
+  const cos=Math.cos(lat*Math.PI/180);
+  const cx=Math.max(0,Math.min(CGX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*CGX)));
+  const cy=Math.max(0,Math.min(CGY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*CGY)));
+  let best=null,bd=1e9;
+  for(let R=1;R<=12&&!best;R++){
+    for(let y=Math.max(0,cy-R);y<=Math.min(CGY-1,cy+R);y++)for(let x=Math.max(0,cx-R);x<=Math.min(CGX-1,cx+R);x++){
+      for(const c of cenGrid[y*CGX+x]){const dl=lat-c.lat,dc=(lon-c.lon)*cos,d2=dl*dl+dc*dc;if(d2<bd){bd=d2;best=c;}}
+    }
+  }
+  return best?best.dens:0;
+}
+function cellIdx(lat,lon){ return Math.max(0,Math.min(GX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*GX)))+Math.max(0,Math.min(GY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*GY)))*GX; }
+// Flux domicile-travail (gravitaire) : chaque commune envoie ses actifs vers le pôle
+// d'emploi le plus proche ; on cumule le « passage » sur les cellules traversées par la ligne.
+// Rasterise un segment A→B en ajoutant m à chaque cellule traversée (une seule fois)
+function rasterFlow(grid,aLat,aLon,bLat,bLon,m){
+  const dist=Math.hypot(bLat-aLat,bLon-aLon), steps=Math.max(2,Math.ceil(dist/0.02));
+  let last=-1;
+  for(let s=0;s<=steps;s++){const t=s/steps,idx=cellIdx(aLat+(bLat-aLat)*t,aLon+(bLon-aLon)*t);if(idx!==last){grid[idx]+=m;last=idx;}}
+}
+function gridP95(grid){const v=[];for(let i=0;i<grid.length;i++)if(grid[i]>0)v.push(grid[i]);if(!v.length)return 1;v.sort((a,b)=>a-b);return v[Math.floor(v.length*0.95)]||v[v.length-1];}
+// v1 — gravitaire : chaque commune → pôle d'emploi le plus proche, pondéré par ses actifs
+function buildFlow(){
+  const grid=new Float64Array(GX*GY), poles=communes.filter(c=>c.pop>=EMPLOI_MIN);
+  if(poles.length){
+    const MAXD=0.30;                       // ~33 km max vers le pôle
+    for(const c of communes){
+      if(c.pop>=EMPLOI_MIN)continue;        // les pôles sont des destinations, pas des origines
+      const cos=Math.cos(c.lat*Math.PI/180);
+      let best=null,bd=MAXD*MAXD;
+      for(const p of poles){const dl=c.lat-p.lat,dc=(c.lon-p.lon)*cos,d2=dl*dl+dc*dc;if(d2<bd){bd=d2;best=p;}}
+      if(best)rasterFlow(grid,c.lat,c.lon,best.lat,best.lon,c.pop*ACTIVE_SHARE);
+    }
+  }
+  flowV1={grid,p95:gridP95(grid)};
+}
+// v2 — INSEE réel : corridors résidence→travail (>100 actifs), chargé à la demande + caché
+async function loadFlowV2(){
+  if(flowV2)return true;
+  setBar(true,'Chargement des flux INSEE…');
+  let rec=await idbGet('flux_v1');
+  if(!(rec&&rec.d&&Date.now()-rec.t<COMMUNES_TTL)){
+    try{
+      const r=await fetch(FLOW_URL); if(!r.ok)throw new Error('flux HTTP '+r.status);
+      const d=await r.json();
+      const od=d.map(x=>[x.coordonnees_residence&&x.coordonnees_residence.lat,x.coordonnees_residence&&x.coordonnees_residence.lon,x.coordonnees_travail&&x.coordonnees_travail.lat,x.coordonnees_travail&&x.coordonnees_travail.lon,x.nbflux_c15_actocc15p])
+        .filter(a=>a[0]!=null&&a[2]!=null);
+      rec={t:Date.now(),d:od}; idbSet('flux_v1',rec);
+    }catch(e){ setBar(false); notif('Flux INSEE indisponibles — réessayez','err'); console.warn('fluxV2:',e); return false; }
+  }
+  const grid=new Float64Array(GX*GY);
+  for(const a of rec.d) rasterFlow(grid,a[0],a[1],a[2],a[3],a[4]);
+  flowV2={grid,p95:gridP95(grid)};
+  setBar(false); return true;
+}
+// Lambert-93 (EPSG:2154) → WGS84 [lat,lon] — inverse Lambert conique conforme (constantes IGN)
+function lambert93ToLatLon(X,Y){
+  const e=0.0818191910428158,n=0.725607765053267,C=11754255.426096,Xs=700000,Ys=12655612.049876,lon0=3*Math.PI/180;
+  const dX=X-Xs,dY=Y-Ys,R=Math.sqrt(dX*dX+dY*dY),g=Math.atan2(dX,-dY);
+  const lon=lon0+g/n,liso=-1/n*Math.log(R/C);
+  let phi=2*Math.atan(Math.exp(liso))-Math.PI/2;
+  for(let i=0;i<8;i++){const s=e*Math.sin(phi);phi=2*Math.atan(Math.pow((1+s)/(1-s),e/2)*Math.exp(liso))-Math.PI/2;}
+  return [phi*180/Math.PI,lon*180/Math.PI];
+}
+// v3 — Trafic modélisé : navettes domicile-travail INSEE routées sur le vrai réseau routier
+// (OSRM, hors autoroutes), précalculé hors-ligne. On charge juste assign.json → instantané.
+async function loadFlowV3(){
+  if(flowV3)return true;
+  setBar(true,'Chargement du trafic modélisé…');
+  try{
+    const r=await fetch('assign.json',{cache:'force-cache'}); if(!r.ok)throw new Error('assign '+r.status);
+    const d=await r.json();
+    const grid=new Float64Array(GX*GY), g=d.grid||[];
+    for(let i=0;i<grid.length&&i<g.length;i++)grid[i]=g[i];   // grille déjà agrégée par le routage
+    roadSegs=d.roads||[];
+    buildRoadIndex();                                        // index spatial → flux localisé aux axes
+    flowV3={grid,p95:gridP95(grid)};
+    setBar(false); return true;
+  }catch(e){ setBar(false); notif('Trafic modélisé indisponible (assign.json manquant)','err'); console.warn('flowV3:',e); return false; }
+}
+function activeFlow(){ return flowMode==='off'?null:(flowMode==='v3'?flowV3:flowMode==='v2'?flowV2:flowV1); }
+// Interpolation bilinéaire de la grille de flux (v1/v2) sur les centres de cellules → gradients lisses (fin des rectangles)
+function bilinearGrid(grid,lat,lon){
+  const fx=(lon-FR.w)/(FR.e-FR.w)*GX-0.5, fy=(lat-FR.s)/(FR.n-FR.s)*GY-0.5;
+  const x0=Math.floor(fx), y0=Math.floor(fy), tx=fx-x0, ty=fy-y0;
+  const at=(x,y)=>(x<0||x>=GX||y<0||y>=GY)?0:grid[x+y*GX];
+  const a=at(x0,y0),b=at(x0+1,y0),c=at(x0,y0+1),d=at(x0+1,y0+1);
+  return a*(1-tx)*(1-ty)+b*tx*(1-ty)+c*(1-tx)*ty+d*tx*ty;
+}
+// ── Index spatial du flux routier (v3) : segments → points de passage, hash ~500 m ──────────────
+const rfKey=(ix,iy)=>ix+','+iy;
+function buildRoadIndex(){
+  roadPts=[]; roadHash=new Map(); roadFluxReady=false;
+  if(!roadSegs||!roadSegs.length)return;
+  for(const s of roadSegs){                         // un point de passage au milieu de chaque segment
+    const la=(s[0]+s[2])/2, lo=(s[1]+s[3])/2;
+    const idx=roadPts.push({lat:la,lon:lo,t:s[4]})-1;
+    const k=rfKey(Math.floor(lo/RF_CELL),Math.floor(la/RF_CELL));
+    let arr=roadHash.get(k); if(!arr){arr=[];roadHash.set(k,arr);} arr.push(idx);
+  }
+  // échelle : p95 du flux localisé mesuré SUR les axes → un axe très fréquenté ≈ PASSING_MAX
+  const sample=[], step=Math.max(1,Math.floor(roadPts.length/4000));
+  for(let i=0;i<roadPts.length;i+=step)sample.push(roadFluxRaw(roadPts[i].lat,roadPts[i].lon));
+  sample.sort((a,b)=>a-b);
+  roadFluxScale=sample.length?(sample[Math.floor(sample.length*0.95)]||sample[sample.length-1]):1;
+  if(roadFluxScale<=0)roadFluxScale=1;
+  roadFluxReady=true;
+}
+// Flux de passage brut à un point : Σ trafic des axes proches, décroissance gaussienne, coupée ~310 m
+function roadFluxRaw(lat,lon){
+  if(!roadHash)return 0;
+  const cos=Math.cos(lat*Math.PI/180), ix=Math.floor(lon/RF_CELL), iy=Math.floor(lat/RF_CELL);
+  const cut2=RF_CUT*RF_CUT, s2=2*RF_SIGMA*RF_SIGMA; let f=0;
+  for(let gx=ix-1;gx<=ix+1;gx++)for(let gy=iy-1;gy<=iy+1;gy++){
+    const arr=roadHash.get(rfKey(gx,gy)); if(!arr)continue;
+    for(const k of arr){const p=roadPts[k],dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc;
+      if(d2<=cut2)f+=p.t*Math.exp(-d2/s2);}
+  }
+  return f;
+}
+function roadFlux(lat,lon){ return roadFluxReady?roadFluxRaw(lat,lon)/roadFluxScale:0; }  // ≈ [0 .. 1+]
+// Calque « routes » : tronçons colorés/épaissis selon le trafic modélisé (navettes routées)
+function roadColor(t){ const x=Math.max(0,Math.min(1,Math.log10(Math.max(t,1))/5)); return `rgb(${Math.round(40+215*x)},${Math.round(110*(1-x))},${Math.round(210*(1-x))})`; }
+// Calque routier : vraies lignes continues, colorées/épaissies selon le trafic. Rendu canvas + filtrage
+// par vue et par zoom (les gros corridors seuls à petit zoom) → fluide même avec des dizaines de milliers d'arêtes.
+function drawRoads(){
+  roadLayer.clearLayers();
+  if(!roadSegs||flowMode!=='v3')return;
+  const b=map.getBounds(),z=map.getZoom();
+  const S=b.getSouth(),N=b.getNorth(),W=b.getWest(),E=b.getEast();
+  const minT=z>=13?1:z>=11?200:z>=9?900:z>=7?3000:9000;    // seuil de trafic croissant quand on dézoome
+  const rnd=L.canvas({padding:.2}); let cnt=0;
+  for(const s of roadSegs){                                  // roadSegs trié par trafic décroissant
+    if(s[4]<minT)break;
+    if(Math.max(s[0],s[2])<S||Math.min(s[0],s[2])>N||Math.max(s[1],s[3])<W||Math.min(s[1],s[3])>E)continue;
+    const x=Math.min(1,Math.log10(Math.max(s[4],1))/5);
+    L.polyline([[s[0],s[1]],[s[2],s[3]]],{renderer:rnd,color:roadColor(s[4]),weight:1+3.5*x,opacity:.85,interactive:false}).addTo(roadLayer);
+    if(++cnt>=25000)break;                                   // garde-fou perf
+  }
+}
+async function loadFrance(){
+  startPB();
+  try{
+    const cached=await idbGet('communes_v3');
+    if(cached&&cached.d&&Date.now()-cached.t<COMMUNES_TTL){
+      document.getElementById('ld-t').textContent='Lecture du cache local…';
+      document.getElementById('ld-s').textContent=cached.d.length.toLocaleString('fr')+' communes (cache)';
+      await sleep(20);buildCommunes(cached.d);
+    }else{
+      const resp=await fetch('https://geo.api.gouv.fr/communes?fields=nom,code,centre,population,surface&format=json&geometry=centre');
+      if(!resp.ok)throw new Error('INSEE HTTP '+resp.status);
+      const data=await resp.json();
+      document.getElementById('ld-t').textContent='Revenus médians (INSEE Filosofi)…';
+      const inc=await loadIncome();
+      document.getElementById('ld-t').textContent='Indexation spatiale…';
+      document.getElementById('ld-s').textContent=data.length.toLocaleString('fr')+' communes';
+      await sleep(20);
+      const compact=[];
+      for(const c of data){
+        if(!c.centre)continue;
+        const lon=c.centre.coordinates[0],lat=c.centre.coordinates[1];
+        if(lat<FR.s||lat>FR.n||lon<FR.w||lon>FR.e)continue;
+        compact.push({lat,lon,pop:c.population||150,inc:inc.get(c.code)||0,surf:(c.surface||0)/100}); // surface ha → km²
+      }
+      buildCommunes(compact);
+      idbSet('communes_v3',{t:Date.now(),d:compact});
+    }
+    document.getElementById('ld-t').textContent='Calcul échelle globale…';
+    await sleep(20);computeNorm();endPB();await sleep(200);
+    document.getElementById('ld0').style.display='none';
+    document.getElementById('leg').style.display='block';
+    await restoreGyms();
+    hLayer.redraw();updZtip();
+    notif('✓ '+communes.length.toLocaleString('fr')+' communes · Zoomez 9+ pour les salles','ok');
+  }catch(e){
+    endPB();document.getElementById('ld-t').textContent='Erreur de chargement';
+    document.getElementById('ld-s').textContent=e.message;console.error(e);
+  }
+}
+
+// ── Recherche ─────────────────────────────────────────────────────────────────
+async function doSearch(q){
+  if(!q.trim())return;
+  try{
+    const r=await nomFetch(`/search?format=json&q=${encodeURIComponent(q)}&limit=1&accept-language=fr&countrycodes=fr`);
+    const d=await r.json();if(!d.length){notif('Lieu introuvable','err');return;}
+    const p=d[0];let s,w,n,e;
+    if(p.boundingbox)[s,n,w,e]=p.boundingbox.map(Number);
+    else{const dv=.08;s=+p.lat-dv;n=+p.lat+dv;w=+p.lon-dv*1.5;e=+p.lon+dv*1.5;}
+    if(n-s>.4){const c=(s+n)/2;s=c-.16;n=c+.16;}if(e-w>.6){const c=(w+e)/2;w=c-.27;e=c+.27;}
+    map.fitBounds([[s,w],[n,e]],{maxZoom:13});
+  }catch(e){notif('Erreur réseau','err');}
+}
+async function getSugs(q){
+  try{
+    const r=await nomFetch(`/search?format=json&q=${encodeURIComponent(q)}&limit=5&accept-language=fr&countrycodes=fr`);
+    const d=await r.json(),el=document.getElementById('sugs');
+    el.innerHTML='';if(!d.length){el.style.display='none';return;}
+    d.forEach(item=>{const div=document.createElement('div');div.className='sug';div.textContent=item.display_name;div.onclick=()=>{document.getElementById('si').value=item.display_name;el.style.display='none';doSearch(item.display_name);};el.appendChild(div);});
+    el.style.display='block';
+  }catch(e){}
+}
+
+window.glTog=function(l){
+  if(l==='score'){showScore=!showScore;document.getElementById('t-score').classList.toggle('on',showScore);hLayer.redraw();}
+  if(l==='gyms'){showGyms=!showGyms;document.getElementById('t-gyms').classList.toggle('on',showGyms);syncVis();}
+};
+window.glInfo=function(show){ document.getElementById('infomodal').style.display=(show===false)?'none':'flex'; };
+// Retire toutes les salles chargées (allège l'affichage quand beaucoup de salles ralentissent) — #3
+window.glClearGyms=function(){
+  if(!gyms.length){notif('Aucune salle chargée','warn');return;}
+  const n=gyms.length;
+  gymMarkers.forEach(m=>{if(gymLayer.hasLayer(m))gymLayer.removeLayer(m);});
+  gymMarkers.clear(); gymLayer.clearLayers(); hiLayer.clearLayers();
+  gyms=[]; gymGrid=Array.from({length:GX*GY},()=>[]); fetchedZones=[]; isoGymList=[];
+  idbSet('gyms_v5',{t:Date.now(),gyms:[],zones:[]});          // vide aussi le cache
+  computeNorm(); hLayer.redraw(); updCount();
+  notif(`🧹 ${n} salle${n>1?'s':''} retirée${n>1?'s':''} — repannez/zoomez pour recharger`,'ok');
+};
+// Sélecteur de modèle de flux : Gravitaire (v1) → INSEE réel (v2) → Off, et compare en direct
+window.glFlowMode=async function(){
+  const order=['v1','v2','v3','off'], next=order[(order.indexOf(flowMode)+1)%4];
+  if(next==='v2'&&!await loadFlowV2())return;
+  if(next==='v3'&&!await loadFlowV3())return;
+  flowMode=next;
+  if(flowMode==='v3')drawRoads(); else roadLayer.clearLayers();
+  const lbl=flowMode==='v1'?'gravitaire':flowMode==='v2'?'INSEE réel':flowMode==='v3'?'trafic (navettes)':'off';
+  const btn=document.getElementById('t-flow');
+  btn.textContent='🛣️ Flux : '+lbl; btn.classList.toggle('on',flowMode!=='off');
+  computeNorm(); hLayer.redraw();
+  if(bestLayer.getLayers().length)glBest();   // reclasse les meilleures zones pour la comparaison
+  notif('Modèle de flux : '+(flowMode==='v1'?'gravitaire (v1)':flowMode==='v2'?'INSEE réel 2015 (v2)':flowMode==='v3'?'trafic modélisé · navettes routées (v3)':'désactivé'),'ok');
+};
+// Propose les meilleures zones d'implantation de la vue courante (demande non satisfaite max)
+window.glBest=function(){
+  if(!normReady)return;
+  bestLayer.clearLayers();clkLayer.clearLayers();
+  const b=map.getBounds();
+  const s=Math.max(b.getSouth(),FR.s),n=Math.min(b.getNorth(),FR.n),w=Math.max(b.getWest(),FR.w),e=Math.min(b.getEast(),FR.e);
+  if(n<=s||e<=w){notif('Vue hors de France','err');return;}
+  const NX=60,NY=40,cells=[];
+  for(let i=0;i<NX;i++)for(let j=0;j<NY;j++){
+    const lon=w+(i+.5)*(e-w)/NX,lat=s+(j+.5)*(n-s)/NY,u=rawScore(lat,lon);
+    if(u>0)cells.push({lat,lon,u});
+  }
+  cells.sort((a,b)=>b.u-a.u);
+  const minD=(e-w)/12,picks=[];                 // suppression des voisins trop proches
+  for(const c of cells){ if(picks.length>=8)break; if(picks.every(p=>Math.hypot(p.lat-c.lat,p.lon-c.lon)>minD))picks.push(c); }
+  if(!picks.length){notif('Aucune zone à fort potentiel dans cette vue','warn');return;}
+  picks.forEach((c,i)=>{
+    const rank=i+1,m=marketAt(c.lat,c.lon);
+    const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-15]});
+    L.marker([c.lat,c.lon],{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
+      <div class="gp-name">#${rank} · Zone à fort potentiel</div>
+      <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${Math.round(m.unmet).toLocaleString('fr')}</b> adhérents non desservis <i style="color:#999">(estim.)</i></span></div>
+      <div class="gp-ro"><span class="gp-ic">📍</span><span>${c.lat.toFixed(4)}°N · ${c.lon.toFixed(4)}°E</span></div>
+      <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'auto')">🚗 Chiffres exacts (15 min)</button>
+      <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'pedestrian')">🏃 Chiffres exacts (15 min)</button>
+    </div>`);
+  });
+  notif(map.getZoom()<9?`🎯 ${picks.length} zones · zoomez 9+ pour intégrer les salles`:`🎯 ${picks.length} meilleures zones de la vue`, map.getZoom()<9?'warn':'ok');
+};
+function setBar(on,txt){const el=document.getElementById('bar');el.style.display=on?'flex':'none';if(txt)document.getElementById('bar-txt').textContent=txt;}
+function updZtip(){if(!normReady)return;document.getElementById('ztip').style.display=map.getZoom()<9?'block':'none';}
+function notif(msg,type){
+  const el=document.getElementById('ntf');el.textContent=msg;el.style.display='block';
+  const st={ok:['#0d2e1a','1px solid #1a5c32','#4ade80'],warn:['#2a250d','1px solid #5c4e1a','#fbbf24'],err:['#2e0d0d','1px solid #5c1a1a','#f87171']};
+  const[bg,bd,col]=(st[type]||st.ok);el.style.background=bg;el.style.border=bd;el.style.color=col;
+  clearTimeout(ntfT);ntfT=setTimeout(()=>el.style.display='none',8000);
+}
+function startPB(){let p=0;const b=document.getElementById('pb');pbT=setInterval(()=>{p=Math.min(p+(Math.random()*3+.4),84);b.style.width=p+'%';},110);}
+function endPB(){clearInterval(pbT);document.getElementById('pb').style.width='100%';}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function init(){
+  map=L.map('map',{center:[46.8,2.3],zoom:6});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
+  gymLayer=L.layerGroup().addTo(map);clkLayer=L.layerGroup().addTo(map);isoLayer=L.layerGroup().addTo(map);hiLayer=L.layerGroup().addTo(map);bestLayer=L.layerGroup().addTo(map);roadLayer=L.layerGroup().addTo(map);
+  initHeat();initClick();
+  const inp=document.getElementById('si'),btn=document.getElementById('sb'),sugs=document.getElementById('sugs');
+  inp.addEventListener('input',()=>{clearTimeout(sugT);const q=inp.value.trim();if(q.length<3){sugs.style.display='none';return;}sugT=setTimeout(()=>getSugs(q),500);});
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){sugs.style.display='none';doSearch(inp.value.trim());}});
+  btn.onclick=()=>{sugs.style.display='none';doSearch(inp.value.trim());};
+  document.addEventListener('click',e=>{if(!document.getElementById('sw').contains(e.target))sugs.style.display='none';});
+  map.on('moveend',()=>{clearTimeout(mvT);if(flowMode==='v3')drawRoads();mvT=setTimeout(()=>{updZtip();if(normReady&&map.getZoom()>=9&&!fetching)fetchGyms();},700);});
+  map.on('zoomend',updZtip);
+  document.getElementById('infomodal').addEventListener('click',e=>{if(e.target.id==='infomodal')glInfo(false);});
+  loadFrance();
+}
+init();
+})();
+</script>
+</body>
+</html>

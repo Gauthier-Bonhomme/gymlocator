@@ -3,164 +3,205 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GymLocator Pro</title>
+<title>GymLocator — analyse d'implantation fitness</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
+:root{
+  --bg:#0e1116;--panel:#151922;--panel2:#1a1f2b;--border:#252b38;--border2:#2f3646;
+  --txt:#dbe0ea;--txt2:#8b93a7;--txt3:#5b6274;--accent:#4c6ef5;--accent2:#6e8bff;
+  --ok:#34d399;--warn:#fbbf24;--err:#f87171;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-#hdr{height:52px;background:#16161e;border-bottom:1px solid #2a2a3a;display:flex;align-items:center;padding:0 16px;gap:10px;z-index:1200;flex-shrink:0}
-#logo{font-size:14px;font-weight:700;color:#a78bfa;white-space:nowrap}
-#sw{flex:1;max-width:320px;position:relative}
-#si{width:100%;font-size:13px;padding:7px 32px 7px 12px;border:1px solid #2a2a3a;border-radius:8px;background:#1e1e2a;color:#e8e8f0;outline:none;transition:border-color .2s}
-#si:focus{border-color:#a78bfa}
-#si::placeholder{color:#44445a}
-#sb{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:22px;height:22px;background:#7c3aed;border:none;border-radius:5px;color:white;cursor:pointer;font-size:13px}
-#sugs{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a26;border:1px solid #2a2a3a;border-radius:8px;z-index:3000;display:none;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5)}
-.sug{padding:9px 13px;font-size:12px;cursor:pointer;color:#9999bb;border-bottom:1px solid #22223a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sug:last-child{border-bottom:none}.sug:hover{background:#25253a;color:#e8e8f0}
-#togs{display:flex;gap:5px;margin-left:auto}
-.tbtn{font-size:11px;padding:5px 11px;border:1px solid #2a2a3a;border-radius:7px;background:#1e1e2a;color:#777799;cursor:pointer;transition:all .15s;white-space:nowrap}
-.tbtn.on{background:#7c3aed;border-color:#7c3aed;color:white}
+body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#hdr{height:54px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:14px;z-index:1200;flex-shrink:0}
+#logo{display:flex;flex-direction:column;line-height:1.15;white-space:nowrap}
+#logo b{font-size:14.5px;font-weight:700;color:var(--txt);letter-spacing:.02em}
+#logo span{font-size:9.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.09em}
+#sw{flex:1;max-width:330px;position:relative}
+#si{width:100%;font-size:12.5px;padding:7px 32px 7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--txt);outline:none;transition:border-color .2s}
+#si:focus{border-color:var(--accent)}
+#si::placeholder{color:var(--txt3)}
+#sb{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;background:var(--accent);border:none;border-radius:4px;color:white;cursor:pointer;font-size:12px}
+#sugs{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--panel2);border:1px solid var(--border2);border-radius:6px;z-index:3000;display:none;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.sug{padding:9px 13px;font-size:12px;cursor:pointer;color:var(--txt2);border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug:last-child{border-bottom:none}.sug:hover{background:#222839;color:var(--txt)}
+#togs{display:flex;gap:6px;margin-left:auto}
+.tbtn{font-size:11px;font-weight:600;padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--txt2);cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:.01em}
+.tbtn:hover{border-color:var(--border2);color:var(--txt)}
+.tbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
 #mw{flex:1;position:relative;overflow:hidden}
 #map{width:100%;height:100%}
-.gm{width:28px;height:28px;background:#7c3aed;border:3px solid #fff;border-radius:50%;box-shadow:0 3px 10px rgba(124,58,237,.6);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:transform .12s}
-.gm:hover{transform:scale(1.3)}
-.bestm{width:30px;height:30px;background:#d53e4f;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;box-shadow:0 3px 12px rgba(213,62,79,.7);cursor:pointer;transition:transform .12s}
-.bestm:hover{transform:scale(1.2)}
-.gp{min-width:200px;font-family:'Segoe UI',system-ui,sans-serif}
-.gp-name{font-size:13px;font-weight:700;margin-bottom:8px;line-height:1.4;color:#111}
-.gp-sr{display:flex;gap:9px;align-items:center;margin-bottom:9px}
-.gp-ci{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:white;flex-shrink:0}
-.gp-me{font-size:11px;color:#555;line-height:1.7}
-.gp-dv{border-top:1px solid #eee;margin:7px 0}
-.gp-ro{display:flex;gap:6px;font-size:11px;color:#444;margin-bottom:4px;align-items:flex-start}
-.gp-ic{width:15px;flex-shrink:0;text-align:center}
-.gp-cat{display:inline-block;font-size:9px;padding:2px 8px;border-radius:10px;background:#ede9fe;color:#6d28d9;font-weight:700;margin-bottom:7px;letter-spacing:.02em}
-.iso-btn{margin-top:9px;width:100%;padding:6px 8px;font-size:11px;font-weight:600;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit}
-.iso-btn:hover{background:#6d28d9}.iso-btn:disabled{opacity:.5;cursor:default}
+/* Popups sombres, structurés en libellé / valeur */
+.leaflet-popup-content-wrapper{background:var(--panel2);color:var(--txt);border:1px solid var(--border2);border-radius:9px;box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.leaflet-popup-tip{background:var(--panel2);border:1px solid var(--border2)}
+.leaflet-popup-close-button{color:var(--txt3) !important}
+.leaflet-popup-close-button:hover{color:var(--txt) !important}
+.gp{min-width:230px;font-family:inherit}
+.gp-name{font-size:13px;font-weight:700;margin-bottom:2px;line-height:1.35;color:var(--txt)}
+.gp-sub{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px}
+.gp-cat{display:inline-block;font-size:9px;padding:2px 8px;border-radius:4px;font-weight:700;margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;padding:4px 0;border-bottom:1px solid var(--border)}
+.kv:last-of-type{border-bottom:none}
+.kv .k{color:var(--txt2)}
+.kv .v{color:var(--txt);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.kv .v small{color:var(--txt3);font-weight:400}
+.gp-score{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.gp-score b{font-size:26px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.gp-score span{font-size:12px;font-weight:600}
+.gp-verdict{font-size:12px;font-weight:700;margin-top:8px}
+.gp-note{font-size:10px;color:var(--txt3);margin-top:5px;line-height:1.5}
+.iso-btn{margin-top:9px;width:100%;padding:7px 8px;font-size:11px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;letter-spacing:.01em}
+.iso-btn:hover{background:#5d7cf7}
 .iso-btn + .iso-btn{margin-top:5px}
-.iso-salles{cursor:pointer;color:#7c3aed;border-radius:5px;transition:background .12s}
-.iso-salles:hover{background:#f1edff}.iso-salles u{color:#a78bfa}
-#ld0{position:absolute;inset:0;background:#0f0f13;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2000}
-#ld-t{font-size:17px;font-weight:600;color:#e8e8f0}
-#ld-s{font-size:12px;color:#55557a;text-align:center;max-width:340px;line-height:1.6}
-#pbw{width:280px;height:4px;background:#1e1e2a;border-radius:2px;overflow:hidden}
-#pb{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:2px;width:0%;transition:width .3s}
-.spn{width:36px;height:36px;border:3px solid #1e1e2a;border-top-color:#7c3aed;border-radius:50%;animation:rot .7s linear infinite}
+.iso-btn.sec{background:transparent;border:1px solid var(--border2);color:var(--txt2)}
+.iso-btn.sec:hover{color:var(--txt);border-color:var(--txt3)}
+.iso-salles{cursor:pointer}
+.iso-salles .v{color:var(--accent2);text-decoration:underline;text-underline-offset:2px}
+.bestm{width:26px;height:26px;background:var(--accent);border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;box-shadow:0 3px 12px rgba(76,110,245,.55);cursor:pointer;transition:transform .12s;font-variant-numeric:tabular-nums}
+.bestm:hover{transform:scale(1.15)}
+#ld0{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2000}
+#ld-t{font-size:16px;font-weight:600;color:var(--txt)}
+#ld-s{font-size:12px;color:var(--txt3);text-align:center;max-width:340px;line-height:1.6}
+#pbw{width:280px;height:3px;background:var(--panel2);border-radius:2px;overflow:hidden}
+#pb{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s}
+.spn{width:34px;height:34px;border:3px solid var(--panel2);border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
-#bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#16161eee;border:1px solid #2a2a3a;border-radius:20px;padding:7px 15px;font-size:11px;color:#9999bb;z-index:1000;display:none;gap:9px;align-items:center;white-space:nowrap;backdrop-filter:blur(8px)}
-.bsp{width:11px;height:11px;border:1.5px solid #33335a;border-top-color:#a78bfa;border-radius:50%;animation:rot .7s linear infinite;flex-shrink:0}
-#ztip{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(124,58,237,.9);border-radius:20px;padding:7px 18px;font-size:11px;color:white;z-index:900;display:none;white-space:nowrap;pointer-events:none}
-#ntf{position:absolute;top:12px;left:50%;transform:translateX(-50%);border-radius:20px;padding:7px 16px;font-size:11px;z-index:2100;display:none;white-space:nowrap;pointer-events:none}
-#gcnt{position:absolute;bottom:22px;left:14px;background:#16161ecc;border:1px solid #2a2a3a;border-radius:12px;padding:7px 13px;z-index:900;font-size:11px;color:#9999bb;display:none;backdrop-filter:blur(8px)}
-#leg{position:absolute;bottom:22px;right:14px;background:#16161eee;border:1px solid #2a2a3a;border-radius:12px;padding:13px 15px;z-index:800;min-width:165px;display:none;backdrop-filter:blur(8px)}
-.lt{font-size:9px;color:#55557a;font-weight:700;margin-bottom:7px;text-transform:uppercase;letter-spacing:.07em}
-.lbar{height:7px;border-radius:4px;background:linear-gradient(to right,#3288bd,#66c2a5,#abdda4,#e6f598,#fee08b,#fdae61,#f46d43,#d53e4f);margin-bottom:4px}
-.llbl{display:flex;justify-content:space-between;font-size:9px;color:#55557a;margin-bottom:8px}
-.lsep{border-top:1px solid #2a2a3a;margin:7px 0}
-.lrow{display:flex;align-items:center;gap:7px;font-size:10px;color:#9999bb;margin-bottom:4px}
-.ldot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.lsrc{font-size:9px;color:#33335a;margin-top:6px;line-height:1.7}
-.leaflet-tile-pane{filter:brightness(.85) saturate(.75)}
-
-/* Bannière mode file:// */
-#filewarn{position:absolute;inset:0;background:#0f0f13;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999;padding:40px;text-align:center}
-#filewarn h2{color:#a78bfa;font-size:20px}
-#filewarn p{color:#9999bb;font-size:14px;line-height:1.7;max-width:500px}
-#filewarn code{background:#1e1e2a;border:1px solid #2a2a3a;border-radius:6px;padding:10px 18px;font-size:13px;color:#a78bfa;display:block;margin:8px 0;font-family:monospace}
-#filewarn .note{font-size:12px;color:#55557a}
-
-/* Fenêtre méthode / aide */
-#infomodal{position:absolute;inset:0;background:rgba(8,8,14,.72);display:none;align-items:center;justify-content:center;z-index:3000;backdrop-filter:blur(3px);padding:20px}
-#infobox{position:relative;background:#16161e;border:1px solid #2a2a3a;border-radius:14px;max-width:460px;width:100%;max-height:100%;overflow:auto;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
-#infobox h2{color:#a78bfa;font-size:16px;margin-bottom:6px;padding-right:24px}
-#infobox h3{color:#e8e8f0;font-size:11px;margin:15px 0 7px;text-transform:uppercase;letter-spacing:.06em}
-#infobox p{font-size:12.5px;color:#b8b8cc;line-height:1.65;margin-bottom:6px}
-#infobox b{color:#e8e8f0;font-weight:600}
-#infobox .f{background:#1e1e2a;border:1px solid #2a2a3a;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#cdcde0;line-height:1.9;margin:6px 0}
-#infobox .src{display:flex;gap:8px;font-size:12px;color:#b8b8cc;line-height:1.5;margin-bottom:6px}
-#infobox ul{margin:0 0 0 17px;padding:0}#infobox li{font-size:12.5px;color:#b8b8cc;line-height:1.6;margin-bottom:5px}
-#infobox .warn{margin-top:14px;background:#2a250d;border:1px solid #5c4e1a;border-radius:8px;padding:9px 11px;color:#fbbf24;font-size:11.5px;line-height:1.55}
-#infoclose{position:absolute;top:12px;right:14px;cursor:pointer;color:#777799;font-size:22px;line-height:1;border:none;background:none}
-#infoclose:hover{color:#e8e8f0}
+#bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#151922ee;border:1px solid var(--border2);border-radius:6px;padding:7px 14px;font-size:11px;color:var(--txt2);z-index:1000;display:none;gap:9px;align-items:center;white-space:nowrap;backdrop-filter:blur(8px)}
+.bsp{width:11px;height:11px;border:1.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite;flex-shrink:0}
+#ntf{position:absolute;top:12px;left:50%;transform:translateX(-50%);border-radius:6px;padding:7px 14px;font-size:11px;z-index:2100;display:none;white-space:nowrap;pointer-events:none;font-weight:600}
+#gcnt{position:absolute;bottom:22px;left:14px;background:#151922dd;border:1px solid var(--border);border-radius:8px;padding:7px 12px;z-index:900;font-size:11px;color:var(--txt2);display:none;backdrop-filter:blur(8px)}
+#leg{position:absolute;bottom:22px;right:14px;background:#151922f2;border:1px solid var(--border);border-radius:10px;padding:13px 15px;z-index:800;min-width:196px;display:none;backdrop-filter:blur(8px)}
+.lt{font-size:9px;color:var(--txt3);font-weight:700;margin-bottom:7px;text-transform:uppercase;letter-spacing:.09em}
+.lbar{height:6px;border-radius:3px;margin-bottom:4px}
+.llbl{display:flex;justify-content:space-between;font-size:9px;color:var(--txt3);margin-bottom:8px}
+.lsep{border-top:1px solid var(--border);margin:8px 0}
+.lrow{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--txt2);margin-bottom:5px;cursor:pointer;user-select:none}
+.lrow:hover{color:var(--txt)}
+.lrow input{accent-color:var(--accent);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.lsrc{font-size:9px;color:var(--txt3);margin-top:7px;line-height:1.7}
+.leaflet-tile-pane{filter:brightness(.85) saturate(.7)}
+#filewarn{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999;padding:40px;text-align:center}
+#filewarn h2{color:var(--accent2);font-size:19px}
+#filewarn p{color:var(--txt2);font-size:14px;line-height:1.7;max-width:500px}
+#filewarn code{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:10px 18px;font-size:13px;color:var(--accent2);display:block;margin:8px 0;font-family:Consolas,monospace}
+#filewarn .note{font-size:12px;color:var(--txt3)}
+#infomodal{position:absolute;inset:0;background:rgba(6,8,12,.75);display:none;align-items:center;justify-content:center;z-index:3000;backdrop-filter:blur(3px);padding:20px}
+#infobox{position:relative;background:var(--panel);border:1px solid var(--border2);border-radius:12px;max-width:560px;width:100%;max-height:100%;overflow:auto;padding:22px 24px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#infobox h2{color:var(--txt);font-size:16px;margin-bottom:4px;padding-right:24px;letter-spacing:.01em}
+#infobox .h2sub{font-size:11px;color:var(--txt3);margin-bottom:12px}
+#infobox h3{color:var(--accent2);font-size:10.5px;margin:17px 0 7px;text-transform:uppercase;letter-spacing:.09em}
+#infobox p{font-size:12.5px;color:#b6bdcd;line-height:1.65;margin-bottom:7px}
+#infobox b{color:var(--txt);font-weight:600}
+#infobox .f{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:12px;color:#c6ccda;line-height:1.9;margin:7px 0}
+#infobox ol{margin:0 0 0 18px;padding:0}
+#infobox ul{margin:0 0 0 17px;padding:0}
+#infobox li{font-size:12.5px;color:#b6bdcd;line-height:1.6;margin-bottom:6px}
+#infobox .src{display:flex;gap:8px;font-size:12px;color:#b6bdcd;line-height:1.5;margin-bottom:6px}
+#infobox .warn{margin-top:14px;background:#251d0c;border:1px solid #574a1d;border-radius:8px;padding:10px 12px;color:#e5c25b;font-size:11.5px;line-height:1.6}
+#infobox .val{margin-top:8px;background:#0c1d2b;border:1px solid #1d4258;border-radius:8px;padding:10px 12px;color:#7cc4ea;font-size:11.5px;line-height:1.6}
+#infoclose{position:absolute;top:12px;right:14px;cursor:pointer;color:var(--txt3);font-size:22px;line-height:1;border:none;background:none}
+#infoclose:hover{color:var(--txt)}
+/* Mobile : header sur deux rangées, légende compacte */
+@media (max-width:680px){
+  #hdr{flex-wrap:wrap;height:auto;padding:7px 10px;row-gap:6px}
+  #logo span{display:none}
+  #sw{order:3;flex-basis:100%;max-width:none}
+  #togs{margin-left:auto;flex-wrap:wrap;row-gap:4px;justify-content:flex-end}
+  .tbtn{font-size:10px;padding:4px 8px}
+  #leg{min-width:0;max-width:52vw;max-height:44vh;overflow:auto;padding:10px 11px;bottom:12px;right:10px}
+  .lrow{font-size:10px}.lsrc{font-size:8px}
+  #gcnt{bottom:12px;left:10px;max-width:42vw;white-space:normal;font-size:10px}
+  .gp{min-width:190px}
+}
 </style>
 </head>
 <body>
 <div id="hdr">
-  <span id="logo">⚡ GymLocator Pro</span>
+  <span id="logo"><b>GymLocator</b><span>Analyse d'implantation · France</span></span>
   <div id="sw">
-    <input id="si" type="text" placeholder="Rechercher une ville..."/>
+    <input id="si" type="text" placeholder="Rechercher une ville…"/>
     <button id="sb">→</button>
     <div id="sugs"></div>
   </div>
   <div id="togs">
-    <button class="tbtn on" id="t-score" onclick="glTog('score')">Score</button>
-    <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles 🏋️</button>
-    <button class="tbtn" id="t-clear" onclick="glClearGyms()" title="Retirer les salles chargées pour alléger l'affichage">🧹 Vider</button>
-    <button class="tbtn" id="t-best" onclick="glBest()">🎯 Meilleures zones</button>
-    <button class="tbtn on" id="t-flow" onclick="glFlowMode()">🛣️ Flux : gravitaire</button>
-    <button class="tbtn" id="t-info" onclick="glInfo()">ℹ️ Méthode</button>
+    <button class="tbtn on" id="t-view" onclick="glView()">Vue : Déficit</button>
+    <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles</button>
+    <button class="tbtn" id="t-best" onclick="glBest()">Meilleures zones</button>
+    <button class="tbtn" id="t-info" onclick="glInfo()">Méthode</button>
   </div>
 </div>
 <div id="mw">
   <div id="map"></div>
   <div id="ld0">
     <div class="spn"></div>
-    <div id="ld-t">Chargement de la France...</div>
+    <div id="ld-t">Préparation du modèle…</div>
     <div id="pbw"><div id="pb"></div></div>
-    <div id="ld-s">Téléchargement des communes INSEE</div>
+    <div id="ld-s">Carroyage INSEE 1 km · offre SIRENE ∪ Data ES</div>
   </div>
-  <div id="bar"><div class="bsp"></div><span id="bar-txt">Chargement...</span></div>
-  <div id="ztip">🔍 Zoomez niveau 9+ pour afficher les salles</div>
+  <div id="bar"><div class="bsp"></div><span id="bar-txt">Chargement…</span></div>
   <div id="ntf"></div>
   <div id="gcnt"></div>
   <div id="leg">
-    <div class="lt">Demande non satisfaite</div>
-    <div class="lbar"></div>
-    <div class="llbl"><span>Faible / saturé</span><span>Fort potentiel</span></div>
+    <div class="lt" id="leg-title">Adhérents non desservis</div>
+    <div class="lbar" id="leg-bar"></div>
+    <div class="llbl"><span id="leg-lo">Couvert</span><span id="leg-hi">Fort déficit</span></div>
     <div class="lsep"></div>
-    <div class="lrow"><div class="ldot" style="background:#7c3aed;border:2px solid rgba(255,255,255,.7)"></div>Salle existante (clic = détails)</div>
-    <div class="lsep"></div>
-    <div class="lsrc">Demande = habitants × 10 % × revenu<br>Offre = capacité des salles (~1,4 adh./m²)<br>Pop & revenus : INSEE · Salles : OSM<br>Clic = chiffres + zone 15 min 🚗</div>
+    <div class="lt">Concurrence incluse au calcul</div>
+    <div id="leg-cats"></div>
+    <div class="lsrc" id="leg-src"></div>
   </div>
-  <!-- Fenêtre Méthode -->
+
+  <!-- Méthode & mode d'emploi -->
   <div id="infomodal">
     <div id="infobox">
       <button id="infoclose" onclick="glInfo(false)" title="Fermer">×</button>
-      <h2>📊 Comment le score est calculé</h2>
-      <p>Le score d'une zone = la <b>demande non satisfaite</b> : le nombre d'adhérents potentiels que les salles déjà présentes ne captent pas encore.</p>
-      <h3>Le calcul</h3>
-      <div class="f"><b>Demande</b> = population atteignable × 10 % × pouvoir d'achat<br>
-      <b>Offre</b> = Σ ( surface des salles × 1,4 adhérent/m² )<br>
-      <b>Score</b> = max( 0 , Demande − Offre )</div>
-      <p style="font-size:11.5px;color:#8a8aa6">Sur la carte : approximation pondérée par la distance. Au clic « zone 15 min » : calcul <b>exact</b> sur la zone réellement accessible en voiture. La couleur est mise à l'échelle log (pour que les villes moyennes ressortent) ; les chiffres affichés, eux, sont réels.</p>
-      <h3>D'où viennent les données</h3>
-      <div class="src">🧍 <span><b>Population & communes</b> — INSEE (API geo.api.gouv.fr)</span></div>
-      <div class="src">💶 <span><b>Revenu médian</b> — INSEE Filosofi (via OpenDataSoft)</span></div>
-      <div class="src">🏋️ <span><b>Salles de sport</b> — OpenStreetMap (Overpass)</span></div>
-      <div class="src">🚗 <span><b>Temps de trajet (zone 15 min)</b> — Valhalla / OpenStreetMap</span></div>
-      <div class="src">🛣️ <span><b>Flux domicile-travail (v2)</b> — INSEE 2015 (via OpenDataSoft)</span></div>
-      <div class="src">🚦 <span><b>Trafic modélisé (v3)</b> — navettes INSEE routées sur OpenStreetMap (OSRM, autoroutes exclues)</span></div>
-      <div class="src">🗺️ <span><b>Fond de carte</b> — OpenStreetMap</span></div>
-      <h3>Hypothèses</h3>
-      <ul>
-        <li><b>10 %</b> de la population est adhérente d'une salle (moyenne France, modulée par le revenu local).</li>
-        <li><b>1,4 adhérent / m²</b> de salle (fourchette métier 1,2–1,7 ; ≈ 2 500 adhérents pour 1 800 m²).</li>
-        <li>Salle cartographiée en <b>polygone</b> → surface mesurée. Salle en <b>point</b> → surface estimée selon le type (low-cost ~1 400 m², généraliste ~600, premium ~800, studio ~250).</li>
-        <li><b>Passage / flux</b> (bouton « 🛣️ Flux », 3 modèles comparables) : <b>v1 gravitaire</b> (commune → pôle le plus proche, ligne droite) · <b>v2 INSEE réel</b> (vraies navettes domicile-travail 2015 >100 actifs, ligne droite) · <b>v3 trafic modélisé</b> = ces navettes <b>routées sur les vraies routes</b> (OSRM/OpenStreetMap), le routage <b>évite les autoroutes</b> dès le départ (départementales de bout en bout, sans trou), affichées en <b>lignes continues</b> colorées selon le trafic. En v3, le « passage » n'améliore le score qu'<b>à proximité immédiate d'un axe</b> (≤ ~300 m, décroissance douce) — au-delà, aucun effet. Limites v3 : navettes 2015 uniquement (hors loisir/commerces), itinéraire le plus rapide.</li>
-        <li>Les <b>studios de yoga</b> sont exclus (mais une salle généraliste proposant aussi du yoga est conservée).</li>
-      </ul>
-      <div class="warn">⚠️ Les salles proviennent d'OpenStreetMap, qui peut être <b>incomplet</b> : si des salles manquent, une zone peut sembler plus favorable qu'en réalité. Vérifie la liste des salles sur le terrain avant de décider.</div>
+      <h2>Méthode &amp; mode d'emploi</h2>
+      <div class="h2sub">Modèle E2SFCA sur carroyage INSEE · généré le <b id="m-date">–</b></div>
+
+      <h3>Ce que fait l'outil</h3>
+      <p>GymLocator répond à une question : <b>où existe-t-il des personnes qui pratiqueraient en salle, mais que les salles existantes ne peuvent pas absorber ?</b> Ce n'est ni un annuaire, ni un prédicteur de rentabilité : c'est un <b>filtre de marché</b>, conçu pour présélectionner des zones avant l'étude d'un emplacement précis.</p>
+
+      <h3>Le modèle, en trois couches</h3>
+      <p><b>1 · La demande.</b> La France est découpée en <b id="m-cells">–</b> carreaux de 1 km (INSEE Filosofi 2021 : habitants, âges, niveau de vie). On applique un taux de pratique de 10 % (moyenne nationale), <b>modulé par l'âge</b> — ≈ 22 % chez les 18-24 ans, ≈ 4 % chez les 65-79 ans — et légèrement par le revenu (± 15 %). Chaque carreau porte ainsi un nombre d'<b>adhérents potentiels</b>.</p>
+      <p><b>2 · L'offre.</b> <b id="m-gyms">–</b> salles issues du registre des entreprises (SIRENE, NAF 93.13Z) croisé avec le recensement des équipements sportifs (Data ES, surfaces réelles). Capacité = surface × 1,4 adhérent/m² (fourchette métier 1,2–1,7). Sans surface connue : estimation par type d'enseigne, dimensionnée par la tranche d'effectifs pour les indépendants.</p>
+      <p><b>3 · La confrontation</b> (E2SFCA, la méthode utilisée pour les déserts médicaux) :</p>
+      <div class="f">Étape 1 — chaque salle <b>répartit sa capacité</b> entre les habitants situés à ≤ 15 min de voiture (poids décroissant avec le temps de trajet)<br>
+      Étape 2 — chaque carreau <b>cumule les parts</b> des salles qu'il peut atteindre → sa <b>couverture</b><br>
+      Déficit = demande × max(0 ; 1 − couverture / couverture nationale)</div>
+      <p style="font-size:11.5px;color:#8a92a6">La capacité d'une salle n'est jamais comptée deux fois — contrairement à un simple « demande − offre » par zone. La couverture est relative au niveau national (<b id="m-aref">–</b> place/adhérent potentiel) : la carte lit des écarts, ce qui la rend robuste aux erreurs d'estimation des capacités.</p>
+
+      <h3>Comment l'utiliser</h3>
+      <ol>
+        <li><b>Repérage national.</b> Vue « Déficit » : les zones sombres/rouges concentrent la demande non desservie. Vue « Couverture » : la même réalité en relatif (rouge = sous-équipé, bleu = saturé).</li>
+        <li><b>Exploration.</b> Recherchez une ville ou zoomez ; à partir du zoom 10, les salles s'affichent, colorées par type. « Meilleures zones » classe les 8 meilleurs secteurs de la vue.</li>
+        <li><b>Filtrage de la concurrence.</b> Dans la légende, décochez les types de salles qui ne concurrencent pas votre projet (ex. décocher « Municipale / asso » et « Studio / niche » pour un projet low-cost). Le modèle est <b>recalculé en direct</b> sur toute la France.</li>
+        <li><b>Analyse d'un point.</b> Un clic donne l'estimation de la zone accessible en 15 min : demande, couverture, adhérents non desservis, verdict. Le bouton « Analyse exacte » trace l'<b>isochrone routière réelle</b> et recalcule les mêmes indicateurs sur ce périmètre exact, avec la liste des concurrents par segment.</li>
+        <li><b>Le terrain.</b> L'outil s'arrête là, volontairement : foncier, loyer, visibilité, parking ne sont pas dans les données. Présélectionnez 3-4 zones ici, départagez-les sur place.</li>
+      </ol>
+
+      <h3>Estimation vs analyse exacte</h3>
+      <p>Les deux affichages mesurent <b>la même chose</b> — les indicateurs agrégés sur la zone à ≤ 15 min — mais le clic utilise un périmètre <b>modélisé</b> (vitesse selon la densité), tandis que l'analyse exacte utilise le <b>réseau routier réel</b>. Des écarts modérés entre les deux sont normaux ; en cas de doute, faites foi à l'analyse exacte.</p>
+
+      <h3>Sources</h3>
+      <div class="src"><span>—</span><span><b>Population, âges, revenus</b> : INSEE Filosofi 2021, carroyage 1 km</span></div>
+      <div class="src"><span>—</span><span><b>Salles</b> : SIRENE (établissements actifs NAF 93.13Z, géolocalisés) ∪ Data ES ministère des Sports</span></div>
+      <div class="src"><span>—</span><span><b>Isochrones</b> : Valhalla / OpenStreetMap · <b>Fond de carte</b> : OpenStreetMap</span></div>
+
+      <h3>Validation — ce que le score dit (et ne dit pas)</h3>
+      <div class="val">Backtest : les <b id="m-bt-n">–</b> créations de salles depuis 2023 (SIRENE) se situent au <b id="m-bt-med">–</b>ᵉ percentile médian du déficit calculé avec l'offre antérieure (hasard = 50ᵉ). Les ouvertures réelles <b>ne ciblent donc pas</b> les zones les plus déficitaires : les enseignes arbitrent d'abord sur le foncier commercial et la co-implantation. Le score mesure le manque <b>du point de vue de l'habitant</b> — un filtre de marché — pas la probabilité qu'une chaîne s'installe.</div>
+      <div class="warn">Limites : modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
     </div>
   </div>
-  <!-- Affiché si ouvert en file:// -->
+
+  <!-- Affiché si ouvert hors serveur HTTP -->
   <div id="filewarn">
-    <h2>⚠️ Serveur local requis</h2>
-    <p>Ce fichier doit être servi via un serveur HTTP local pour que les salles de sport puissent être chargées. Ouvrez un terminal dans ce dossier et lancez :</p>
+    <h2>Serveur local requis</h2>
+    <p>Cette page charge des données précalculées (grid.bin, gyms.json) et doit être servie en HTTP. Ouvrez un terminal dans ce dossier et lancez :</p>
     <code>python -m http.server 8765</code>
-    <p>Puis ouvrez votre navigateur sur :</p>
+    <p>Puis ouvrez :</p>
     <code>http://localhost:8765/gymlocator.html</code>
-    <p class="note">Python est préinstallé sur Mac et Linux. Sur Windows, téléchargez-le sur python.org.<br>Ou double-cliquez sur <strong>lancer_windows.bat</strong> si vous êtes sur Windows.</p>
+    <p class="note">Ou double-cliquez sur <strong>lancer_windows.bat</strong>.</p>
   </div>
 </div>
 
@@ -169,193 +210,139 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f13;color:#e8e8f
 (function(){
 'use strict';
 
-// ── Détection file:// — affiche la bannière d'aide ────────────────────────────
-if(location.protocol === 'file:'){
-  document.getElementById('ld0').style.display = 'none';
-  document.getElementById('filewarn').style.display = 'flex';
-  // On laisse quand même la carte tourner (score sans salles)
+// Hors HTTP (double-clic file://, aperçu intégré…), les chemins relatifs vers
+// grid.bin/gyms.json/meta.json ne peuvent pas être résolus → écran d'aide.
+if(location.protocol!=='http:'&&location.protocol!=='https:'){
+  document.getElementById('ld0').style.display='none';
+  document.getElementById('filewarn').style.display='flex';
+  return;
 }
 
-const FR  = {s:41.3, n:51.1, w:-5.2, e:9.6};
-const GX=80, GY=50;
-const CGX=150, CGY=140;   // grille fine des centroïdes (≈8 km) pour la densité locale
-const NOM = 'https://nominatim.openstreetmap.org';
-const OVP = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter'
-];
+// ── Constantes UI ───────────────────────────────────────────────────────────────
+const CONTACT_EMAIL='gauthier.bonhomme30@gmail.com';
+const NOM='https://nominatim.openstreetmap.org';
+const ISO_URL='https://valhalla1.openstreetmap.de/isochrone';
+// Paramètres du modèle : valeurs de repli, ÉCRASÉES par meta.json au chargement
+// (source unique de vérité = build/03-e2sfca.mjs → meta.modele).
+let T_ACCESS=3, T_MAX=15, SIGMA2=72;
+let speedKmh=d=>62-41*Math.min(1,Math.max(0,(Math.log10(d+1)-1.5)/2.2));
+let MEMBERS_PER_M2=1.4;
+const CAT={lowcost:{lbl:'Chaîne low-cost',col:'#d98a2b'},premium:{lbl:'Club premium',col:'#b06cd9'},
+  classic:{lbl:'Salle généraliste',col:'#5c7cfa'},niche:{lbl:'Studio / niche',col:'#7e8aa0'},
+  asso:{lbl:'Municipale / asso',col:'#2fb380'}};
+const PALETTE=[[50,136,189],[102,194,165],[171,221,164],[230,245,152],[254,224,139],[253,174,97],[244,109,67],[213,62,79]];
+const HEAT_MAXA=150;
 
-// ── Sources de données & config ────────────────────────────────────────────────
-// Identifiant requis par la politique d'usage de Nominatim (peut être modifié/retiré)
-const CONTACT_EMAIL = 'gauthier.bonhomme30@gmail.com';
-// Revenu médian disponible par commune (INSEE Filosofi 2020, via OpenDataSoft)
-const INCOME_URL = 'https://equipements-sgsocialgouv.opendatasoft.com/api/explore/v2.1/catalog/datasets/insee-2020-geoapi-2023/exports/json?select=code_geographique,med20';
-const REF_INCOME = 22000;      // revenu médian national de référence (€/UC)
-// Isochrones (zone de chalandise) — serveur public FOSSGIS Valhalla, sans clé
-const ISO_URL = 'https://valhalla1.openstreetmap.de/isochrone';
-// Cache local (IndexedDB)
-const CACHE_DB='gymlocator', CACHE_STORE='kv';
-const COMMUNES_TTL=30*864e5;   // 30 jours
-const GYMS_TTL=7*864e5;        // 7 jours
-
-// Pondération de la concurrence par type de salle.
-// cw : intensité concurrentielle (1 = salle généraliste) · rMul : portée de chalandise relative
-const GYM_CATS = {
-  lowcost:{cw:1.25,rMul:1.35,lbl:'Chaîne low-cost'},   // Basic-Fit, Fitness Park…
-  premium:{cw:1.00,rMul:1.10,lbl:'Club premium'},      // L'Orange Bleue, CMG…
-  classic:{cw:0.85,rMul:1.00,lbl:'Salle généraliste'},
-  niche:  {cw:0.40,rMul:0.65,lbl:'Studio / niche'}     // yoga, CrossFit, danse, arts martiaux…
-};
-
-// ── Modèle offre / demande (adhérents) ─────────────────────────────────────────
-const PENETRATION   = 0.10;   // ~10 % de la population est adhérente d'une salle
-const MEMBERS_PER_M2= 1.4;    // ~1,2–1,7 adhérents par m² de salle
-// Surface (m²) estimée d'une salle cartographiée en point (node), selon le type
-const CAT_AREA = {lowcost:1400, premium:800, classic:600, niche:250};
-const NEW_GYM_CAP   = Math.round(1200*MEMBERS_PER_M2); // salle de référence pour le verdict (~1680 adh.)
-// Flux domicile-travail (modèle gravitaire simplifié, sans donnée externe)
-const EMPLOI_MIN  = 15000;  // commune ≥ ce seuil = pôle d'emploi (destination des navetteurs) [modèle v1]
-const ACTIVE_SHARE= 0.45;   // part d'actifs navetteurs dans la population [modèle v1]
-const PASSING_MAX = 1000;   // adhérents potentiels « de passage » sur l'axe le plus fréquenté (boost local, non dominant)
-// Flux domicile-travail réels INSEE 2015 (corridors > 100 actifs), via OpenDataSoft [modèle v2]
-const FLOW_URL = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/mobilites-professionnelles-en-2015-deplacements-domicile-lieu-de-travail/exports/json?where=nbflux_c15_actocc15p%3E100&select=coordonnees_residence,coordonnees_travail,nbflux_c15_actocc15p';
-// Trafic routier RÉEL mesuré (TMJA réseau national 2019), via OpenDataSoft — extrémités en Lambert-93 [modèle v3]
-const TMJA_URL = 'https://data.82amenagement.fr/api/explore/v2.1/catalog/datasets/trafic-moyen-journalier-annuel-sur-le-reseau-routier-national/exports/json?select=tmja,xd,yd,xf,yf,route';
-
-// Palette heatmap (style Windy, translucide). Faible → fort = bleu → rouge.
-// Pour revenir au sens « rouge=défavorable → vert=idéal », inverser ce tableau.
-const PALETTE = [
-  [50,136,189],   // bleu    — défavorable
-  [102,194,165],  // turquoise
-  [171,221,164],  // vert
-  [230,245,152],  // vert-jaune
-  [254,224,139],  // jaune
-  [253,174,97],   // orange
-  [244,109,67],   // orange-rouge
-  [213,62,79]     // rouge   — très favorable
-];
-const HEAT_MAXA = 150;   // opacité max (/255) — translucide pour garder la carte lisible
-
-// Flux « de passage » localisé aux abords des axes (modèle v3) : décroissance gaussienne coupée ~310 m
-const RF_SIGMA = 0.0013;  // ≈ 145 m : portée du passage autour d'une route
-const RF_CUT   = 0.0028;  // ≈ 310 m : au-delà, le flux de passage n'a plus de sens (#1c)
-const RF_CELL  = 0.005;   // taille de cellule du hash spatial (> RF_CUT/cos → 3×3 voisin suffit)
-const RF_RATIO_CAP = 1.5; // plafond du ratio de flux (évite les scores aberrants sur méga-corridor)
-
-let map, hLayer, gymLayer, clkLayer, isoLayer, hiLayer, bestLayer, roadLayer;
-let communes=[], gyms=[], cenGrid=null, flowV1=null, flowV2=null, flowV3=null, roadSegs=null, flowMode='v1';
-let roadPts=null, roadHash=null, roadFluxScale=0, roadFluxReady=false;   // index spatial du flux routier (v3)
-let gymMarkers = new Map();
-let popGrid = Array.from({length:GX*GY}, ()=>[]);
-let gymGrid  = Array.from({length:GX*GY}, ()=>[]);
-let fetchedZones = [];
-let NMin=0, NMax=1, normReady=false;
-let showScore=true, showGyms=true, fetching=false, isoFetching=false;
-let mvT, sugT, ntfT, pbT, nomLast=0, isoLast=0;
-// Session isochrone en cours (par point cliqué) : polygones 15 min voiture/pied + salles concernées
-let isoPoint=null, isoPolys={auto:null,pedestrian:null}, isoGymList=[];
-
-// ── Cache IndexedDB (clé/valeur) ───────────────────────────────────────────────
-function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(CACHE_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(CACHE_STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function idbGet(k){try{const db=await idb();return await new Promise((res,rej)=>{const q=db.transaction(CACHE_STORE,'readonly').objectStore(CACHE_STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}catch(e){return undefined;}}
-async function idbSet(k,v){try{const db=await idb();await new Promise((res,rej)=>{const tx=db.transaction(CACHE_STORE,'readwrite');tx.objectStore(CACHE_STORE).put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}catch(e){}}
-
-// ── Nominatim : ≤1 req/s + identifiant (politique d'usage OSM) ──────────────────
-async function nomFetch(path){
-  const wait=Math.max(0,1100-(Date.now()-nomLast));
-  if(wait>0)await sleep(wait);
-  nomLast=Date.now();
-  const sep=path.includes('?')?'&':'?';
-  return fetch(`${NOM}${path}${sep}email=${encodeURIComponent(CONTACT_EMAIL)}`);
+// ── Projection EPSG:3035 (LAEA, GRS80) — identique à build/lib-e2sfca.mjs ──────
+function laeaForward(lat,lon){
+  const a=6378137,e2=0.00669438002290,e=Math.sqrt(e2),rad=Math.PI/180;
+  const phi=lat*rad,lam=lon*rad,phi0=52*rad,lam0=10*rad;
+  const q=p=>(1-e2)*(Math.sin(p)/(1-e2*Math.sin(p)**2)-(1/(2*e))*Math.log((1-e*Math.sin(p))/(1+e*Math.sin(p))));
+  const qP=q(Math.PI/2),q0=q(phi0),qq=q(phi);
+  const beta=Math.asin(qq/qP),beta0=Math.asin(q0/qP);
+  const Rq=a*Math.sqrt(qP/2);
+  const D=a*Math.cos(phi0)/Math.sqrt(1-e2*Math.sin(phi0)**2)/(Rq*Math.cos(beta0));
+  const B=Rq*Math.sqrt(2/(1+Math.sin(beta0)*Math.sin(beta)+Math.cos(beta0)*Math.cos(beta)*Math.cos(lam-lam0)));
+  return [4321000+B*D*Math.cos(beta)*Math.sin(lam-lam0),
+          3210000+(B/D)*(Math.cos(beta0)*Math.sin(beta)-Math.sin(beta0)*Math.cos(beta)*Math.cos(lam-lam0))];
 }
 
-// ── Rayon & poids ─────────────────────────────────────────────────────────────
-function popR(p){ if(p>200000)return.007;if(p>80000)return.010;if(p>30000)return.015;if(p>10000)return.022;if(p>3000)return.032;if(p>1000)return.045;if(p>300)return.055;return.070; }
-function pw(p){ return Math.log10(Math.max(p,100)/100+1)*2.8; }
+// ── État ───────────────────────────────────────────────────────────────────────
+let META=null,KIDX=null,IND=null,DEM=null,RELQ=null,UQ=null,GYMS=[];
+let LAYER=null;                    // {u:Float32Array, rel:Float32Array} si filtre actif, sinon null (couche précalculée)
+let COLOR={min:0,max:5.8};         // échelle de couleur du déficit (log1p)
+let AREF=1;                        // couverture nationale de référence (sous-ensemble courant)
+let NEW_GYM_ABS=1585;              // demande absorbée par une salle de 1 200 m² au niveau de service courant
+let catActive={lowcost:true,premium:true,classic:true,niche:true,asso:true};
+let recomputing=false,recomputeQueued=false;
+let map,hLayer,gymLayer,clkLayer,isoLayer,hiLayer,bestLayer,gymRenderer=null;
+let viewMode='deficit', showGyms=true, isoFetching=false;
+let mvT,sugT,ntfT,pbT,nomLast=0,isoLast=0;
+let isoPoint=null,isoPolys={auto:null,pedestrian:null},isoGymList=[];
 
-function atg(p,g){
-  const W=FR.e-FR.w,H=FR.n-FR.s,m=p.r*3.5;
-  const x0=Math.max(0,Math.floor((p.lon-m-FR.w)/W*GX)),x1=Math.min(GX-1,Math.ceil((p.lon+m-FR.w)/W*GX));
-  const y0=Math.max(0,Math.floor((p.lat-m-FR.s)/H*GY)),y1=Math.min(GY-1,Math.ceil((p.lat+m-FR.s)/H*GY));
-  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)g[x+y*GX].push(p);
-}
-function gc(lat,lon,g){
-  return g[Math.max(0,Math.min(GX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*GX)))+Math.max(0,Math.min(GY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*GY)))*GX];
-}
-
-// ── Score ─────────────────────────────────────────────────────────────────────
-// Facteur pouvoir d'achat : 0.6 (revenu faible) → 1.4 (élevé), neutre à REF_INCOME
-function incomeFactor(inc){ return inc?Math.max(0.6,Math.min(1.4,0.6+(inc-15000)/(REF_INCOME-15000)*0.4)):1; }
-// Revenu médian local (moyenne pondérée par la population proche) — pour l'affichage
-function localIncome(lat,lon){
-  const cos=Math.cos(lat*Math.PI/180);let w=0,s=0;
-  for(const p of gc(lat,lon,popGrid)){const dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc,r2=p.r*p.r;if(d2<r2*9&&p.inc){const g0=p.w*Math.exp(-d2/(2*r2));w+=g0;s+=g0*p.inc;}}
-  return w>0?Math.round(s/w):0;
-}
-// Modèle offre/demande à un point (approximation gaussienne pour la heatmap) :
-//  demande = population atteignable × 10 % × pouvoir d'achat (adhérents potentiels)
-//  offre   = Σ capacité des salles atteignables
-//  unmet   = demande non satisfaite (max 0)
-function marketAt(lat,lon){
-  const cos=Math.cos(lat*Math.PI/180);let pop=0,cap=0,incW=0,incS=0;
-  for(const p of gc(lat,lon,popGrid)){const dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc,r2=p.r*p.r;if(d2<r2*9){const w=p.pop*Math.exp(-d2/(2*r2));pop+=w;if(p.inc){incW+=w;incS+=w*p.inc;}}}
-  for(const g of gc(lat,lon,gymGrid)){const dl=lat-g.lat,dc=(lon-g.lon)*cos,d2=dl*dl+dc*dc,r2=g.r*g.r;if(d2<r2*9)cap+=(g.capacity||0)*Math.exp(-d2/(2*r2));}
-  const resident=pop*PENETRATION*incomeFactor(incW>0?incS/incW:0);
-  // Terme « passage » (navetteurs).
-  //  v3 : localisé aux abords des axes routiers (≤ ~310 m, décroissance gaussienne) → pas de rectangle,
-  //       et le flux n'améliore le score qu'à proximité immédiate d'une route (#1c, #2).
-  //  v1/v2 : grille grossière, mais interpolée bilinéairement → suppression des bords nets (#2).
-  let passing=0;
-  if(flowMode==='v3'){
-    passing=Math.min(RF_RATIO_CAP,roadFlux(lat,lon))*PASSING_MAX;
-  }else if(flowMode!=='off'){
-    const fa=activeFlow();
-    if(fa&&fa.p95>0)passing=Math.max(0,bilinearGrid(fa.grid,lat,lon)/fa.p95)*PASSING_MAX;
+// ── Accès à la grille (couche précalculée OU recalculée après filtrage) ─────────
+// KIDX : table plate idx → k (-1 = carreau vide) — bien plus rapide qu'une Map
+// pour les ~7 M de consultations d'un recalcul national.
+const cellK=(cx,cy)=>{const v=KIDX[cx+cy*META.cols];return v<0?undefined:v;};
+const uAt=k=>LAYER?LAYER.u[k]:UQ[k];
+const relAt=k=>LAYER?LAYER.rel[k]:RELQ[k]/2000;
+function sample2(lat,lon){ // bilinéaire : [u, rel, ind] au point
+  const p=laeaForward(lat,lon);
+  const fx=(p[0]-META.E0)/1000-.5, fy=(p[1]-META.N0)/1000-.5;
+  const x0=Math.floor(fx),y0=Math.floor(fy),tx=fx-x0,ty=fy-y0;
+  let u=0,rel=0,ind=0,has=false;
+  const w=[[1-tx,1-ty],[tx,1-ty],[1-tx,ty],[tx,ty]];
+  const at=[[x0,y0],[x0+1,y0],[x0,y0+1],[x0+1,y0+1]];
+  for(let i=0;i<4;i++){
+    const cx=at[i][0],cy=at[i][1];if(cx<0||cy<0||cx>=META.cols||cy>=META.rows)continue;
+    const k=cellK(cx,cy);if(k===undefined)continue;
+    const ww=w[i][0]*w[i][1];has=true;
+    u+=uAt(k)*ww;rel+=relAt(k)*ww;ind+=IND[k]*ww;
   }
-  const members=resident+passing;
-  return {pop,members,passing,capacity:cap,unmet:Math.max(0,members-cap)};
+  return has?[u,rel,ind]:null;
 }
-function rawScore(lat,lon){ return marketAt(lat,lon).unmet; }
-function computeNorm(){
-  // Échelle ancrée sur la POPULATION : on mesure le score là où les gens vivent,
-  // pondéré par les habitants — ainsi le rural peu peuplé reste en bas d'échelle
-  // (bleu) et seuls les secteurs réellement denses atteignent le haut (rouge).
-  // Couleur en échelle log : la demande non satisfaite est très asymétrique
-  // (Paris l'écrase) ; log1p resserre pour faire ressortir aussi les villes moyennes.
-  // N.B. : compression de COULEUR uniquement — les chiffres affichés restent réels.
-  const arr=[];let total=0;
-  for(const c of communes){const w=Math.max(c.pop,50);arr.push({s:Math.log1p(rawScore(c.lat,c.lon)),w});total+=w;}
-  if(!arr.length){NMin=0;NMax=1;normReady=true;return;}
-  arr.sort((a,b)=>a.s-b.s);
-  const at=q=>{const th=total*q;let acc=0;for(const o of arr){acc+=o.w;if(acc>=th)return o.s;}return arr[arr.length-1].s;};
-  NMin=at(0.12);NMax=at(0.97);if(NMax<=NMin)NMax=NMin+1e-6;normReady=true;
+// Indicateurs de la zone accessible en ≤ 15 min depuis un point (sommes BRUTES —
+// mêmes unités que l'analyse isochrone : le clic est l'estimation, l'isochrone l'exact)
+function zoneStats(lat,lon){
+  const p=laeaForward(lat,lon);
+  const cx=Math.floor((p[0]-META.E0)/1000),cy=Math.floor((p[1]-META.N0)/1000);
+  const gk=cellK(cx,cy),gDens=gk!==undefined?IND[gk]:0;
+  let u=0,dem=0,pop=0,relW=0;
+  for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
+    const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
+    const k=cellK(x,y);if(k===undefined)continue;
+    const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
+    const d=Math.hypot(cE-p[0],cN-p[1])/1000;
+    if(T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60>T_MAX)continue;
+    u+=uAt(k);dem+=DEM[k];pop+=IND[k];relW+=relAt(k)*DEM[k];
+  }
+  return {u,dem,pop,cov:dem>0?relW/dem:0};
 }
-function ns(lat,lon){ if(!normReady||NMax<=NMin)return 0;return Math.max(0,Math.min(1,(Math.log1p(rawScore(lat,lon))-NMin)/(NMax-NMin))); }
-function rgb(s){ // interpolation linéaire sur PALETTE
+// Verdict métier : distingue « couvert » de « marché trop petit »
+function verdict(u,dem){
+  const n=Math.floor(u/NEW_GYM_ABS);
+  if(n>=1)return{t:`Place pour ~${n} salle${n>1?'s':''} supplémentaire${n>1?'s':''}`,c:'var(--ok)'};
+  if(u>NEW_GYM_ABS*0.4)return{t:'Place pour une petite salle',c:'var(--warn)'};
+  if(dem<NEW_GYM_ABS*1.5)return{t:'Marché trop restreint pour une salle',c:'var(--txt3)'};
+  return{t:'Marché déjà couvert',c:'var(--err)'};
+}
+
+// ── Couleurs ───────────────────────────────────────────────────────────────────
+function rgb(s){
   s=Math.max(0,Math.min(1,s));
   const n=PALETTE.length-1,f=s*n,i=Math.min(n-1,Math.floor(f)),t=f-i,a=PALETTE[i],b=PALETTE[i+1];
   return [Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)];
 }
-function slbl(p){ return p>=75?'Très favorable':p>=50?'Modéré':p>=25?'Peu favorable':'Défavorable'; }
-function tR(z){ return z>=14?96:z>=12?64:z>=10?40:z>=9?28:18; }
+const sDef=u=>Math.max(0,Math.min(1,(Math.log1p(u)-COLOR.min)/(COLOR.max-COLOR.min)));
+function slbl(p){return p>=75?'Fort potentiel':p>=50?'Potentiel élevé':p>=25?'Potentiel modéré':'Potentiel faible';}
+function tR(z){return z>=14?96:z>=12?64:z>=10?40:z>=9?28:18;}
 
-// ── Heatmap ───────────────────────────────────────────────────────────────────
+// ── Heatmap ────────────────────────────────────────────────────────────────────
 function initHeat(){
   const HL=L.GridLayer.extend({options:{pane:'overlayPane',zIndex:410,tileSize:256},
     createTile(c){
       const cv=document.createElement('canvas');cv.width=cv.height=256;
-      if(!normReady||!showScore)return cv;
+      if(!META||viewMode==='off')return cv;
       const nw=map.unproject(L.point(c.x*256,c.y*256),c.z),se=map.unproject(L.point((c.x+1)*256,(c.y+1)*256),c.z);
-      if(se.lat>FR.n+.5||nw.lat<FR.s-.5||nw.lng>FR.e+.5||se.lng<FR.w-.5)return cv;
+      if(se.lat>51.6||nw.lat<41||nw.lng>10.2||se.lng<-5.6)return cv;
       const R=tR(c.z),off=document.createElement('canvas');off.width=off.height=R;
       const oc=off.getContext('2d'),img=oc.createImageData(R,R);let has=false;
       for(let y=0;y<R;y++)for(let x=0;x<R;x++){
         const lat=nw.lat-(y+.5)*(nw.lat-se.lat)/R,lon=nw.lng+(x+.5)*(se.lng-nw.lng)/R;
-        if(lat<FR.s-.2||lat>FR.n+.2||lon<FR.w-.2||lon>FR.e+.2)continue;
-        const s=ns(lat,lon);if(s<.02)continue;has=true;
-        const a=Math.round(HEAT_MAXA*Math.pow(s,.65)),[r,g,b]=rgb(s),i=(y*R+x)*4;
-        img.data[i]=r;img.data[i+1]=g;img.data[i+2]=b;img.data[i+3]=a;
+        const smp=sample2(lat,lon);if(!smp)continue;
+        const u=smp[0],rel=smp[1],ind=smp[2];
+        let s,a;
+        if(viewMode==='deficit'){
+          s=sDef(u);if(s<.02)continue;
+          a=Math.round(HEAT_MAXA*Math.pow(s,.65));
+        }else{ // couverture : rouge = sous-couvert, bleu = saturé, alpha selon population
+          if(ind<8)continue;
+          s=1-Math.max(0,Math.min(1,rel/2));
+          a=Math.round(140*Math.min(1,Math.sqrt(ind/400)));if(a<10)continue;
+        }
+        has=true;
+        const col=rgb(s),i=(y*R+x)*4;
+        img.data[i]=col[0];img.data[i+1]=col[1];img.data[i+2]=col[2];img.data[i+3]=a;
       }
       if(!has)return cv;oc.putImageData(img,0,0);
       const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(off,0,0,256,256);return cv;
@@ -363,536 +350,348 @@ function initHeat(){
   });hLayer=new HL().addTo(map);
 }
 
-// ── Marqueurs permanents ──────────────────────────────────────────────────────
+// ── Recalcul E2SFCA côté client (filtrage des types de concurrence) ─────────────
+// Même algorithme que build/lib-e2sfca.mjs, découpé en lots pour rester fluide.
+function weightedQ(values,weights,qs){
+  const idx=Array.from(values.keys()).sort((a,b)=>values[a]-values[b]);
+  let tot=0;for(const w of weights)tot+=w;
+  const out=[];let acc=0,qi=0;
+  for(const i of idx){acc+=weights[i];while(qi<qs.length&&acc>=qs[qi]*tot){out.push(values[i]);qi++;}if(qi>=qs.length)break;}
+  while(out.length<qs.length)out.push(values[idx[idx.length-1]]);
+  return out;
+}
+async function recomputeLayer(){
+  if(recomputing){recomputeQueued=true;return;}
+  recomputing=true;
+  try{
+    const allOn=Object.values(catActive).every(Boolean);
+    if(allOn){ // retour à la couche précalculée exacte
+      LAYER=null;AREF=META.Aref;COLOR={min:META.colorLogU.min,max:META.colorLogU.max};
+      NEW_GYM_ABS=Math.round(((META.modele&&META.modele.newGymM2)||1200)*MEMBERS_PER_M2/AREF);
+    }else{
+      const active=GYMS.filter(g=>catActive[g.cat]);
+      const n=META.n,A=new Float32Array(n);
+      setBar(true,'Recalcul du modèle…');
+      const CHUNK=2500,neigh=[];
+      for(let i0=0;i0<active.length;i0+=CHUNK){
+        const end=Math.min(active.length,i0+CHUNK);
+        for(let gi=i0;gi<end;gi++){
+          const g=active[gi],p=laeaForward(g.lat,g.lon);
+          const cx=Math.floor((p[0]-META.E0)/1000),cy=Math.floor((p[1]-META.N0)/1000);
+          const gk=cellK(cx,cy),gDens=gk!==undefined?IND[gk]:0;
+          neigh.length=0;let sumDW=0;
+          for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
+            const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
+            const k=cellK(x,y);if(k===undefined)continue;
+            const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
+            const d=Math.hypot(cE-p[0],cN-p[1])/1000;
+            const t=T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60;
+            if(t>T_MAX)continue;
+            const w=Math.exp(-t*t/SIGMA2);
+            neigh.push(k,w);sumDW+=DEM[k]*w;
+          }
+          if(sumDW<1)continue;
+          const R=g.cap/sumDW;
+          for(let j=0;j<neigh.length;j+=2)A[neigh[j]]+=R*neigh[j+1];
+        }
+        setBar(true,`Recalcul du modèle… ${Math.round(end/active.length*100)} %`);
+        await new Promise(r=>setTimeout(r,0));
+      }
+      let sumDA=0,sumD=0;
+      for(let k=0;k<n;k++){sumDA+=DEM[k]*A[k];sumD+=DEM[k];}
+      AREF=sumDA>0?sumDA/sumD:META.Aref;
+      const rel=new Float32Array(n),u=new Float32Array(n),logU=new Array(n),wD=new Array(n);
+      for(let k=0;k<n;k++){
+        rel[k]=A[k]/AREF;
+        u[k]=DEM[k]*Math.max(0,1-rel[k]);
+        logU[k]=Math.log1p(u[k]);wD[k]=DEM[k];
+      }
+      const q=weightedQ(logU,wD,[0.12,0.97]);
+      COLOR={min:q[0],max:Math.max(q[1],q[0]+1e-6)};
+      LAYER={u,rel};
+      NEW_GYM_ABS=Math.round(((META.modele&&META.modele.newGymM2)||1200)*MEMBERS_PER_M2/Math.max(AREF,0.05));
+    }
+    setBar(false);
+    clkLayer.clearLayers();isoLayer.clearLayers();hiLayer.clearLayers();bestLayer.clearLayers();isoPoint=null;
+    hLayer.redraw();drawGyms();
+    const excl=Object.keys(catActive).filter(k=>!catActive[k]).map(k=>CAT[k].lbl).join(', ');
+    notif(excl?`Modèle recalculé sans : ${excl}`:'Modèle complet restauré','ok');
+  }finally{
+    recomputing=false;
+    if(recomputeQueued){recomputeQueued=false;recomputeLayer();}
+  }
+}
+window.glCat=function(cat,checked){
+  catActive[cat]=checked;
+  recomputeLayer();
+};
+
+// ── Salles ─────────────────────────────────────────────────────────────────────
 function gymPopup(g){
-  const s=ns(g.lat,g.lon),p=Math.round(s*100),[r,gg,b]=rgb(s),col=`rgb(${r},${gg},${b})`;
-  return`<div class="gp">
+  const cat=CAT[g.cat]||CAT.classic;
+  const surfTxt=g.surfSrc==='dataes'
+    ?`${g.surf.toLocaleString('fr')} m² <small>· mesurée (Data ES)</small>`
+    :`~${g.surf.toLocaleString('fr')} m² <small>· estimée</small>`;
+  return `<div class="gp">
     <div class="gp-name">${g.name}</div>
-    <div class="gp-cat">${(GYM_CATS[g.cat]||GYM_CATS.classic).lbl}</div>
-    <div class="gp-sr"><div class="gp-ci" style="background:${col}">${p}</div>
-    <div class="gp-me"><b style="color:${col}">${slbl(p)}</b><br>Score /100<br>Rayon ~${Math.round(g.r*111)} km</div></div>
-    <div class="gp-dv"></div>
-    <div class="gp-ro"><span class="gp-ic">📍</span><span>${g.addr||g.lat.toFixed(4)+'°N '+g.lon.toFixed(4)+'°E'}</span></div>
-    <div class="gp-ro"><span class="gp-ic">📐</span><span>${g.areaM2?`Salle ${g.size} · ~${g.areaM2.toLocaleString('fr')} m²`:`Taille estimée : ${g.size||'moyenne'}`}${g.capacity?` · ~${g.capacity.toLocaleString('fr')} adh. max`:''}</span></div>
-    ${g.phone?`<div class="gp-ro"><span class="gp-ic">📞</span><span>${g.phone}</span></div>`:''}
-    ${g.web?`<div class="gp-ro"><span class="gp-ic">🌐</span><a href="${g.web}" target="_blank" style="color:#7c3aed;font-size:11px">${g.web.replace(/^https?:\/\//,'').slice(0,32)}</a></div>`:''}
-    ${g.hours?`<div class="gp-ro"><span class="gp-ic">🕐</span><span style="font-size:10px">${g.hours}</span></div>`:''}
-    ${g.osmId?`<div class="gp-ro"><span class="gp-ic">🔗</span><a href="https://www.openstreetmap.org/${g.osmType}/${g.osmId}" target="_blank" style="color:#7c3aed;font-size:11px">OpenStreetMap</a></div>`:''}
-    <button class="iso-btn" onclick="glIso(${g.lat},${g.lon},'auto')">🚗 Zone de chalandise 15 min</button>
-    <button class="iso-btn" onclick="glIso(${g.lat},${g.lon},'pedestrian')">🏃 Zone de chalandise 15 min</button>
+    <div class="gp-cat" style="background:${cat.col}22;color:${cat.col}">${cat.lbl}</div>
+    <div class="kv"><span class="k">Surface</span><span class="v">${surfTxt}</span></div>
+    <div class="kv"><span class="k">Capacité estimée</span><span class="v">~${g.cap.toLocaleString('fr')} adhérents</span></div>
+    ${g.annee?`<div class="kv"><span class="k">Création</span><span class="v">${g.annee}</span></div>`:''}
+    <div class="kv"><span class="k">Source</span><span class="v">${g.src==='dataes'?'Data ES':g.src==='sirene'?'SIRENE':'SIRENE + Data ES'}</span></div>
+    <button class="iso-btn" onclick="glIso(${g.lat},${g.lon},'auto')">Analyse exacte · 15 min voiture</button>
+    <button class="iso-btn sec" onclick="glIso(${g.lat},${g.lon},'pedestrian')">Analyse exacte · 15 min à pied</button>
   </div>`;
 }
-function addMarker(g,idx){
-  if(gymMarkers.has(idx))return;
-  const ico=L.divIcon({className:'',html:'<div class="gm">🏋️</div>',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});
-  const m=L.marker([g.lat,g.lon],{icon:ico,zIndexOffset:1000});
-  m.bindPopup('',{maxWidth:240});
-  m.on('click',()=>m.setPopupContent(gymPopup(g)));
-  gymMarkers.set(idx,m);
-  if(showGyms)m.addTo(gymLayer);
-}
-function syncVis(){ gymMarkers.forEach(m=>{ if(showGyms){if(!gymLayer.hasLayer(m))m.addTo(gymLayer);}else if(gymLayer.hasLayer(m))gymLayer.removeLayer(m); }); }
-function updCount(){ const el=document.getElementById('gcnt');if(gyms.length){el.style.display='block';el.textContent=`🏋️ ${gyms.length} salle${gyms.length>1?'s':''}`;}else el.style.display='none'; }
-function hasZone(s,w,n,e){ return fetchedZones.some(z=>z.s<=s+.002&&z.w<=w+.002&&z.n>=n-.002&&z.e>=e-.002); }
-
-// ── Classement des salles par type (concurrence) ───────────────────────────────
-function classifyGym(t){
-  const hay=((t.brand||'')+' '+(t.name||'')+' '+(t.operator||'')+' '+(t['name:fr']||'')).toLowerCase();
-  const sport=(t.sport||'').toLowerCase();
-  if(t.crossfit==='yes'||/cross.?fit|yoga|pilates|dans|martial|boxe|boxing|escalade|climb|aïkido|aikido|judo|karate|karaté|taekwondo|capoeira/.test(hay+' '+sport)) return 'niche';
-  if(/basic.?fit|fitness ?park|neoness|on air|keep.?cool|magic ?form|fitness ?factory|liberty ?gym|movida|moving/.test(hay)) return 'lowcost';
-  if(/orange ?bleue|\bcmg\b|vita ?libert|wellness|usine|episod|club ?med ?gym|amazonia|interval|aquagym/.test(hay)) return 'premium';
-  return 'classic';
-}
-// Studio de yoga → exclu. Une salle généraliste qui propose AUSSI du yoga (sport=fitness;yoga) est gardée.
-function isYoga(t){
-  const sport=(t.sport||'').toLowerCase();
-  if(/\bfitness\b/.test(sport))return false;
-  const sports=sport.split(/[;,]/).map(s=>s.trim()).filter(Boolean);
-  if(sports.length&&sports.every(s=>s==='yoga'||s==='pilates'))return true;
-  const hay=((t.name||'')+' '+(t.brand||'')+' '+(t.operator||'')).toLowerCase();
-  return /\byoga\b|bikram|ashtanga|vinyasa|\bhatha\b/.test(hay);
-}
-// ── Taille de la salle (petite vs grande) ──────────────────────────────────────
-function wayCentroid(geom){ let la=0,lo=0; for(const p of geom){la+=p.lat;lo+=p.lon;} return [la/geom.length,lo/geom.length]; }
-function wayAreaM2(geom){ // shoelace approx en m²
-  if(!geom||geom.length<3)return 0;
-  const mx=111320*Math.cos(geom[0].lat*Math.PI/180),my=111320;
-  let a=0; for(let i=0,j=geom.length-1;i<geom.length;j=i++){a+=geom[j].lon*mx*geom[i].lat*my-geom[i].lon*mx*geom[j].lat*my;}
-  return Math.abs(a)/2;
-}
-// Estimation de la taille → libellé + multiplicateur de concurrence/chalandise
-function gymSize(el,cat){
-  let area=0;
-  if(el.type==='way'&&el.geometry&&el.geometry.length>2){
-    const lv=parseFloat((el.tags||{})['building:levels'])||1;
-    area=wayAreaM2(el.geometry)*Math.max(1,lv);
+function drawGyms(){
+  gymLayer.clearLayers();
+  if(!showGyms||!GYMS.length||map.getZoom()<10){updCount(0);return;}
+  const b=map.getBounds(),S=b.getSouth(),N=b.getNorth(),W=b.getWest(),E=b.getEast();
+  let n=0;
+  for(const g of GYMS){
+    if(!catActive[g.cat])continue;
+    if(g.lat<S||g.lat>N||g.lon<W||g.lon>E)continue;
+    if(++n>3000)break;
+    const cat=CAT[g.cat]||CAT.classic;
+    L.circleMarker([g.lat,g.lon],{renderer:gymRenderer,radius:6,color:'#fff',weight:1.5,fillColor:cat.col,fillOpacity:.92})
+      .addTo(gymLayer).bindPopup(gymPopup(g),{maxWidth:260});
   }
-  if(area>0){
-    if(area<300)   return {size:'petite', mul:0.7, area:Math.round(area)};
-    if(area<=1000) return {size:'moyenne',mul:1.0, area:Math.round(area)};
-    return                {size:'grande', mul:1.4, area:Math.round(area)};
-  }
-  // node sans géométrie → repli par marque/type
-  const def={lowcost:['grande',1.4],premium:['moyenne',1.0],classic:['moyenne',1.0],niche:['petite',0.7]};
-  const[size,mul]=def[cat]||['moyenne',1.0];
-  return {size,mul,area:0};
+  updCount(n);
 }
-// ── Cache des salles (Overpass) ────────────────────────────────────────────────
-function saveGyms(){ idbSet('gyms_v5',{t:Date.now(),gyms,zones:fetchedZones}); }
-async function restoreGyms(){
-  const c=await idbGet('gyms_v5');
-  if(!c||Date.now()-c.t>GYMS_TTL||!Array.isArray(c.gyms)||!c.gyms.length)return;
-  for(const g of c.gyms){const idx=gyms.length;gyms.push(g);atg(g,gymGrid);addMarker(g,idx);}
-  fetchedZones=c.zones||[];
-  computeNorm();updCount();
+function updCount(n){
+  const el=document.getElementById('gcnt');
+  if(!showGyms){el.style.display='none';return;}
+  if(map.getZoom()<10){el.style.display='block';el.textContent='Zoomez pour afficher les salles';return;}
+  if(n){el.style.display='block';el.textContent=`${n.toLocaleString('fr')} salle${n>1?'s':''} affichée${n>1?'s':''}`;}
+  else el.style.display='none';
 }
 
-// ── Overpass — POST puis GET, 3 serveurs ──────────────────────────────────────
-async function ovpQuery(srv, q){
-  // Essai 1 : POST
-  try{
-    const r=await fetch(srv,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
-    if(!r.ok)throw new Error('POST '+r.status);
-    const d=await r.json();if(d&&d.elements)return d;
-    throw new Error('POST réponse invalide');
-  }catch(e1){
-    // Essai 2 : GET
-    try{
-      const r=await fetch(srv+'?data='+encodeURIComponent(q));
-      if(!r.ok)throw new Error('GET '+r.status);
-      const d=await r.json();if(d&&d.elements)return d;
-      throw new Error('GET réponse invalide');
-    }catch(e2){throw e2;}
-  }
-}
-
-async function fetchGyms(){
-  if(fetching||!normReady||map.getZoom()<9)return;
-  if(location.protocol==='file:')return; // bloqué sans serveur local
-  fetching=true;
-
-  const b=map.getBounds();
-  const s=Math.max(b.getSouth()-.03,FR.s),n=Math.min(b.getNorth()+.03,FR.n);
-  const w=Math.max(b.getWest()-.05,FR.w),e=Math.min(b.getEast()+.05,FR.e);
-  if(hasZone(s,w,n,e)){fetching=false;return;}
-
-  const q=`[out:json][timeout:25];(
-node[leisure=fitness_centre](${s},${w},${n},${e});
-way[leisure=fitness_centre](${s},${w},${n},${e});
-node[amenity=gym](${s},${w},${n},${e});
-way[amenity=gym](${s},${w},${n},${e});
-node[sport=fitness][leisure!=fitness_station](${s},${w},${n},${e});
-way[sport=fitness][leisure!=fitness_station](${s},${w},${n},${e});
-);out geom tags;`;
-
-  let data=null;
-  for(let i=0;i<OVP.length;i++){
-    try{
-      setBar(true,`Serveur ${i+1}/3...`);
-      data=await ovpQuery(OVP[i],q);
-      break;
-    }catch(e){console.warn(`OVP[${i}]:`,e.message);data=null;}
-  }
-
-  if(!data){
-    setBar(false);
-    notif('Serveurs Overpass inaccessibles — réessayez','err');
-    fetching=false;return;
-  }
-
-  const seen=new Set(gyms.map(g=>g.lat.toFixed(4)+','+g.lon.toFixed(4)));
-  let added=0;
-  for(const el of data.elements){
-    // centroïde : node = point ; way/relation = barycentre de la géométrie (out geom)
-    let lat=el.lat,lon=el.lon;
-    if(lat==null){
-      if(el.center){lat=el.center.lat;lon=el.center.lon;}
-      else if(el.geometry&&el.geometry.length){const c=wayCentroid(el.geometry);lat=c[0];lon=c[1];}
-      else if(el.bounds){lat=(el.bounds.minlat+el.bounds.maxlat)/2;lon=(el.bounds.minlon+el.bounds.maxlon)/2;}
-    }
-    if(lat==null||lon==null)continue;
-    const t=el.tags||{};
-    // exclure street workout / équipements extérieurs gratuits + studios de yoga
-    if(t.leisure==='fitness_station'||t.fitness_station||t.sport==='calisthenics'||t.sport==='street_workout'||t.outdoor==='yes'||t.access==='no'||isYoga(t))continue;
-    const k=lat.toFixed(4)+','+lon.toFixed(4);
-    if(seen.has(k))continue;seen.add(k);
-    const cat=classifyGym(t);
-    const sz=gymSize(el,cat);
-    const surf=sz.area||CAT_AREA[cat]||600;                 // m² mesurés ou estimés par type
-    const r=Math.max(0.020,0.030*sz.mul);                   // rayon de chalandise (~2,5–4,5 km), croît avec la taille
-    const g={lat,lon,r,cat,size:sz.size,areaM2:sz.area,capacity:Math.round(surf*MEMBERS_PER_M2),
-      name:t.name||t['name:fr']||'Salle de sport',
-      addr:[t['addr:housenumber'],t['addr:street'],t['addr:city']].filter(Boolean).join(' ')||'',
-      phone:t.phone||t['contact:phone']||'',
-      web:t.website||t['contact:website']||'',
-      hours:t.opening_hours||'',
-      osmId:el.id,osmType:el.type||'node'};
-    const idx=gyms.length;gyms.push(g);atg(g,gymGrid);addMarker(g,idx);added++;
-  }
-
-  fetchedZones.push({s,w,n,e});
-  if(added>0){computeNorm();hLayer.redraw();}
-  saveGyms();
-  setBar(false);updCount();
-  notif(added>0?`✓ +${added} salle${added>1?'s':''} · ${gyms.length} au total`:`Zone à jour · ${gyms.length} salle${gyms.length>1?'s':''}  en cache`,'ok');
-  fetching=false;
-}
-
-// ── Clic carte ────────────────────────────────────────────────────────────────
+// ── Clic carte : estimation de la zone 15 min ──────────────────────────────────
 function initClick(){
   map.on('click',e=>{
-    if(!normReady)return;clkLayer.clearLayers();isoLayer.clearLayers();hiLayer.clearLayers();isoPoint=null;
-    const{lat,lng}=e.latlng;
-    if(lat<FR.s-1||lat>FR.n+1||lng<FR.w-1||lng>FR.e+1)return;
-    const s=ns(lat,lng),p=Math.round(s*100),[r,g,b]=rgb(s),col=`rgb(${r},${g},${b})`;
-    const m=marketAt(lat,lng);
-    const inc=localIncome(lat,lng);
-    const incRow=inc?`<div class="gp-ro"><span class="gp-ic">💶</span><span>Revenu médian local ~${inc.toLocaleString('fr')} €/an</span></div>`:'';
-    const warn=map.getZoom()<9?'<div style="font-size:10px;color:#e87;margin-top:5px">Zoom 9+ pour les salles</div>':'';
+    if(!META||recomputing)return;
+    clkLayer.clearLayers();isoLayer.clearLayers();hiLayer.clearLayers();isoPoint=null;
+    const lat=e.latlng.lat,lng=e.latlng.lng;
+    const smp=sample2(lat,lng);if(!smp)return;
+    const z=zoneStats(lat,lng);
+    const s=sDef(smp[0]),p=Math.round(s*100);
+    const col='rgb('+rgb(s).join(',')+')';
+    const vd=verdict(z.u,z.dem);
     L.circleMarker([lat,lng],{radius:8,color:'white',fillColor:col,fillOpacity:1,weight:2.5})
      .addTo(clkLayer).bindPopup(`<div class="gp">
-       <div style="font-size:26px;font-weight:700;color:${col};line-height:1">${p}<span style="font-size:13px;color:#aaa;font-weight:400">/100</span></div>
-       <div style="font-size:13px;font-weight:600;margin:3px 0 8px;color:${col}">${slbl(p)}</div>
-       <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${Math.round(m.unmet).toLocaleString('fr')}</b> adhérents non desservis <i style="color:#999">(estim.)</i></span></div>
-       <div class="gp-ro"><span class="gp-ic">👥</span><span>~${Math.round(m.members).toLocaleString('fr')} potentiels · capacité existante ~${Math.round(m.capacity).toLocaleString('fr')}</span></div>
-       <div class="gp-ro"><span class="gp-ic">📍</span><span>${lat.toFixed(5)}°N · ${lng.toFixed(5)}°E</span></div>${incRow}${warn}
-       <button class="iso-btn" onclick="glIso(${lat},${lng},'auto')">🚗 Chiffres exacts (15 min)</button>
-       <button class="iso-btn" onclick="glIso(${lat},${lng},'pedestrian')">🏃 Chiffres exacts (15 min)</button>
-     </div>`,{offset:[0,-6]}).openPopup();
+       <div class="gp-score"><b style="color:${col}">${p}<span style="font-size:13px;color:var(--txt3);font-weight:400">/100</span></b><span style="color:${col}">${slbl(p)}</span></div>
+       <div class="gp-sub">Zone accessible en ≤ 15 min · estimation</div>
+       <div class="kv"><span class="k">Habitants</span><span class="v">~${Math.round(z.pop).toLocaleString('fr')}</span></div>
+       <div class="kv"><span class="k">Adhérents potentiels</span><span class="v">~${Math.round(z.dem).toLocaleString('fr')}</span></div>
+       <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(z.cov*100)} % <small>du niveau national</small></span></div>
+       <div class="kv"><span class="k">Non desservis</span><span class="v">~${Math.round(z.u).toLocaleString('fr')}</span></div>
+       <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
+       <div class="gp-note">Périmètre modélisé (vitesse selon densité). L'analyse exacte utilise le réseau routier réel.</div>
+       <button class="iso-btn" onclick="glIso(${lat},${lng},'auto')">Analyse exacte · 15 min voiture</button>
+       <button class="iso-btn sec" onclick="glIso(${lat},${lng},'pedestrian')">Analyse exacte · 15 min à pied</button>
+     </div>`,{offset:[0,-6],maxWidth:290}).openPopup();
   });
 }
 
-// ── Isochrone (zone de chalandise réelle, temps de trajet) ──────────────────────
+// ── Isochrone (Valhalla) : mêmes indicateurs, périmètre routier exact ────────────
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+async function isoFetch(q){
+  const url=ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q));
+  let lastErr;
+  for(let attempt=0;attempt<3;attempt++){
+    const wait=Math.max(0,1200-(Date.now()-isoLast));if(wait>0)await sleep(wait);
+    isoLast=Date.now();
+    try{
+      const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status);
+      const fc=await r.json();
+      if(!fc.features||!fc.features.length)throw new Error('réponse vide');
+      return fc;
+    }catch(e){lastErr=e;if(attempt<2){setBar(true,'Serveur occupé, nouvelle tentative…');await sleep(1500);}}
+  }
+  throw lastErr;
+}
 function gjToLatLngs(geom){
   const rings=geom.type==='Polygon'?geom.coordinates:geom.coordinates.flat();
   return rings.map(r=>r.map(c=>[c[1],c[0]]));
 }
 function pip(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}return inside;}
-function polyRing(geom){ return geom.type==='Polygon'?geom.coordinates[0]:geom.coordinates[0][0]; }
-function polyBox(ring){let minx=180,maxx=-180,miny=90,maxy=-90;for(const c of ring){if(c[0]<minx)minx=c[0];if(c[0]>maxx)maxx=c[0];if(c[1]<miny)miny=c[1];if(c[1]>maxy)maxy=c[1];}return{minx,maxx,miny,maxy};}
-// Population dans l'union de polygones = densité locale (hab/km²) × surface de l'union.
-// La population n'est connue qu'au centroïde des communes (trop grossier pour une petite
-// zone piétonne) → on passe par la densité ; l'aire de l'union est obtenue par échantillonnage.
-function isoStats(geoms,lat,lon){
-  if(!geoms.length)return{pop:0,areaKm2:0};
-  const rings=geoms.map(polyRing),boxes=rings.map(polyBox);
-  let minx=180,maxx=-180,miny=90,maxy=-90;
-  for(const b of boxes){if(b.minx<minx)minx=b.minx;if(b.maxx>maxx)maxx=b.maxx;if(b.miny<miny)miny=b.miny;if(b.maxy>maxy)maxy=b.maxy;}
-  const mx=111320*Math.cos(lat*Math.PI/180),my=110540,N=110,cw=(maxx-minx)/N,ch=(maxy-miny)/N;
-  const cellKm2=(cw*mx)*(ch*my)/1e6;
-  // somme sur les cellules de l'union : densité locale (≈ commune la plus proche) × aire de la cellule
-  let pop=0,inside=0;
-  for(let i=0;i<N;i++)for(let j=0;j<N;j++){const x=minx+(i+.5)*cw,y=miny+(j+.5)*ch;
-    let isin=false;for(let k=0;k<rings.length;k++){const b=boxes[k];if(x<b.minx||x>b.maxx||y<b.miny||y>b.maxy)continue;if(pip(x,y,rings[k])){isin=true;break;}}
-    if(isin){inside++;pop+=densityAt(y,x)*cellKm2;}
+function outerRings(geom){return geom.type==='Polygon'?[geom.coordinates[0]]:geom.coordinates.map(p=>p[0]);}
+// Agrégats exacts dans l'union de polygones : PIP des centres de carreaux en plan LAEA.
+// Mêmes couches (uAt/relAt) et mêmes unités que zoneStats → estimation et exact concordent.
+function isoStats(geoms){
+  const rings=[];
+  for(const g of geoms)for(const ring of outerRings(g))rings.push(ring.map(c=>laeaForward(c[1],c[0])));
+  let minE=1e12,maxE=-1e12,minN=1e12,maxN=-1e12;
+  for(const r of rings)for(const pt of r){if(pt[0]<minE)minE=pt[0];if(pt[0]>maxE)maxE=pt[0];if(pt[1]<minN)minN=pt[1];if(pt[1]>maxN)maxN=pt[1];}
+  const x0=Math.max(0,Math.floor((minE-META.E0)/1000)),x1=Math.min(META.cols-1,Math.floor((maxE-META.E0)/1000));
+  const y0=Math.max(0,Math.floor((minN-META.N0)/1000)),y1=Math.min(META.rows-1,Math.floor((maxN-META.N0)/1000));
+  let pop=0,dem=0,u=0,relW=0;
+  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
+    const k=cellK(x,y);if(k===undefined)continue;
+    const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
+    let isin=false;for(const r of rings)if(pip(cE,cN,r)){isin=true;break;}
+    if(isin){pop+=IND[k];dem+=DEM[k];u+=uAt(k);relW+=relAt(k)*DEM[k];}
   }
-  return {pop:Math.round(pop),areaKm2:inside*cellKm2};
-}
-// Salles dans l'union de polygones (les salles sont des points → test direct)
-function gymsInPolygons(geoms){
-  const rings=geoms.map(polyRing),boxes=rings.map(polyBox);
   let cap=0,count=0,list=[];
-  for(const g of gyms){for(let k=0;k<rings.length;k++){const b=boxes[k];if(g.lon<b.minx||g.lon>b.maxx||g.lat<b.miny||g.lat>b.maxy)continue;if(pip(g.lon,g.lat,rings[k])){cap+=g.capacity||0;count++;list.push(g);break;}}}
-  return {cap,count,list};
-}
-function isoStyle(mode,mins){ return mode==='pedestrian'?(mins>=15?'#34d399':'#059669'):(mins>=15?'#a78bfa':'#7c3aed'); }
-// Appel Valhalla robuste : ≥1,2 s entre requêtes (fair-use) + 3 tentatives avec backoff
-async function isoFetch(q){
-  const url=ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q));
-  let lastErr;
-  for(let attempt=0;attempt<3;attempt++){
-    const wait=Math.max(0,1200-(Date.now()-isoLast)); if(wait>0)await sleep(wait);
-    isoLast=Date.now();
-    try{
-      const r=await fetch(url);
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      const fc=await r.json();
-      if(!fc.features||!fc.features.length)throw new Error('réponse vide');
-      return fc;
-    }catch(e){ lastErr=e; if(attempt<2){setBar(true,'Serveur occupé, nouvelle tentative…');await sleep(1500);} }
+  for(const g of GYMS){
+    if(!catActive[g.cat])continue;
+    const pt=laeaForward(g.lat,g.lon);
+    if(pt[0]<minE||pt[0]>maxE||pt[1]<minN||pt[1]>maxN)continue;
+    let isin=false;for(const r of rings)if(pip(pt[0],pt[1],r)){isin=true;break;}
+    if(isin){cap+=g.cap;count++;list.push(g);}
   }
-  throw lastErr;
+  return {pop:Math.round(pop),dem:Math.round(dem),u,cov:dem>0?relW/dem:0,cap,count,list};
 }
+function isoStyle(mode,mins){return mode==='pedestrian'?(mins>=15?'#2fb380':'#1d8a61'):(mins>=15?'#6e8bff':'#4c6ef5');}
 window.glIso=async function(lat,lon,mode){
   mode=(mode==='pedestrian')?'pedestrian':'auto';
   if(isoFetching)return;isoFetching=true;
-  // nouveau point → réinitialise la session (sinon on cumule voiture + à pied du même point)
   if(!isoPoint||Math.abs(isoPoint[0]-lat)>1e-6||Math.abs(isoPoint[1]-lon)>1e-6){
     isoPoint=[lat,lon];isoPolys={auto:null,pedestrian:null};isoGymList=[];isoLayer.clearLayers();
   }
   hiLayer.clearLayers();
   const lbl=mode==='pedestrian'?'à pied':'en voiture';
-  setBar(true,`Zone de chalandise ${lbl}…`);
+  setBar(true,`Analyse exacte ${lbl}…`);
   try{
     const q={locations:[{lat,lon}],costing:mode,contours:[{time:10},{time:15}],polygons:true,denoise:.5,generalize:mode==='pedestrian'?25:60};
     const fc=await isoFetch(q);
-    setBar(true,`Zone de chalandise ${lbl}…`);
     const feats=(fc.features||[]).sort((a,b)=>b.properties.contour-a.properties.contour);
     let poly15=null;
     feats.forEach(f=>{
       const mins=f.properties.contour,col=isoStyle(mode,mins);
-      L.polygon(gjToLatLngs(f.geometry),{color:col,weight:2,fillColor:col,fillOpacity:.1,dashArray:mins>=15?'5,4':null})
+      L.polygon(gjToLatLngs(f.geometry),{color:col,weight:2,fillColor:col,fillOpacity:.08,dashArray:mins>=15?'5,4':null})
         .addTo(isoLayer).bindTooltip(`${mins} min ${lbl}`,{sticky:true});
       if(mins>=15)poly15=f.geometry;
     });
     isoPolys[mode]=poly15;
     setBar(false);
-    showIsoResult(lat,lon,mode);
-  }catch(e){setBar(false);notif(`Zone ${lbl} indisponible (serveur isochrone occupé)`,'err');console.warn('iso:',e);}
+    showIsoResult(lat,lon);
+  }catch(e){setBar(false);notif(`Analyse ${lbl} indisponible (serveur isochrone occupé)`,'err');console.warn('iso:',e);}
   isoFetching=false;
 };
 function showIsoResult(lat,lon){
-  const incF=incomeFactor(localIncome(lat,lon));
   const carP=isoPolys.auto,walkP=isoPolys.pedestrian,polys=[carP,walkP].filter(Boolean);
-  const car=carP?isoStats([carP],lat,lon):null, walk=walkP?isoStats([walkP],lat,lon):null;
-  const uni=isoStats(polys,lat,lon);
-  const uMembers=Math.round(uni.pop*PENETRATION*incF);
-  const sup=gymsInPolygons(polys); isoGymList=sup.list;
-  const unmet=Math.max(0,uMembers-Math.round(sup.cap));
-  const nGyms=Math.floor(unmet/NEW_GYM_CAP);
-  const verdict=nGyms>=1?`✅ De la place pour ~${nGyms} nouvelle${nGyms>1?'s':''} salle${nGyms>1?'s':''}`
-    :(unmet>NEW_GYM_CAP*0.4?'≈ Place pour une petite salle':'⚠️ Marché quasi saturé');
+  const st=isoStats(polys);isoGymList=st.list;
+  const unmet=Math.round(st.u);
+  const vd=verdict(st.u,st.dem);
+  const segs=(()=>{const c={};for(const g of st.list)c[g.cat]=(c[g.cat]||0)+1;
+    return Object.keys(c).map(k=>`${c[k]} ${(CAT[k]||CAT.classic).lbl.toLowerCase()}`).join(' · ');})();
   const both=!!(carP&&walkP);
-  const rowCar=car?`<div class="gp-ro"><span class="gp-ic">🚗</span><span>voiture : ~${car.pop.toLocaleString('fr')} hab</span></div>`:'';
-  const rowWalk=walk?`<div class="gp-ro"><span class="gp-ic">🏃</span><span>à pied : ~${walk.pop.toLocaleString('fr')} hab</span></div>`:'';
-  const totLbl=both?'Total voiture + à pied (sans doublon)':(carP?'Total (voiture)':'Total (à pied)');
-  const hint=both?'':`<div style="font-size:10.5px;color:#9a9ab0;margin-top:2px">${carP?'➕ ajoute 🏃 pour compter les piétons':'➕ ajoute 🚗 pour compter la voiture'}</div>`;
-  L.popup({offset:[0,-4],maxWidth:285}).setLatLng([lat,lon]).setContent(`<div class="gp">
-    <div class="gp-name">Zone de chalandise · 15 min</div>
-    ${rowCar}${rowWalk}
-    <div class="gp-ro"><span class="gp-ic">👥</span><span><b>${totLbl}</b><br>~${uni.pop.toLocaleString('fr')} hab · ~${uMembers.toLocaleString('fr')} adhérents potentiels</span></div>
-    <div class="gp-ro iso-salles" onclick="glHiGyms()"><span class="gp-ic">🏋️</span><span>${sup.count} salle${sup.count>1?'s':''} · capacité ~${Math.round(sup.cap).toLocaleString('fr')} <u>surligner</u></span></div>
-    <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${unmet.toLocaleString('fr')} adhérents non desservis</b></span></div>
-    <div style="font-size:12px;font-weight:700;margin-top:6px;color:#7c3aed">${verdict}</div>${hint}
-    <button class="iso-btn" onclick="glIso(${lat},${lon},'auto')">🚗 Voiture 15 min</button>
-    <button class="iso-btn" onclick="glIso(${lat},${lon},'pedestrian')">🏃 À pied 15 min</button>
+  const modeLbl=both?'voiture + à pied (union)':(carP?'15 min voiture':'15 min à pied');
+  const hint=both?'':`<div class="gp-note">${carP?'Ajoutez le périmètre piéton pour l’union des deux.':'Ajoutez le périmètre voiture pour l’union des deux.'}</div>`;
+  L.popup({offset:[0,-4],maxWidth:300}).setLatLng([lat,lon]).setContent(`<div class="gp">
+    <div class="gp-name">Analyse exacte</div>
+    <div class="gp-sub">Isochrone routière réelle · ${modeLbl}</div>
+    <div class="kv"><span class="k">Habitants</span><span class="v">~${st.pop.toLocaleString('fr')}</span></div>
+    <div class="kv"><span class="k">Adhérents potentiels</span><span class="v">~${st.dem.toLocaleString('fr')}</span></div>
+    <div class="kv iso-salles" onclick="glHiGyms()"><span class="k">Concurrence</span><span class="v">${st.count} salle${st.count>1?'s':''} · ~${st.cap.toLocaleString('fr')} places</span></div>
+    ${segs?`<div class="kv"><span class="k">Par segment</span><span class="v" style="font-weight:400;font-size:10.5px">${segs}</span></div>`:''}
+    <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(st.cov*100)} % <small>du niveau national</small></span></div>
+    <div class="kv"><span class="k">Non desservis</span><span class="v">~${unmet.toLocaleString('fr')}</span></div>
+    <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>${hint}
+    <button class="iso-btn" onclick="glIso(${lat},${lon},'auto')">Périmètre voiture 15 min</button>
+    <button class="iso-btn sec" onclick="glIso(${lat},${lon},'pedestrian')">Périmètre à pied 15 min</button>
   </div>`).openOn(map);
 }
 window.glHiGyms=function(){
-  if(hiLayer.getLayers().length){hiLayer.clearLayers();return;}   // bascule on/off
+  if(hiLayer.getLayers().length){hiLayer.clearLayers();return;}
   for(const g of isoGymList){
-    L.circleMarker([g.lat,g.lon],{radius:13,color:'#fde047',weight:3,fillColor:'#fde047',fillOpacity:.3})
-      .addTo(hiLayer).bindTooltip(`${g.name} · ~${(g.capacity||0).toLocaleString('fr')} adh.`,{direction:'top'});
+    L.circleMarker([g.lat,g.lon],{radius:13,color:'#e5c25b',weight:3,fillColor:'#e5c25b',fillOpacity:.25})
+      .addTo(hiLayer).bindTooltip(`${g.name} · ~${g.cap.toLocaleString('fr')} places`,{direction:'top'});
   }
 };
 
-// ── INSEE ─────────────────────────────────────────────────────────────────────
-// Revenu médian disponible par commune (INSEE Filosofi) → Map code INSEE -> €
-async function loadIncome(){
-  const m=new Map();
-  try{
-    const r=await fetch(INCOME_URL);
-    if(!r.ok)throw new Error('Filosofi HTTP '+r.status);
-    const rows=await r.json();
-    for(const row of rows){ if(row.med20) m.set(String(row.code_geographique),row.med20); }
-  }catch(e){ console.warn('Revenus indisponibles — score sans pouvoir d\'achat :',e.message); }
-  return m;
-}
-// Construit les communes + index spatial à partir d'un tableau compact
-function buildCommunes(arr){
-  communes=[];popGrid=Array.from({length:GX*GY},()=>[]);cenGrid=Array.from({length:CGX*CGY},()=>[]);
-  for(const c of arr){
-    const r=popR(c.pop),ww=pw(c.pop);
-    const com={lat:c.lat,lon:c.lon,pop:c.pop,inc:c.inc,surf:c.surf||0,dens:c.surf>0?c.pop/c.surf:0,r,w:ww};
-    communes.push(com);atg(com,popGrid);
-    const cx=Math.max(0,Math.min(CGX-1,Math.floor((c.lon-FR.w)/(FR.e-FR.w)*CGX)));
-    const cy=Math.max(0,Math.min(CGY-1,Math.floor((c.lat-FR.s)/(FR.n-FR.s)*CGY)));
-    cenGrid[cy*CGX+cx].push(com);
-  }
-  buildFlow();
-}
-// Densité locale (hab/km²) = densité de la commune dont le centroïde est le plus proche (≈ Voronoi)
-function densityAt(lat,lon){
-  if(!cenGrid)return 0;
-  const cos=Math.cos(lat*Math.PI/180);
-  const cx=Math.max(0,Math.min(CGX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*CGX)));
-  const cy=Math.max(0,Math.min(CGY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*CGY)));
-  let best=null,bd=1e9;
-  for(let R=1;R<=12&&!best;R++){
-    for(let y=Math.max(0,cy-R);y<=Math.min(CGY-1,cy+R);y++)for(let x=Math.max(0,cx-R);x<=Math.min(CGX-1,cx+R);x++){
-      for(const c of cenGrid[y*CGX+x]){const dl=lat-c.lat,dc=(lon-c.lon)*cos,d2=dl*dl+dc*dc;if(d2<bd){bd=d2;best=c;}}
+// ── Meilleures zones de la vue ─────────────────────────────────────────────────
+window.glBest=function(){
+  if(!META||recomputing)return;
+  bestLayer.clearLayers();clkLayer.clearLayers();
+  const b=map.getBounds();
+  const s=Math.max(b.getSouth(),41),n=Math.min(b.getNorth(),51.5),w=Math.max(b.getWest(),-5.5),e=Math.min(b.getEast(),10);
+  if(n<=s||e<=w){notif('Vue hors de France','err');return;}
+  setBar(true,'Analyse de la vue…');
+  setTimeout(()=>{
+    const NX=44,NY=30,cands=[];
+    for(let i=0;i<NX;i++)for(let j=0;j<NY;j++){
+      const lon=w+(i+.5)*(e-w)/NX,lat=s+(j+.5)*(n-s)/NY;
+      const z=zoneStats(lat,lon);
+      if(z.u>0)cands.push({lat,lon,u:z.u,dem:z.dem});
     }
-  }
-  return best?best.dens:0;
-}
-function cellIdx(lat,lon){ return Math.max(0,Math.min(GX-1,Math.floor((lon-FR.w)/(FR.e-FR.w)*GX)))+Math.max(0,Math.min(GY-1,Math.floor((lat-FR.s)/(FR.n-FR.s)*GY)))*GX; }
-// Flux domicile-travail (gravitaire) : chaque commune envoie ses actifs vers le pôle
-// d'emploi le plus proche ; on cumule le « passage » sur les cellules traversées par la ligne.
-// Rasterise un segment A→B en ajoutant m à chaque cellule traversée (une seule fois)
-function rasterFlow(grid,aLat,aLon,bLat,bLon,m){
-  const dist=Math.hypot(bLat-aLat,bLon-aLon), steps=Math.max(2,Math.ceil(dist/0.02));
-  let last=-1;
-  for(let s=0;s<=steps;s++){const t=s/steps,idx=cellIdx(aLat+(bLat-aLat)*t,aLon+(bLon-aLon)*t);if(idx!==last){grid[idx]+=m;last=idx;}}
-}
-function gridP95(grid){const v=[];for(let i=0;i<grid.length;i++)if(grid[i]>0)v.push(grid[i]);if(!v.length)return 1;v.sort((a,b)=>a-b);return v[Math.floor(v.length*0.95)]||v[v.length-1];}
-// v1 — gravitaire : chaque commune → pôle d'emploi le plus proche, pondéré par ses actifs
-function buildFlow(){
-  const grid=new Float64Array(GX*GY), poles=communes.filter(c=>c.pop>=EMPLOI_MIN);
-  if(poles.length){
-    const MAXD=0.30;                       // ~33 km max vers le pôle
-    for(const c of communes){
-      if(c.pop>=EMPLOI_MIN)continue;        // les pôles sont des destinations, pas des origines
-      const cos=Math.cos(c.lat*Math.PI/180);
-      let best=null,bd=MAXD*MAXD;
-      for(const p of poles){const dl=c.lat-p.lat,dc=(c.lon-p.lon)*cos,d2=dl*dl+dc*dc;if(d2<bd){bd=d2;best=p;}}
-      if(best)rasterFlow(grid,c.lat,c.lon,best.lat,best.lon,c.pop*ACTIVE_SHARE);
-    }
-  }
-  flowV1={grid,p95:gridP95(grid)};
-}
-// v2 — INSEE réel : corridors résidence→travail (>100 actifs), chargé à la demande + caché
-async function loadFlowV2(){
-  if(flowV2)return true;
-  setBar(true,'Chargement des flux INSEE…');
-  let rec=await idbGet('flux_v1');
-  if(!(rec&&rec.d&&Date.now()-rec.t<COMMUNES_TTL)){
-    try{
-      const r=await fetch(FLOW_URL); if(!r.ok)throw new Error('flux HTTP '+r.status);
-      const d=await r.json();
-      const od=d.map(x=>[x.coordonnees_residence&&x.coordonnees_residence.lat,x.coordonnees_residence&&x.coordonnees_residence.lon,x.coordonnees_travail&&x.coordonnees_travail.lat,x.coordonnees_travail&&x.coordonnees_travail.lon,x.nbflux_c15_actocc15p])
-        .filter(a=>a[0]!=null&&a[2]!=null);
-      rec={t:Date.now(),d:od}; idbSet('flux_v1',rec);
-    }catch(e){ setBar(false); notif('Flux INSEE indisponibles — réessayez','err'); console.warn('fluxV2:',e); return false; }
-  }
-  const grid=new Float64Array(GX*GY);
-  for(const a of rec.d) rasterFlow(grid,a[0],a[1],a[2],a[3],a[4]);
-  flowV2={grid,p95:gridP95(grid)};
-  setBar(false); return true;
-}
-// Lambert-93 (EPSG:2154) → WGS84 [lat,lon] — inverse Lambert conique conforme (constantes IGN)
-function lambert93ToLatLon(X,Y){
-  const e=0.0818191910428158,n=0.725607765053267,C=11754255.426096,Xs=700000,Ys=12655612.049876,lon0=3*Math.PI/180;
-  const dX=X-Xs,dY=Y-Ys,R=Math.sqrt(dX*dX+dY*dY),g=Math.atan2(dX,-dY);
-  const lon=lon0+g/n,liso=-1/n*Math.log(R/C);
-  let phi=2*Math.atan(Math.exp(liso))-Math.PI/2;
-  for(let i=0;i<8;i++){const s=e*Math.sin(phi);phi=2*Math.atan(Math.pow((1+s)/(1-s),e/2)*Math.exp(liso))-Math.PI/2;}
-  return [phi*180/Math.PI,lon*180/Math.PI];
-}
-// v3 — Trafic modélisé : navettes domicile-travail INSEE routées sur le vrai réseau routier
-// (OSRM, hors autoroutes), précalculé hors-ligne. On charge juste assign.json → instantané.
-async function loadFlowV3(){
-  if(flowV3)return true;
-  setBar(true,'Chargement du trafic modélisé…');
-  try{
-    const r=await fetch('assign.json',{cache:'force-cache'}); if(!r.ok)throw new Error('assign '+r.status);
-    const d=await r.json();
-    const grid=new Float64Array(GX*GY), g=d.grid||[];
-    for(let i=0;i<grid.length&&i<g.length;i++)grid[i]=g[i];   // grille déjà agrégée par le routage
-    roadSegs=d.roads||[];
-    buildRoadIndex();                                        // index spatial → flux localisé aux axes
-    flowV3={grid,p95:gridP95(grid)};
-    setBar(false); return true;
-  }catch(e){ setBar(false); notif('Trafic modélisé indisponible (assign.json manquant)','err'); console.warn('flowV3:',e); return false; }
-}
-function activeFlow(){ return flowMode==='off'?null:(flowMode==='v3'?flowV3:flowMode==='v2'?flowV2:flowV1); }
-// Interpolation bilinéaire de la grille de flux (v1/v2) sur les centres de cellules → gradients lisses (fin des rectangles)
-function bilinearGrid(grid,lat,lon){
-  const fx=(lon-FR.w)/(FR.e-FR.w)*GX-0.5, fy=(lat-FR.s)/(FR.n-FR.s)*GY-0.5;
-  const x0=Math.floor(fx), y0=Math.floor(fy), tx=fx-x0, ty=fy-y0;
-  const at=(x,y)=>(x<0||x>=GX||y<0||y>=GY)?0:grid[x+y*GX];
-  const a=at(x0,y0),b=at(x0+1,y0),c=at(x0,y0+1),d=at(x0+1,y0+1);
-  return a*(1-tx)*(1-ty)+b*tx*(1-ty)+c*(1-tx)*ty+d*tx*ty;
-}
-// ── Index spatial du flux routier (v3) : segments → points de passage, hash ~500 m ──────────────
-const rfKey=(ix,iy)=>ix+','+iy;
-function buildRoadIndex(){
-  roadPts=[]; roadHash=new Map(); roadFluxReady=false;
-  if(!roadSegs||!roadSegs.length)return;
-  for(const s of roadSegs){                         // un point de passage au milieu de chaque segment
-    const la=(s[0]+s[2])/2, lo=(s[1]+s[3])/2;
-    const idx=roadPts.push({lat:la,lon:lo,t:s[4]})-1;
-    const k=rfKey(Math.floor(lo/RF_CELL),Math.floor(la/RF_CELL));
-    let arr=roadHash.get(k); if(!arr){arr=[];roadHash.set(k,arr);} arr.push(idx);
-  }
-  // échelle : p95 du flux localisé mesuré SUR les axes → un axe très fréquenté ≈ PASSING_MAX
-  const sample=[], step=Math.max(1,Math.floor(roadPts.length/4000));
-  for(let i=0;i<roadPts.length;i+=step)sample.push(roadFluxRaw(roadPts[i].lat,roadPts[i].lon));
-  sample.sort((a,b)=>a-b);
-  roadFluxScale=sample.length?(sample[Math.floor(sample.length*0.95)]||sample[sample.length-1]):1;
-  if(roadFluxScale<=0)roadFluxScale=1;
-  roadFluxReady=true;
-}
-// Flux de passage brut à un point : Σ trafic des axes proches, décroissance gaussienne, coupée ~310 m
-function roadFluxRaw(lat,lon){
-  if(!roadHash)return 0;
-  const cos=Math.cos(lat*Math.PI/180), ix=Math.floor(lon/RF_CELL), iy=Math.floor(lat/RF_CELL);
-  const cut2=RF_CUT*RF_CUT, s2=2*RF_SIGMA*RF_SIGMA; let f=0;
-  for(let gx=ix-1;gx<=ix+1;gx++)for(let gy=iy-1;gy<=iy+1;gy++){
-    const arr=roadHash.get(rfKey(gx,gy)); if(!arr)continue;
-    for(const k of arr){const p=roadPts[k],dl=lat-p.lat,dc=(lon-p.lon)*cos,d2=dl*dl+dc*dc;
-      if(d2<=cut2)f+=p.t*Math.exp(-d2/s2);}
-  }
-  return f;
-}
-function roadFlux(lat,lon){ return roadFluxReady?roadFluxRaw(lat,lon)/roadFluxScale:0; }  // ≈ [0 .. 1+]
-// Calque « routes » : tronçons colorés/épaissis selon le trafic modélisé (navettes routées)
-function roadColor(t){ const x=Math.max(0,Math.min(1,Math.log10(Math.max(t,1))/5)); return `rgb(${Math.round(40+215*x)},${Math.round(110*(1-x))},${Math.round(210*(1-x))})`; }
-// Calque routier : vraies lignes continues, colorées/épaissies selon le trafic. Rendu canvas + filtrage
-// par vue et par zoom (les gros corridors seuls à petit zoom) → fluide même avec des dizaines de milliers d'arêtes.
-function drawRoads(){
-  roadLayer.clearLayers();
-  if(!roadSegs||flowMode!=='v3')return;
-  const b=map.getBounds(),z=map.getZoom();
-  const S=b.getSouth(),N=b.getNorth(),W=b.getWest(),E=b.getEast();
-  const minT=z>=13?1:z>=11?200:z>=9?900:z>=7?3000:9000;    // seuil de trafic croissant quand on dézoome
-  const rnd=L.canvas({padding:.2}); let cnt=0;
-  for(const s of roadSegs){                                  // roadSegs trié par trafic décroissant
-    if(s[4]<minT)break;
-    if(Math.max(s[0],s[2])<S||Math.min(s[0],s[2])>N||Math.max(s[1],s[3])<W||Math.min(s[1],s[3])>E)continue;
-    const x=Math.min(1,Math.log10(Math.max(s[4],1))/5);
-    L.polyline([[s[0],s[1]],[s[2],s[3]]],{renderer:rnd,color:roadColor(s[4]),weight:1+3.5*x,opacity:.85,interactive:false}).addTo(roadLayer);
-    if(++cnt>=25000)break;                                   // garde-fou perf
+    cands.sort((a,b)=>b.u-a.u);
+    const minD=(e-w)/12,picks=[];
+    for(const c of cands){if(picks.length>=8)break;if(picks.every(p=>Math.hypot(p.lat-c.lat,p.lon-c.lon)>minD))picks.push(c);}
+    setBar(false);
+    if(!picks.length){notif('Aucune zone à fort potentiel dans cette vue','warn');return;}
+    picks.forEach((c,i)=>{
+      const rank=i+1,vd=verdict(c.u,c.dem);
+      const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
+      L.marker([c.lat,c.lon],{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
+        <div class="gp-name">Zone n° ${rank} de la vue</div>
+        <div class="gp-sub">Zone accessible en ≤ 15 min · estimation</div>
+        <div class="kv"><span class="k">Adhérents potentiels</span><span class="v">~${Math.round(c.dem).toLocaleString('fr')}</span></div>
+        <div class="kv"><span class="k">Non desservis</span><span class="v">~${Math.round(c.u).toLocaleString('fr')}</span></div>
+        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
+        <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'auto')">Analyse exacte · 15 min voiture</button>
+      </div>`);
+    });
+    notif(`${picks.length} meilleures zones de la vue`,'ok');
+  },30);
+};
+
+// ── Bascule de vue / salles / méthode ──────────────────────────────────────────
+window.glView=function(){
+  viewMode=viewMode==='deficit'?'couverture':viewMode==='couverture'?'off':'deficit';
+  const btn=document.getElementById('t-view');
+  btn.textContent='Vue : '+(viewMode==='deficit'?'Déficit':viewMode==='couverture'?'Couverture':'Aucune');
+  btn.classList.toggle('on',viewMode!=='off');
+  updLegend();hLayer.redraw();updHash();
+};
+window.glTog=function(l){
+  if(l==='gyms'){showGyms=!showGyms;document.getElementById('t-gyms').classList.toggle('on',showGyms);drawGyms();}
+};
+window.glInfo=function(show){document.getElementById('infomodal').style.display=(show===false)?'none':'flex';};
+
+// ── Légende + filtres de concurrence ───────────────────────────────────────────
+function updLegend(){
+  const bar=document.getElementById('leg-bar');
+  if(viewMode==='couverture'){
+    document.getElementById('leg-title').textContent='Couverture vs moyenne nationale';
+    bar.style.background='linear-gradient(to right,#d53e4f,#fdae61,#e6f598,#66c2a5,#3288bd)';
+    document.getElementById('leg-lo').textContent='Sous-équipé';
+    document.getElementById('leg-hi').textContent='Saturé (≥200 %)';
+  }else{
+    document.getElementById('leg-title').textContent='Adhérents non desservis';
+    bar.style.background='linear-gradient(to right,#3288bd,#66c2a5,#abdda4,#e6f598,#fee08b,#fdae61,#f46d43,#d53e4f)';
+    document.getElementById('leg-lo').textContent='Couvert';
+    document.getElementById('leg-hi').textContent='Fort déficit';
   }
 }
-async function loadFrance(){
-  startPB();
-  try{
-    const cached=await idbGet('communes_v3');
-    if(cached&&cached.d&&Date.now()-cached.t<COMMUNES_TTL){
-      document.getElementById('ld-t').textContent='Lecture du cache local…';
-      document.getElementById('ld-s').textContent=cached.d.length.toLocaleString('fr')+' communes (cache)';
-      await sleep(20);buildCommunes(cached.d);
-    }else{
-      const resp=await fetch('https://geo.api.gouv.fr/communes?fields=nom,code,centre,population,surface&format=json&geometry=centre');
-      if(!resp.ok)throw new Error('INSEE HTTP '+resp.status);
-      const data=await resp.json();
-      document.getElementById('ld-t').textContent='Revenus médians (INSEE Filosofi)…';
-      const inc=await loadIncome();
-      document.getElementById('ld-t').textContent='Indexation spatiale…';
-      document.getElementById('ld-s').textContent=data.length.toLocaleString('fr')+' communes';
-      await sleep(20);
-      const compact=[];
-      for(const c of data){
-        if(!c.centre)continue;
-        const lon=c.centre.coordinates[0],lat=c.centre.coordinates[1];
-        if(lat<FR.s||lat>FR.n||lon<FR.w||lon>FR.e)continue;
-        compact.push({lat,lon,pop:c.population||150,inc:inc.get(c.code)||0,surf:(c.surface||0)/100}); // surface ha → km²
-      }
-      buildCommunes(compact);
-      idbSet('communes_v3',{t:Date.now(),d:compact});
-    }
-    document.getElementById('ld-t').textContent='Calcul échelle globale…';
-    await sleep(20);computeNorm();endPB();await sleep(200);
-    document.getElementById('ld0').style.display='none';
-    document.getElementById('leg').style.display='block';
-    await restoreGyms();
-    hLayer.redraw();updZtip();
-    notif('✓ '+communes.length.toLocaleString('fr')+' communes · Zoomez 9+ pour les salles','ok');
-  }catch(e){
-    endPB();document.getElementById('ld-t').textContent='Erreur de chargement';
-    document.getElementById('ld-s').textContent=e.message;console.error(e);
+function buildLegend(){
+  const cats=document.getElementById('leg-cats');
+  let html='';
+  for(const k in CAT){
+    html+=`<label class="lrow"><input type="checkbox" checked data-cat="${k}" onchange="glCat('${k}',this.checked)"><span class="ldot" style="background:${CAT[k].col}"></span>${CAT[k].lbl}</label>`;
   }
+  cats.innerHTML=html;
+  document.getElementById('leg-src').innerHTML=
+    `Modèle E2SFCA · chalandise ${T_MAX} min<br>Pop/âges/revenus : INSEE 1 km (${(META.modele&&META.modele.millesimePop)||'–'})<br>Salles : SIRENE ∪ Data ES (${META.national.salles.toLocaleString('fr')})<br>Généré le ${META.generated} · clic sur la carte = analyse`;
+  updLegend();
 }
 
-// ── Recherche ─────────────────────────────────────────────────────────────────
+// ── Recherche (Nominatim) ──────────────────────────────────────────────────────
+async function nomFetch(path){
+  const wait=Math.max(0,1100-(Date.now()-nomLast));
+  if(wait>0)await sleep(wait);
+  nomLast=Date.now();
+  const sep=path.includes('?')?'&':'?';
+  return fetch(`${NOM}${path}${sep}email=${encodeURIComponent(CONTACT_EMAIL)}`);
+}
 async function doSearch(q){
   if(!q.trim())return;
   try{
     const r=await nomFetch(`/search?format=json&q=${encodeURIComponent(q)}&limit=1&accept-language=fr&countrycodes=fr`);
     const d=await r.json();if(!d.length){notif('Lieu introuvable','err');return;}
     const p=d[0];let s,w,n,e;
-    if(p.boundingbox)[s,n,w,e]=p.boundingbox.map(Number);
+    if(p.boundingbox){s=+p.boundingbox[0];n=+p.boundingbox[1];w=+p.boundingbox[2];e=+p.boundingbox[3];}
     else{const dv=.08;s=+p.lat-dv;n=+p.lat+dv;w=+p.lon-dv*1.5;e=+p.lon+dv*1.5;}
     if(n-s>.4){const c=(s+n)/2;s=c-.16;n=c+.16;}if(e-w>.6){const c=(w+e)/2;w=c-.27;e=c+.27;}
     map.fitBounds([[s,w],[n,e]],{maxZoom:13});
@@ -908,91 +707,116 @@ async function getSugs(q){
   }catch(e){}
 }
 
-window.glTog=function(l){
-  if(l==='score'){showScore=!showScore;document.getElementById('t-score').classList.toggle('on',showScore);hLayer.redraw();}
-  if(l==='gyms'){showGyms=!showGyms;document.getElementById('t-gyms').classList.toggle('on',showGyms);syncVis();}
-};
-window.glInfo=function(show){ document.getElementById('infomodal').style.display=(show===false)?'none':'flex'; };
-// Retire toutes les salles chargées (allège l'affichage quand beaucoup de salles ralentissent) — #3
-window.glClearGyms=function(){
-  if(!gyms.length){notif('Aucune salle chargée','warn');return;}
-  const n=gyms.length;
-  gymMarkers.forEach(m=>{if(gymLayer.hasLayer(m))gymLayer.removeLayer(m);});
-  gymMarkers.clear(); gymLayer.clearLayers(); hiLayer.clearLayers();
-  gyms=[]; gymGrid=Array.from({length:GX*GY},()=>[]); fetchedZones=[]; isoGymList=[];
-  idbSet('gyms_v5',{t:Date.now(),gyms:[],zones:[]});          // vide aussi le cache
-  computeNorm(); hLayer.redraw(); updCount();
-  notif(`🧹 ${n} salle${n>1?'s':''} retirée${n>1?'s':''} — repannez/zoomez pour recharger`,'ok');
-};
-// Sélecteur de modèle de flux : Gravitaire (v1) → INSEE réel (v2) → Off, et compare en direct
-window.glFlowMode=async function(){
-  const order=['v1','v2','v3','off'], next=order[(order.indexOf(flowMode)+1)%4];
-  if(next==='v2'&&!await loadFlowV2())return;
-  if(next==='v3'&&!await loadFlowV3())return;
-  flowMode=next;
-  if(flowMode==='v3')drawRoads(); else roadLayer.clearLayers();
-  const lbl=flowMode==='v1'?'gravitaire':flowMode==='v2'?'INSEE réel':flowMode==='v3'?'trafic (navettes)':'off';
-  const btn=document.getElementById('t-flow');
-  btn.textContent='🛣️ Flux : '+lbl; btn.classList.toggle('on',flowMode!=='off');
-  computeNorm(); hLayer.redraw();
-  if(bestLayer.getLayers().length)glBest();   // reclasse les meilleures zones pour la comparaison
-  notif('Modèle de flux : '+(flowMode==='v1'?'gravitaire (v1)':flowMode==='v2'?'INSEE réel 2015 (v2)':flowMode==='v3'?'trafic modélisé · navettes routées (v3)':'désactivé'),'ok');
-};
-// Propose les meilleures zones d'implantation de la vue courante (demande non satisfaite max)
-window.glBest=function(){
-  if(!normReady)return;
-  bestLayer.clearLayers();clkLayer.clearLayers();
-  const b=map.getBounds();
-  const s=Math.max(b.getSouth(),FR.s),n=Math.min(b.getNorth(),FR.n),w=Math.max(b.getWest(),FR.w),e=Math.min(b.getEast(),FR.e);
-  if(n<=s||e<=w){notif('Vue hors de France','err');return;}
-  const NX=60,NY=40,cells=[];
-  for(let i=0;i<NX;i++)for(let j=0;j<NY;j++){
-    const lon=w+(i+.5)*(e-w)/NX,lat=s+(j+.5)*(n-s)/NY,u=rawScore(lat,lon);
-    if(u>0)cells.push({lat,lon,u});
-  }
-  cells.sort((a,b)=>b.u-a.u);
-  const minD=(e-w)/12,picks=[];                 // suppression des voisins trop proches
-  for(const c of cells){ if(picks.length>=8)break; if(picks.every(p=>Math.hypot(p.lat-c.lat,p.lon-c.lon)>minD))picks.push(c); }
-  if(!picks.length){notif('Aucune zone à fort potentiel dans cette vue','warn');return;}
-  picks.forEach((c,i)=>{
-    const rank=i+1,m=marketAt(c.lat,c.lon);
-    const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-15]});
-    L.marker([c.lat,c.lon],{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
-      <div class="gp-name">#${rank} · Zone à fort potentiel</div>
-      <div class="gp-ro"><span class="gp-ic">🎯</span><span><b>~${Math.round(m.unmet).toLocaleString('fr')}</b> adhérents non desservis <i style="color:#999">(estim.)</i></span></div>
-      <div class="gp-ro"><span class="gp-ic">📍</span><span>${c.lat.toFixed(4)}°N · ${c.lon.toFixed(4)}°E</span></div>
-      <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'auto')">🚗 Chiffres exacts (15 min)</button>
-      <button class="iso-btn" onclick="glIso(${c.lat},${c.lon},'pedestrian')">🏃 Chiffres exacts (15 min)</button>
-    </div>`);
-  });
-  notif(map.getZoom()<9?`🎯 ${picks.length} zones · zoomez 9+ pour intégrer les salles`:`🎯 ${picks.length} meilleures zones de la vue`, map.getZoom()<9?'warn':'ok');
-};
+// ── UI utilitaires ─────────────────────────────────────────────────────────────
 function setBar(on,txt){const el=document.getElementById('bar');el.style.display=on?'flex':'none';if(txt)document.getElementById('bar-txt').textContent=txt;}
-function updZtip(){if(!normReady)return;document.getElementById('ztip').style.display=map.getZoom()<9?'block':'none';}
 function notif(msg,type){
   const el=document.getElementById('ntf');el.textContent=msg;el.style.display='block';
-  const st={ok:['#0d2e1a','1px solid #1a5c32','#4ade80'],warn:['#2a250d','1px solid #5c4e1a','#fbbf24'],err:['#2e0d0d','1px solid #5c1a1a','#f87171']};
-  const[bg,bd,col]=(st[type]||st.ok);el.style.background=bg;el.style.border=bd;el.style.color=col;
+  const st={ok:['#0d2318','1px solid #1d5638','#4ade80'],warn:['#251d0c','1px solid #574a1d','#e5c25b'],err:['#2b1010','1px solid #5c1f1f','#f87171']};
+  const sty=st[type]||st.ok;el.style.background=sty[0];el.style.border=sty[1];el.style.color=sty[2];
   clearTimeout(ntfT);ntfT=setTimeout(()=>el.style.display='none',8000);
 }
-function startPB(){let p=0;const b=document.getElementById('pb');pbT=setInterval(()=>{p=Math.min(p+(Math.random()*3+.4),84);b.style.width=p+'%';},110);}
+function startPB(){let p=0;const b=document.getElementById('pb');pbT=setInterval(()=>{p=Math.min(p+(Math.random()*4+.6),88);b.style.width=p+'%';},110);}
 function endPB(){clearInterval(pbT);document.getElementById('pb').style.width='100%';}
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
+// ── Permalien : #lat,lon,zoom[,vue] ─────────────────────────────────────────────
+function updHash(){
+  if(!map)return;
+  const c=map.getCenter();
+  history.replaceState(null,'',`#${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()},${viewMode}`);
+}
+function parseHash(){
+  const h=/^#(-?\d+\.?\d*),(-?\d+\.?\d*),(\d+)(?:,(deficit|couverture|off))?$/.exec(location.hash);
+  if(!h)return null;
+  return {center:[+h[1],+h[2]],zoom:+h[3],vue:h[4]||null};
+}
+
+// ── Chargement des données précalculées ────────────────────────────────────────
+// grid.bin.gz (2,4 Mo) décompressé nativement quand le navigateur le permet,
+// sinon repli sur grid.bin (4,5 Mo). Toute erreur gz bascule sur le repli.
+async function fetchGrid(){
+  if(typeof DecompressionStream==='function'){
+    try{
+      const r=await fetch('grid.bin.gz');
+      if(r.ok)return await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    }catch(e){console.warn('grid.bin.gz indisponible, repli sur grid.bin :',e.message);}
+  }
+  const r=await fetch('grid.bin');if(!r.ok)throw new Error('grid.bin '+r.status);return r.arrayBuffer();
+}
+async function loadData(){
+  startPB();
+  try{
+    document.getElementById('ld-t').textContent='Chargement du modèle…';
+    const all=await Promise.all([
+      fetch('meta.json').then(r=>{if(!r.ok)throw new Error('meta.json '+r.status);return r.json();}),
+      fetchGrid(),
+      fetch('gyms.json').then(r=>{if(!r.ok)throw new Error('gyms.json '+r.status);return r.json();}),
+    ]);
+    META=all[0];
+    const gridBuf=all[1],gymsJs=all[2],n=META.n;
+    const idx=new Uint32Array(gridBuf,0,n);
+    IND=new Uint16Array(gridBuf,n*4,n);
+    DEM=new Uint16Array(gridBuf,n*4+n*2,n);
+    RELQ=new Uint16Array(gridBuf,n*4+n*4,n);
+    UQ=new Uint16Array(gridBuf,n*4+n*6,n);
+    KIDX=new Int32Array(META.cols*META.rows).fill(-1);
+    for(let k=0;k<n;k++)KIDX[idx[k]]=k;
+    GYMS=gymsJs.gyms.map(a=>({lat:a[0],lon:a[1],name:a[2],cat:a[3],surf:a[4],cap:a[5],src:a[6],annee:a[7],
+      surfSrc:(a[6]||'').includes('dataes')?'dataes':'defaut'}));
+    // Paramètres du modèle : meta.json est la source unique (voir build/03-e2sfca.mjs)
+    const M=META.modele||{};
+    if(M.accesMin!=null)T_ACCESS=M.accesMin;
+    if(M.tMaxMin!=null)T_MAX=M.tMaxMin;
+    if(M.sigmaMin!=null)SIGMA2=2*M.sigmaMin*M.sigmaMin;
+    if(M.membresParM2!=null)MEMBERS_PER_M2=M.membresParM2;
+    if(M.vitesse){const v=M.vitesse;speedKmh=d=>v.vMax-v.vAmp*Math.min(1,Math.max(0,(Math.log10(d+1)-v.logMin)/v.logSpan));}
+    AREF=META.Aref;
+    COLOR={min:META.colorLogU.min,max:META.colorLogU.max};
+    NEW_GYM_ABS=Math.round((M.newGymM2||1200)*MEMBERS_PER_M2/AREF);
+    // chiffres réels injectés dans la modale Méthode
+    document.getElementById('m-date').textContent=META.generated;
+    document.getElementById('m-aref').textContent=META.Aref.toFixed(2).replace('.',',');
+    document.getElementById('m-cells').textContent=META.n.toLocaleString('fr');
+    document.getElementById('m-gyms').textContent=META.national.salles.toLocaleString('fr');
+    if(META.backtest){
+      document.getElementById('m-bt-n').textContent=META.backtest.toutes.n.toLocaleString('fr');
+      document.getElementById('m-bt-med').textContent=Math.round(META.backtest.toutes.percentileMedian);
+    }
+    buildLegend();
+    endPB();await sleep(200);
+    document.getElementById('ld0').style.display='none';
+    document.getElementById('leg').style.display='block';
+    hLayer.redraw();drawGyms();
+    notif(`${META.n.toLocaleString('fr')} carreaux · ${META.national.salles.toLocaleString('fr')} salles · cliquez sur la carte pour analyser`,'ok');
+  }catch(e){
+    endPB();document.getElementById('ld-t').textContent='Erreur de chargement';
+    document.getElementById('ld-s').textContent=e.message+' — vérifiez que grid.bin/gyms.json/meta.json sont présents';
+    console.error(e);
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
 function init(){
-  map=L.map('map',{center:[46.8,2.3],zoom:6});
+  const h0=parseHash();
+  if(h0&&h0.vue){
+    viewMode=h0.vue;
+    const btn=document.getElementById('t-view');
+    btn.textContent='Vue : '+(viewMode==='deficit'?'Déficit':viewMode==='couverture'?'Couverture':'Aucune');
+    btn.classList.toggle('on',viewMode!=='off');
+  }
+  map=L.map('map',{center:h0?h0.center:[46.8,2.3],zoom:h0?h0.zoom:6});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
-  gymLayer=L.layerGroup().addTo(map);clkLayer=L.layerGroup().addTo(map);isoLayer=L.layerGroup().addTo(map);hiLayer=L.layerGroup().addTo(map);bestLayer=L.layerGroup().addTo(map);roadLayer=L.layerGroup().addTo(map);
+  gymRenderer=L.canvas({padding:.3});
+  gymLayer=L.layerGroup().addTo(map);clkLayer=L.layerGroup().addTo(map);isoLayer=L.layerGroup().addTo(map);
+  hiLayer=L.layerGroup().addTo(map);bestLayer=L.layerGroup().addTo(map);
   initHeat();initClick();
   const inp=document.getElementById('si'),btn=document.getElementById('sb'),sugs=document.getElementById('sugs');
   inp.addEventListener('input',()=>{clearTimeout(sugT);const q=inp.value.trim();if(q.length<3){sugs.style.display='none';return;}sugT=setTimeout(()=>getSugs(q),500);});
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){sugs.style.display='none';doSearch(inp.value.trim());}});
   btn.onclick=()=>{sugs.style.display='none';doSearch(inp.value.trim());};
   document.addEventListener('click',e=>{if(!document.getElementById('sw').contains(e.target))sugs.style.display='none';});
-  map.on('moveend',()=>{clearTimeout(mvT);if(flowMode==='v3')drawRoads();mvT=setTimeout(()=>{updZtip();if(normReady&&map.getZoom()>=9&&!fetching)fetchGyms();},700);});
-  map.on('zoomend',updZtip);
+  map.on('moveend',()=>{clearTimeout(mvT);mvT=setTimeout(drawGyms,300);updHash();});
   document.getElementById('infomodal').addEventListener('click',e=>{if(e.target.id==='infomodal')glInfo(false);});
-  loadFrance();
+  loadData();
 }
 init();
 })();

@@ -1,0 +1,57 @@
+{
+ "generated": "2026-07-03",
+ "n": 374511,
+ "cols": 1075,
+ "rows": 1106,
+ "E0": 3210000,
+ "N0": 2029000,
+ "cell": 1000,
+ "Aref": 1.0607,
+ "colorLogU": {
+  "min": 0,
+  "max": 5.7279
+ },
+ "national": {
+  "pop": 62592659,
+  "demande": 6259468,
+  "capacite": 6639531,
+  "deficit": 1914148,
+  "salles": 12489
+ },
+ "modele": {
+  "millesimePop": 2021,
+  "penetration": 0.1,
+  "membresParM2": 1.4,
+  "tMaxMin": 15,
+  "sigmaMin": 6,
+  "accesMin": 3,
+  "vitesse": {
+   "vMax": 62,
+   "vAmp": 41,
+   "logMin": 1.5,
+   "logSpan": 2.2
+  },
+  "newGymM2": 1200
+ },
+ "backtest": {
+  "cutoff": "2023-01-01",
+  "toutes": {
+   "n": 2225,
+   "percentileMedian": 43,
+   "partTop20": 19.1,
+   "partTop10": 8.9
+  },
+  "chaines": {
+   "n": 380,
+   "percentileMedian": 40.9,
+   "partTop20": 18.9,
+   "partTop10": 10.5
+  },
+  "sallesConnues": {
+   "n": 398,
+   "percentileMedian": 37.5,
+   "partTop20": 18.8,
+   "partTop10": 10.6
+  }
+ }
+}

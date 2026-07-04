@@ -7,3 +7,7 @@ pipeline/osrm-data/
 # Divers OS
 .DS_Store
 Thumbs.db
+
+data/
+build/node_modules/
+

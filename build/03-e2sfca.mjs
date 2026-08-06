@@ -5,7 +5,7 @@
 // u   = dem × max(0, 1 − rel)  (adhérents non desservis)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { toLaea, laeaForward, computeAccess, weightedQuantiles } from './lib-e2sfca.mjs';
+import { toLaea, laeaForward, computeAccess, computeZoneDeficit, weightedQuantiles } from './lib-e2sfca.mjs';
 
 const cells = JSON.parse(readFileSync(new URL('../data/cells.json', import.meta.url), 'utf8'));
 const gyms = JSON.parse(readFileSync(new URL('../data/gyms-fused.json', import.meta.url), 'utf8'));
@@ -38,10 +38,20 @@ for (let i = 0; i < cells.length; i++) {
   U[i] = cells[i].dem * Math.max(0, 1 - rel[i]);
 }
 
-// Échelle de couleur du déficit : percentiles pondérés par la demande, sur log1p(U)
+// Déficit de zone (surface d'opportunité) — la vue par défaut du front
+console.time('Déficit de zone');
+const UZ = computeZoneDeficit(cells, U);
+console.timeEnd('Déficit de zone');
+const topZ = cells.map((c, i) => ({ lat: c.lat, lon: c.lon, uz: UZ[i] }))
+  .sort((a, b) => b.uz - a.uz).slice(0, 5);
+console.log('Top déficits de zone (lat, lon, UZ) :');
+for (const t of topZ) console.log(`  ${t.lat.toFixed(3)}, ${t.lon.toFixed(3)}  UZ=${Math.round(t.uz)}`);
+
+// Échelles de couleur : percentiles pondérés par la demande, sur log1p
 const logU = Array.from(U, u => Math.log1p(u));
 const dW = cells.map(c => c.dem);
 const [q12, q97] = weightedQuantiles(logU, dW, [0.12, 0.97]);
+const [z12, z97] = weightedQuantiles(Array.from(UZ, v => Math.log1p(v)), dW, [0.12, 0.97]);
 // Statistiques de contrôle
 const relArr = Array.from(rel);
 const [r25, r50, r75] = weightedQuantiles(relArr, dW, [0.25, 0.5, 0.75]);
@@ -61,12 +71,13 @@ for (const c of cells) {
   if (cy < minCy) minCy = cy; if (cy > maxCy) maxCy = cy;
 }
 const cols = maxCx - minCx + 1, rows = maxCy - minCy + 1, n = cells.length;
-const buf = new ArrayBuffer(n * 4 + n * 2 * 4);
+const buf = new ArrayBuffer(n * 4 + n * 2 * 5);
 const idxArr = new Uint32Array(buf, 0, n);
 const indArr = new Uint16Array(buf, n * 4, n);
 const demArr = new Uint16Array(buf, n * 4 + n * 2, n);
 const relArr16 = new Uint16Array(buf, n * 4 + n * 4, n);
 const uArr = new Uint16Array(buf, n * 4 + n * 6, n);
+const uzArr = new Uint16Array(buf, n * 4 + n * 8, n);
 // tri par idx pour la reproductibilité
 const order = cells.map((c, i) => i)
   .sort((a, b) => ((cells[a].E / 1000 - minCx) + (cells[a].N / 1000 - minCy) * cols)
@@ -78,6 +89,7 @@ order.forEach((ci, k) => {
   demArr[k] = Math.min(65535, Math.round(c.dem));
   relArr16[k] = Math.min(65535, Math.round(rel[ci] * 2000));
   uArr[k] = Math.min(65535, Math.round(U[ci]));
+  uzArr[k] = Math.min(65535, Math.round(UZ[ci]));
 });
 writeFileSync(new URL('../grid.bin', import.meta.url), Buffer.from(buf));
 
@@ -87,6 +99,7 @@ const meta = {
   n, cols, rows, E0: minCx * 1000, N0: minCy * 1000, cell: 1000,
   Aref: +Aref.toFixed(4),
   colorLogU: { min: +q12.toFixed(4), max: +q97.toFixed(4) },
+  colorLogUZ: { min: +z12.toFixed(4), max: +z97.toFixed(4) },
   national: {
     pop: popTotal,
     demande: Math.round(sumD),

@@ -1,5 +1,5 @@
 {
- "generated": "2026-07-03",
+ "generated": "2026-07-30",
  "n": 374511,
  "cols": 1075,
  "rows": 1106,
@@ -10,6 +10,10 @@
  "colorLogU": {
   "min": 0,
   "max": 5.7279
+ },
+ "colorLogUZ": {
+  "min": 5.0242,
+  "max": 9.1216
  },
  "national": {
   "pop": 62592659,

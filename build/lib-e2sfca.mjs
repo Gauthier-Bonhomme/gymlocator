@@ -74,6 +74,34 @@ export function computeAccess(cells, gyms) {
   return { A, skippedGyms };
 }
 
+// Déficit de ZONE : pour chaque carreau, somme du déficit U de tous les carreaux
+// atteignables en ≤ 15 min (même noyau temps/vitesse que le modèle, somme brute).
+// C'est la « surface d'opportunité » : ce qu'une salle implantée là aurait en face.
+// Le noyau est symétrique (vitesse = f(moyenne des densités des deux carreaux)).
+export function computeZoneDeficit(cells, U) {
+  const key = (cx, cy) => cx * 100000 + cy;
+  const cellIdx = new Map();
+  for (let i = 0; i < cells.length; i++) {
+    cellIdx.set(key(Math.floor(cells[i].E / 1000), Math.floor(cells[i].N / 1000)), i);
+  }
+  const UZ = new Float64Array(cells.length);
+  const R = 13;
+  for (let i = 0; i < cells.length; i++) {
+    const c = cells[i];
+    const cx = Math.floor(c.E / 1000), cy = Math.floor(c.N / 1000);
+    let s = 0;
+    for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) {
+      const j = cellIdx.get(key(cx + dx, cy + dy));
+      if (j === undefined) continue;
+      const d = Math.hypot(dx, dy);
+      const t = T_ACCESS + d / speedKmh((c.ind + cells[j].ind) / 2) * 60;
+      if (t <= T_MAX) s += U[j];
+    }
+    UZ[i] = s;
+  }
+  return UZ;
+}
+
 // Percentile pondéré (pour les échelles de couleur et le backtest)
 export function weightedQuantiles(values, weights, qs) {
   const idx = values.map((_, i) => i).sort((a, b) => values[a] - values[b]);

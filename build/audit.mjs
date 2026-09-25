@@ -133,13 +133,16 @@ for (const g of gyms) { const k = `${g.lat}|${g.lon}`; (byCoord.get(k) || byCoor
 const stacked = [...byCoord.values()].filter(a => a.length >= 3).flat();
 const CHAINS = [['Basic-Fit', /basic.?fit/i], ['Fitness Park', /fitness ?park/i], ['Keep Cool', /keep.?cool/i], ["L'Orange Bleue", /orange ?bleue/i], ['On Air', /on ?air/i]];
 const chains = CHAINS.map(([nom, re]) => {
-  const a = gyms.filter(g => re.test(g.name)), m = a.filter(g => g.surfSrc === 'dataes'), d = a.filter(g => g.surfSrc !== 'dataes');
-  return { nom, n: a.length, mesurees: m.length, surfMesuree: median(m.map(g => g.surf)), surfDefaut: median(d.map(g => g.surf)) };
+  // surface mesurée = Data ES (surfDataes quand 02 retient le format de l'enseigne à la place)
+  const a = gyms.filter(g => re.test(g.name)), mes = g => g.surfDataes ?? (g.surfSrc === 'dataes' ? g.surf : null);
+  const m = a.filter(g => mes(g) > 0);
+  return { nom, n: a.length, mesurees: m.length, surfMesuree: median(m.map(mes)), surfRetenue: median(a.map(g => g.surf)) };
 });
 const hallbGym = gyms.find(g => /hall ?b\b/i.test(g.name) && Math.hypot(g.lat - HALLB.lat, g.lon - HALLB.lon) < 0.02);
 const supply = {
   salles: gyms.length, capacite: capTot,
-  partCapaciteDefaut: sum(gyms.filter(g => g.surfSrc !== 'dataes'), g => g.cap) / capTot,
+  partCapaciteDefaut: sum(gyms.filter(g => g.surfSrc === 'defaut'), g => g.cap) / capTot,
+  partCapaciteEnseigne: sum(gyms.filter(g => g.surfSrc === 'enseigne'), g => g.cap) / capTot,
   dataesNonPublics: nonPub.length, partCapaciteNonPublique: sum(nonPub, g => g.cap) / capTot,
   lignesDataesEnTrop: extraRows, capaciteLignesEnTrop: extraCap,
   sireneSansSalarie: nonEmp.length, partCapaciteSansSalarie: sum(nonEmp, g => g.cap) / capTot,
@@ -293,19 +296,11 @@ if (SENSI) {
   if (maxDiff > 0.5) {
     sensibilite = { ignoree: `la version paramétrée ne reproduit plus le modèle (écart max ${dec(maxDiff, 1)})` };
   } else {
-    const pubOf = new Map(des.map((g, i) => [g, desInfo[i]]));
-    const seen = new Set();
-    const cleaned = g => {
-      if (g.src !== 'dataes') return true;
-      const info = pubOf.get(g); if (info && String(info.pub) === 'false') return false;
-      const k = `${g.lat}|${g.lon}|${info?.inst ?? g.name}`; if (seen.has(k)) return false; seen.add(k); return true;
-    };
     const densMul = d => d < 50 ? 0.6 : d < 200 ? 0.8 : d < 1000 ? 1.0 : d < 4000 ? 1.2 : 1.35;
     const demUR = Float64Array.from(cells, c => c.dem * densMul(c.ind)); { const k = totD / demUR.reduce((s, x) => s + x, 0); for (let i = 0; i < n; i++) demUR[i] *= k; }
     const PER_CAT = { lowcost: 2.5, premium: 0.9, classic: 1.2, niche: 1.0, asso: 0.8 };
     const nonEmpSet = new Set(nonEmp);
     const VARIANTES = [
-      ["Offre nettoyée (simulation de l'étape 3)", { keep: cleaned }],
       ['Détour routier × 1,3', { detour: 1.3 }],
       ['σ = 4 min', { sigma: 4 }], ['σ = 10 min', { sigma: 10 }],
       ['Zone de 10 min', { tmax: 10 }], ['Zone de 20 min', { tmax: 20 }],
@@ -333,12 +328,13 @@ if (openingsNew) console.log(`Ouvertures du backtest figées maintenant : ${fmt(
 console.log('\nOffre');
 line('Capacité nationale', `${fmt(capTot)} places`);
 line('Part de capacité à surface par défaut', pct(supply.partCapaciteDefaut));
-line('Data ES non ouverts au public', `${fmt(nonPub.length)} · ${pct(supply.partCapaciteNonPublique)} de la capacité`);
+line('Part de capacité au format de l\'enseigne', pct(supply.partCapaciteEnseigne));
+line('Data ES « non ouverts au public » retenus', `${fmt(nonPub.length)} · ${pct(supply.partCapaciteNonPublique)} de la capacité`);
 line('Lignes Data ES en trop (même installation)', `${fmt(extraRows)} · ${fmt(extraCap)} places`);
 line('SIRENE sans salarié', `${fmt(nonEmp.length)} · ${pct(supply.partCapaciteSansSalarie)} de la capacité`);
 line('Salles empilées sur un même point (≥ 3)', `${fmt(stacked.length)} · ${fmt(supply.capaciteEmpilee)} places`);
 line('Jointure avec les sources', `SIRENE ${pct(supply.jointure.sirene, 0)} · Data ES ${pct(supply.jointure.dataes, 0)}`);
-for (const c of chains) line(`  ${c.nom}`, `${c.n} salles · surface médiane ${c.surfMesuree == null ? '–' : fmt(c.surfMesuree)} m² mesurée / ${c.surfDefaut == null ? '–' : fmt(c.surfDefaut)} m² par défaut`);
+for (const c of chains) line(`  ${c.nom}`, `${c.n} salles · surface médiane ${c.surfMesuree == null ? '–' : fmt(c.surfMesuree)} m² mesurée (${c.mesurees}) / ${fmt(c.surfRetenue ?? c.surfDefaut)} m² retenue`);
 line('Hall b dans l\'offre', supply.hallb ? `${supply.hallb.surface} m² · ${supply.hallb.capacite} places (${supply.hallb.source})` : 'absente');
 console.log('\nModèle');
 line('Aref (couverture moyenne nationale)', dec(M.Aref, 4));

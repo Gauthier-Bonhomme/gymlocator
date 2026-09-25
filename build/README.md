@@ -19,7 +19,7 @@ unzip -o data/filosofi2021.zip -d data/filosofi2021
 # 01-demand.mjs gère ces champs (ne pas parser avec un split(',') naïf).
 
 # Salles de musculation/cardio — Data ES (ministère des Sports)
-curl -s -o data/dataes.json "https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/exports/json?where=equip_type_name%3D%22Salle%20de%20musculation%2Fcardiotraining%22&select=equip_numero,inst_nom,equip_nom,equip_surf,equip_service_date,equip_coordonnees,inst_siret,inst_adresse,inst_cp,new_name,dep_code,equip_ouv_public_bool,equip_prop_type,equip_gest_type"
+curl -s -o data/dataes.json "https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/exports/json?where=equip_type_name%3D%22Salle%20de%20musculation%2Fcardiotraining%22&select=equip_numero,inst_numero,inst_nom,equip_nom,equip_surf,equip_service_date,equip_coordonnees,inst_siret,inst_adresse,inst_cp,new_name,dep_code,equip_ouv_public_bool,equip_prop_type,equip_gest_type"
 
 # Établissements actifs NAF 93.13Z géolocalisés — SIRENE (via OpenDataSoft)
 curl -s -o data/sirene.json "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/exports/json?where=activiteprincipaleetablissement%3D%2293.13Z%22%20and%20etatadministratifetablissement%3D%22Actif%22&select=siret,datecreationetablissement,enseigne1etablissement,denominationusuelleetablissement,denominationunitelegale,geolocetablissement,codepostaletablissement,libellecommuneetablissement,trancheeffectifsetablissement"
@@ -36,6 +36,31 @@ node 04-backtest.mjs   # validation ouvertures ≥ 2023 → complète ../meta.js
 ```
 
 Chaque script affiche des contrôles (population totale ≈ 63 M, Basic-Fit ≈ 930, etc.).
+
+## Règles de l'offre (`02-supply.mjs`)
+
+Chaque exclusion est tracée dans `data/offre-journal.json` (règle, nom, position, capacité perdue).
+
+- **Data ES regroupé par installation** (`inst_numero`) : une ligne = un équipement, et certains
+  déclarants listent chaque vélo ou chaque salle. Surface = somme des surfaces *distinctes*
+  (L'Appart Oullins répète 600 m² sur 10 lignes ; CMG détaille salle par salle).
+- **Accès réservé** : « non ouvert au public » veut dire « sur abonnement » pour une salle
+  commerciale ou associative (Basic-Fit Laon est déclaré ainsi) → gardée ; lycées, prisons,
+  casernes, hôtels, salles d'entreprise, clubs d'un autre sport (aviron, athlétisme…) et gymnases
+  municipaux réservés aux clubs → écartés.
+- **Chaînes** : format publié de l'enseigne (annuaires de franchise, 09/2026) pour *tous* ses
+  clubs, qu'ils soient mesurés par Data ES ou non — Data ES ne mesure que la salle muscu/cardio
+  (Keep Cool : 300 m² mesurés pour des clubs de 300–800 m²). Table `ENSEIGNES`.
+- **Coachs sans salle** : sans salarié, sans Data ES, nom de coach sans mot désignant un local
+  (« Studio Coaching » reste), ou entrepreneur individuel sans nom diffusé.
+- **Même point exact** : sièges de franchisés domiciliés chez le gérant et SIRET en double. Une
+  enseigne, un salarié ou un équipement Data ES attestent un club (les zones commerciales n'ont
+  souvent qu'une adresse) ; les doublons du même club et les établissements non attestés sont
+  écartés, et un point portant ≥ 3 établissements tous non attestés est une adresse de domiciliation.
+- **Activités hors salle** (épilation, UV, cryothérapie, spa, minceur) sauf si le nom évoque
+  aussi une salle (« Fit & Spa »).
+- Hall b (Saint-Dionisy) est « non employeur » dans SIRENE : aucune règle ne met les non-employeurs
+  à zéro ; 02 affiche sa capacité à chaque exécution.
 
 ## Mesurer l'effet d'un changement : `audit.mjs`
 

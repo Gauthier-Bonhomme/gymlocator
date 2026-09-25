@@ -191,7 +191,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Le modèle, en trois couches</h3>
       <p><b>1 · La demande.</b> La France est découpée en <b id="m-cells">–</b> carreaux de 1 km (INSEE Filosofi 2021 : habitants, âges, niveau de vie). On applique un taux de pratique de 10 % (moyenne nationale), <b>modulé par l'âge</b> — ≈ 22 % chez les 18-24 ans, ≈ 4 % chez les 65-79 ans — et légèrement par le revenu (± 15 %). Chaque carreau porte ainsi un nombre d'<b>adhérents potentiels</b>.</p>
-      <p><b>2 · L'offre.</b> <b id="m-gyms">–</b> salles issues du registre des entreprises (SIRENE, NAF 93.13Z) croisé avec le recensement des équipements sportifs (Data ES, surfaces réelles). Capacité = surface × 1,4 adhérent/m² (fourchette métier 1,2–1,7). Sans surface connue : estimation par type d'enseigne, dimensionnée par la tranche d'effectifs pour les indépendants.</p>
+      <p><b>2 · L'offre.</b> <b id="m-gyms">–</b> salles issues du registre des entreprises (SIRENE, NAF 93.13Z) croisé avec le recensement des équipements sportifs (Data ES, surfaces réelles, regroupées par installation). Capacité = surface × 1,4 adhérent/m² (fourchette métier 1,2–1,7). Chaînes : format publié de l'enseigne (Data ES ne mesure que la salle de musculation). Indépendants sans surface connue : estimation dimensionnée par la tranche d'effectifs. Sont écartés les équipements à accès réservé (lycées, casernes, prisons, hôtels, clubs d'un autre sport), les coachs sans salle, les sièges de franchisés et les activités hors salle (instituts, UV, spa).</p>
       <p><b>3 · La confrontation</b> (E2SFCA, la méthode utilisée pour les déserts médicaux) :</p>
       <div class="f">Étape 1 — chaque salle <b>répartit sa capacité</b> entre les habitants situés à ≤ 15 min de voiture (poids décroissant avec le temps de trajet)<br>
       Étape 2 — chaque carreau <b>cumule les parts</b> des salles qu'il peut atteindre → sa <b>couverture</b><br>
@@ -532,6 +532,8 @@ function gymPopup(g){
   const excl=excluded.has(g.id);
   const surfTxt=g.surfSrc==='dataes'
     ?`${g.surf.toLocaleString('fr')} m² <small>· mesurée (Data ES)</small>`
+    :g.surfSrc==='enseigne'
+    ?`~${g.surf.toLocaleString('fr')} m² <small>· format de l'enseigne</small>`
     :`~${g.surf.toLocaleString('fr')} m² <small>· estimée</small>`;
   const exclBtn=excl
     ? `<div class="gp-note" style="color:var(--warn)">Salle retirée du calcul.</div><button class="iso-btn" onclick="glInclude(${g.id})">Réintégrer au calcul</button>`
@@ -1023,7 +1025,7 @@ async function loadData(){
     CXA=new Int16Array(n);CYA=new Int16Array(n);
     for(let k=0;k<n;k++){KIDX[idx[k]]=k;CXA[k]=idx[k]%META.cols;CYA[k]=Math.floor(idx[k]/META.cols);}
     GYMS=gymsJs.gyms.map((a,i)=>({id:i,lat:a[0],lon:a[1],name:a[2],cat:a[3],surf:a[4],cap:a[5],src:a[6],annee:a[7],
-      surfSrc:(a[6]||'').includes('dataes')?'dataes':'defaut'}));
+      surfSrc:a[8]||((a[6]||'').includes('dataes')?'dataes':'defaut')}));   // a[8] absent des gyms.json antérieurs à 10/2026
     // Paramètres du modèle : meta.json est la source unique (voir build/03-e2sfca.mjs)
     const M=META.modele||{};
     if(M.accesMin!=null)T_ACCESS=M.accesMin;

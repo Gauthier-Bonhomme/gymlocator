@@ -22,7 +22,7 @@ reconstruction complète du modèle, plus rigoureuse et validée par backtest.
 |---|---|
 | **Maille** | carroyage INSEE **Filosofi 2021** 1 km — 374 511 carreaux habités |
 | **Demande** | population × taux de pratique ancré à 10 %, modulé par structure d'âge et niveau de vie (±15 %) |
-| **Offre** | 12 489 salles : établissements **SIRENE** NAF 93.13Z actifs ∪ **Data ES** (ministère des Sports), fusionnés par SIRET/proximité ; surface des indépendants estimée par tranche d'effectifs |
+| **Offre** | ≈ 10 000 salles : établissements **SIRENE** NAF 93.13Z actifs ∪ **Data ES** (ministère des Sports, regroupé par installation), fusionnés par SIRET/proximité ; chaînes au format publié de l'enseigne, indépendants sans surface mesurée estimés par tranche d'effectifs ; écartés : équipements à accès réservé, coachs sans salle, sièges de franchisés, activités hors salle (détail dans `build/README.md`) |
 | **Modèle** | **E2SFCA** (Enhanced Two-Step Floating Catchment Area), rayon 15 min porte-à-porte, décroissance gaussienne (σ = 6 min), vitesse analytique 21–62 km/h selon la densité |
 | **Capacité** | 1,4 membre par m² de plateau ; simulation d'une nouvelle salle de 1 200 m² |
 
@@ -49,9 +49,9 @@ via `DecompressionStream`, repli `grid.bin` 4,5 Mo), `gyms.json` et `meta.json`.
 
 ## Validation — ce que le score dit, et ce qu'il ne dit pas
 
-Backtest sur les **2 225 ouvertures de salles depuis 2023** (SIRENE) contre la carte de déficit
-calculée sur les données antérieures : les ouvertures se situent au **43ᵉ percentile médian** du
-déficit (un tirage au hasard donnerait 50).
+Backtest sur les **≈ 2 000 ouvertures de salles depuis 2023** (SIRENE, après nettoyage de l'offre)
+contre la carte de déficit calculée sur les données antérieures : les ouvertures se situent autour
+du **43ᵉ percentile médian** du déficit (un tirage au hasard donnerait 50).
 
 Autrement dit : **les opérateurs ne ciblent pas les zones les plus déficitaires** — leurs choix
 suivent d'autres logiques (foncier, visibilité, zones commerciales). Le score GymLocator doit donc

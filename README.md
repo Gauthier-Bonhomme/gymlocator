@@ -7,8 +7,10 @@
 GymLocator cartographie, carreau de 1 km par carreau de 1 km, l'équilibre entre la **demande**
 (combien d'abonnés potentiels habitent à proximité) et l'**offre** (quelles salles existantes
 captent déjà cette demande) sur toute la France métropolitaine. Le résultat est une carte de
-déficit/saturation qui sert de **filtre de marché** : repérer en quelques secondes les zones où
-la demande locale n'est pas couverte — puis approfondir avec les outils d'analyse intégrés.
+**déficit relatif** — l'écart à la couverture moyenne nationale — qui sert de **filtre de marché** :
+repérer en quelques secondes les zones les plus sous-équipées par rapport à la moyenne, puis
+approfondir avec les outils d'analyse intégrés. L'indicateur est relatif : il ne dit pas si un
+marché est saturé en absolu (voir la modale « Méthode »).
 
 Le projet a été développé pour la salle de sport **[Hall b](https://www.hallb.fr)** (Saint-Dionisy, 30) :
 une première version a servi au choix de son emplacement réel en 2025 ; cette version 2 est une
@@ -30,7 +32,10 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
 ## Utiliser l'application
 
 - **Clic sur la carte** → estimation instantanée de la zone de chalandise ≤ 15 min : population,
-  demande, capacité en place, verdict (« marché trop restreint » ≠ « marché déjà couvert »).
+  demande, couverture, déficit relatif et écart à la moyenne nationale en équivalent salles
+  (« petit bassin » ≠ « au niveau de la moyenne »).
+- **Zones sous-équipées** → repérage glouton des N zones où le déficit relatif cumulé sur 15 min
+  est le plus grand — une présélection à vérifier, pas une recommandation d'emplacement.
 - **Analyse exacte** → isochrone détaillée sur les mêmes couches et les mêmes unités que
   l'estimation (pas de mélange pondéré/brut).
 - **Cases à cocher par type de salle** (chaînes, indépendants, équipements publics…) →

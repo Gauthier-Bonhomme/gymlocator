@@ -145,7 +145,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
   <div id="togs">
     <button class="tbtn on" id="t-view" onclick="glView()">Vue : Déficit 15 min</button>
     <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles</button>
-    <button class="tbtn" id="t-best" onclick="glBest()">Meilleures zones</button>
+    <button class="tbtn" id="t-best" onclick="glBest()">Zones sous-équipées</button>
     <button class="tbtn" id="t-info" onclick="glInfo()">Méthode</button>
   </div>
 </div>
@@ -162,21 +162,21 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
   <div id="gcnt"></div>
   <div id="leg">
     <button id="legclose" onclick="glLeg(false)" title="Masquer le panneau">×</button>
-    <div class="lt" id="leg-title">Adhérents non desservis</div>
+    <div class="lt" id="leg-title">Déficit relatif à ≤ 15 min voiture</div>
     <div class="lbar" id="leg-bar"></div>
-    <div class="llbl"><span id="leg-lo">Couvert</span><span id="leg-hi">Fort déficit</span></div>
+    <div class="llbl"><span id="leg-lo">Au niveau moyen</span><span id="leg-hi">Très sous la moyenne</span></div>
     <div class="lsep"></div>
     <div class="lt">Concurrence incluse au calcul</div>
     <div id="leg-cats"></div>
     <div class="lsrc" id="leg-src"></div>
   </div>
   <button id="legopen" onclick="glLeg(true)">Légende &amp; filtres</button>
-  <!-- Meilleures zones : placement de N salles -->
+  <!-- Zones sous-équipées : repérage glouton de N zones -->
   <div id="bestpanel">
-    <div class="bp-h">Meilleures zones à implanter</div>
-    <div class="bp-row"><span>Placer</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>salle(s)</span></div>
-    <div class="bp-sub">Classe les emplacements par <b>adhérents non desservis à ≤ 15 min voiture</b> — le même indicateur que la carte et l'analyse de zone — chaque salle tenant compte des précédentes. Calcul sur la grille nationale (résultats stables), dans la zone affichée.</div>
-    <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Placer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
+    <div class="bp-h">Zones les plus sous-équipées</div>
+    <div class="bp-row"><span>Repérer</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>zone(s)</span></div>
+    <div class="bp-sub">Repère les points où l'<b>écart à la couverture moyenne nationale</b>, cumulé sur la zone 15 min voiture, est le plus grand — le même indicateur que la carte et l'analyse de zone. Chaque zone retenue est supposée équipée avant la suivante. Calcul sur la grille nationale, dans la vue affichée. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
+    <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Repérer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
   </div>
 
   <!-- Méthode & mode d'emploi -->
@@ -187,7 +187,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       <div class="h2sub">Modèle E2SFCA sur carroyage INSEE · généré le <b id="m-date">–</b></div>
 
       <h3>Ce que fait l'outil</h3>
-      <p>GymLocator répond à une question : <b>où existe-t-il des personnes qui pratiqueraient en salle, mais que les salles existantes ne peuvent pas absorber ?</b> Ce n'est ni un annuaire, ni un prédicteur de rentabilité : c'est un <b>filtre de marché</b>, conçu pour présélectionner des zones avant l'étude d'un emplacement précis.</p>
+      <p>GymLocator répond à une question : <b>où l'offre de salles est-elle la plus faible par rapport aux pratiquants potentiels, comparée à la moyenne nationale ?</b> Ce n'est ni un annuaire, ni un prédicteur de rentabilité : c'est un <b>filtre de marché</b>, conçu pour présélectionner des zones avant l'étude d'un emplacement précis.</p>
 
       <h3>Le modèle, en trois couches</h3>
       <p><b>1 · La demande.</b> La France est découpée en <b id="m-cells">–</b> carreaux de 1 km (INSEE Filosofi 2021 : habitants, âges, niveau de vie). On applique un taux de pratique de 10 % (moyenne nationale), <b>modulé par l'âge</b> — ≈ 22 % chez les 18-24 ans, ≈ 4 % chez les 65-79 ans — et légèrement par le revenu (± 15 %). Chaque carreau porte ainsi un nombre d'<b>adhérents potentiels</b>.</p>
@@ -195,15 +195,18 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       <p><b>3 · La confrontation</b> (E2SFCA, la méthode utilisée pour les déserts médicaux) :</p>
       <div class="f">Étape 1 — chaque salle <b>répartit sa capacité</b> entre les habitants situés à ≤ 15 min de voiture (poids décroissant avec le temps de trajet)<br>
       Étape 2 — chaque carreau <b>cumule les parts</b> des salles qu'il peut atteindre → sa <b>couverture</b><br>
-      Déficit = demande × max(0 ; 1 − couverture / couverture nationale)</div>
-      <p style="font-size:11.5px;color:#8a92a6">La capacité d'une salle n'est jamais comptée deux fois — contrairement à un simple « demande − offre » par zone. La couverture est relative au niveau national (<b id="m-aref">–</b> place/adhérent potentiel) : la carte lit des écarts, ce qui la rend robuste aux erreurs d'estimation des capacités.</p>
+      Déficit relatif = demande × max(0 ; 1 − couverture / couverture nationale)</div>
+      <p style="font-size:11.5px;color:#8a92a6">La capacité d'une salle n'est jamais comptée deux fois — contrairement à un simple « demande − offre » par zone. La couverture est relative au niveau national (<b id="m-aref">–</b> place/adhérent potentiel) : la carte lit des écarts, ce qui neutralise une erreur d'estimation des capacités <b>identique partout</b>, mais pas une erreur qui varie selon les territoires ou les enseignes.</p>
+
+      <h3>Lire le déficit relatif</h3>
+      <p>Le déficit relatif compte les adhérents potentiels qu'il faudrait équiper pour ramener une zone à la <b>couverture moyenne nationale</b>. Ce n'est pas une demande insatisfaite en absolu : par construction, les déficits des zones sous-équipées égalent les excédents des zones sur-équipées, et la carte resterait identique si toutes les salles de France doublaient ou si la moitié fermait. L'écart « ≈ N salles » est un équivalent pour rejoindre cette moyenne, pas une place garantie : l'outil ne dit pas si un marché est saturé.</p>
 
       <h3>Comment l'utiliser</h3>
       <ol>
-        <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon les adhérents non desservis <b>dans sa zone de chalandise</b> — c'est le même chiffre que le clic, l'analyse de zone et le classement des emplacements. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = saturé).</li>
-        <li><b>Exploration &amp; meilleures zones.</b> Recherchez une ville ou zoomez ; dès le zoom 10 les salles s'affichent, colorées par type. « Meilleures zones » place le <b>nombre de salles de votre choix</b> aux points où le <b>déficit de la zone 15 min est maximal</b> (l'indicateur de la carte), chaque placement absorbant la demande qu'une salle de 1 200 m² capterait avant le suivant. Le calcul se fait sur la grille nationale de 1 km : pour une même zone, les résultats sont stables quel que soit le cadrage.</li>
+        <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon le <b>déficit relatif cumulé dans sa zone de chalandise</b> — c'est le même chiffre que le clic, l'analyse de zone et le repérage des zones sous-équipées. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = au-dessus de la moyenne).</li>
+        <li><b>Exploration &amp; zones sous-équipées.</b> Recherchez une ville ou zoomez ; dès le zoom 10 les salles s'affichent, colorées par type. « Zones sous-équipées » repère le <b>nombre de zones de votre choix</b> là où le <b>déficit relatif cumulé sur 15 min est maximal</b> (l'indicateur de la carte), chaque zone retenue étant supposée équipée d'une salle de 1 200 m² avant la suivante. Le calcul se fait sur la grille nationale de 1 km : pour une même zone, les résultats sont stables quel que soit le cadrage. C'est une présélection, pas une recommandation d'emplacement.</li>
         <li><b>Filtrage de la concurrence.</b> Dans la légende (fermable via le ×, réouvrable par le bouton « Légende &amp; filtres »), décochez les <b>types</b> de salles non concurrents de votre projet, ou retirez une <b>salle précise</b> via son popup (« Retirer cette salle du calcul »). Le modèle est <b>recalculé en direct</b> sur toute la France.</li>
-        <li><b>Analyse d'un point.</b> Un clic donne l'estimation de la zone accessible en 15 min : demande, couverture, adhérents non desservis, verdict. « Analyser la zone » trace le périmètre, détaille la concurrence par segment, et tente en arrière-plan le <b>tracé routier exact</b> (service tiers).</li>
+        <li><b>Analyse d'un point.</b> Un clic donne l'estimation de la zone accessible en 15 min : demande, couverture, déficit relatif, écart à la moyenne nationale. « Analyser la zone » trace le périmètre, détaille la concurrence par segment, et tente en arrière-plan le <b>tracé routier exact</b> (service tiers).</li>
         <li><b>Le terrain.</b> L'outil s'arrête là, volontairement : foncier, loyer, visibilité, parking ne sont pas dans les données. Présélectionnez 3-4 zones ici, départagez-les sur place.</li>
       </ol>
 
@@ -217,7 +220,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Validation — ce que le score dit (et ne dit pas)</h3>
       <div class="val">Backtest : les <b id="m-bt-n">–</b> créations de salles depuis 2023 (SIRENE) se situent au <b id="m-bt-med">–</b>ᵉ percentile médian du déficit calculé avec l'offre antérieure (hasard = 50ᵉ). Les ouvertures réelles <b>ne ciblent donc pas</b> les zones les plus déficitaires : les enseignes arbitrent d'abord sur le foncier commercial et la co-implantation. Le score mesure le manque <b>du point de vue de l'habitant</b> — un filtre de marché — pas la probabilité qu'une chaîne s'installe.</div>
-      <div class="warn">Limites : modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
+      <div class="warn">Limites : indicateur relatif à la moyenne nationale (ne mesure pas la saturation absolue d'un marché) · déficit sommé sur la zone 15 min sans pondération par le temps de trajet · modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
     </div>
   </div>
 
@@ -300,9 +303,10 @@ let COLOR={min:0,max:5.8};         // échelle de couleur du déficit local (log
 let COLORZ={min:0,max:9.9};        // échelle du déficit de zone 15 min (log1p)
 let AREF=1;                        // couverture nationale de référence (sous-ensemble courant)
 let NEW_GYM_ABS=1585;              // demande absorbée par une salle de 1 200 m² au niveau de service courant
+let NEW_GYM_M2=1200;               // surface de la salle de référence (meta.modele.newGymM2)
 let catActive={lowcost:true,premium:true,classic:true,niche:true,asso:true};
 let excluded=new Set();            // ids de salles retirées individuellement du calcul
-let bestN=5;                       // nombre de salles à placer (« Meilleures zones »)
+let bestN=5;                       // nombre de salles à placer (« Zones sous-équipées »)
 let recomputing=false,recomputeQueued=false;
 const gymActive=g=>catActive[g.cat]&&!excluded.has(g.id);
 let map,hLayer,gymLayer,clkLayer,isoLayer,hiLayer,bestLayer,gymRenderer=null;
@@ -349,13 +353,15 @@ function zoneStats(lat,lon){
   }
   return {u,dem,pop,cov:dem>0?relW/dem:0};
 }
-// Verdict métier : distingue « couvert » de « marché trop petit »
+// Verdict RELATIF : écart à la couverture moyenne nationale, exprimé en équivalent
+// salles de référence. Il ne dit pas si un marché est saturé en absolu (voir Méthode) ;
+// distingue encore « au niveau de la moyenne » de « petit bassin ».
 function verdict(u,dem){
   const n=Math.floor(u/NEW_GYM_ABS);
-  if(n>=1)return{t:`Place pour ~${n} salle${n>1?'s':''} supplémentaire${n>1?'s':''}`,c:'var(--ok)'};
-  if(u>NEW_GYM_ABS*0.4)return{t:'Place pour une petite salle',c:'var(--warn)'};
-  if(dem<NEW_GYM_ABS*1.5)return{t:'Marché trop restreint pour une salle',c:'var(--txt3)'};
-  return{t:'Marché déjà couvert',c:'var(--err)'};
+  if(n>=1)return{t:`Sous la moyenne nationale : écart ≈ ${n} salle${n>1?'s':''} de ${NEW_GYM_M2.toLocaleString('fr')} m²`,c:'var(--ok)'};
+  if(u>NEW_GYM_ABS*0.4)return{t:'Légèrement sous la moyenne nationale',c:'var(--warn)'};
+  if(dem<NEW_GYM_ABS*1.5)return{t:`Petit bassin : moins de ~${(Math.round(NEW_GYM_ABS*1.5/100)*100).toLocaleString('fr')} adhérents potentiels`,c:'var(--txt3)'};
+  return{t:'Au niveau de la moyenne nationale ou au-dessus',c:'var(--err)'};
 }
 
 // ── Couleurs ───────────────────────────────────────────────────────────────────
@@ -366,7 +372,9 @@ function rgb(s){
 }
 const sDef=u=>Math.max(0,Math.min(1,(Math.log1p(u)-COLOR.min)/(COLOR.max-COLOR.min)));
 const sZone=v=>Math.max(0,Math.min(1,(Math.log1p(v)-COLORZ.min)/(COLORZ.max-COLORZ.min)));
-function slbl(p){return p>=75?'Fort potentiel':p>=50?'Potentiel élevé':p>=25?'Potentiel modéré':'Potentiel faible';}
+// Libellé de l'indice /100 (intensité de la couleur « Déficit 15 min », échelle log) :
+// décrit un niveau de déficit relatif, pas un potentiel commercial.
+function slbl(p){return p>=75?'Déficit relatif très élevé':p>=50?'Déficit relatif élevé':p>=25?'Déficit relatif modéré':'Déficit relatif faible';}
 function tR(z){return z>=14?96:z>=12?64:z>=10?40:z>=9?28:18;}
 
 // ── Heatmap ────────────────────────────────────────────────────────────────────
@@ -571,7 +579,7 @@ function initClick(){
     const lat=e.latlng.lat,lng=e.latlng.lng;
     const smp=sample2(lat,lng);if(!smp)return;
     const z=zoneStats(lat,lng);
-    // indice /100 = intensité de la vue « déficit 15 min » (le même nombre que Non desservis)
+    // indice /100 = intensité de la vue « déficit 15 min » (le même nombre que « Déficit relatif »)
     const s=sZone(smp[3]),p=Math.round(s*100);
     const col='rgb('+rgb(s).join(',')+')';
     const vd=verdict(z.u,z.dem);
@@ -582,9 +590,9 @@ function initClick(){
        <div class="kv"><span class="k">Habitants</span><span class="v">~${Math.round(z.pop).toLocaleString('fr')}</span></div>
        <div class="kv"><span class="k">Adhérents potentiels</span><span class="v">~${Math.round(z.dem).toLocaleString('fr')}</span></div>
        <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(z.cov*100)} % <small>du niveau national</small></span></div>
-       <div class="kv"><span class="k">Non desservis</span><span class="v">~${Math.round(z.u).toLocaleString('fr')}</span></div>
+       <div class="kv"><span class="k">Déficit relatif</span><span class="v">~${Math.round(z.u).toLocaleString('fr')} <small>adhérents</small></span></div>
        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
-       <div class="gp-note">Chiffres estimés (périmètre modélisé). « Analyser la zone » trace le périmètre et détaille la concurrence.</div>
+       <div class="gp-note">Déficit relatif : écart à la couverture moyenne nationale, pas une demande insatisfaite en absolu. Chiffres estimés (périmètre modélisé) ; « Analyser la zone » détaille la concurrence.</div>
        <button class="iso-btn" onclick="glIso(${lat},${lng})">Analyser la zone · 15 min voiture</button>
      </div>`,{offset:[0,-6],maxWidth:290}).openPopup();
   });
@@ -652,7 +660,7 @@ function zonePopupHTML(o){
     <div class="kv iso-salles" onclick="glHiGyms()"><span class="k">Concurrence</span><span class="v">${o.comp.count} salle${o.comp.count>1?'s':''} · ~${Math.round(o.comp.cap).toLocaleString('fr')} places</span></div>
     ${o.segs?`<div class="kv"><span class="k">Par segment</span><span class="v" style="font-weight:400;font-size:10.5px">${o.segs}</span></div>`:''}
     <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(o.cov*100)} % <small>du niveau national</small></span></div>
-    <div class="kv"><span class="k">Non desservis</span><span class="v">~${o.u.toLocaleString('fr')}</span></div>
+    <div class="kv"><span class="k">Déficit relatif</span><span class="v">~${o.u.toLocaleString('fr')} <small>adhérents</small></span></div>
     <div class="gp-verdict" style="color:${o.vd.c}">${o.vd.t}</div>
     ${o.note?`<div class="gp-note">${o.note}</div>`:''}
     ${o.retry?`<button class="iso-btn sec" onclick="glIso(${o.lat},${o.lon})">Retenter le tracé routier exact</button>`:''}
@@ -758,7 +766,7 @@ window.glHiGyms=function(){
   }
 };
 
-// ── Meilleures zones : placement glouton de N salles ───────────────────────────
+// ── Zones sous-équipées : repérage glouton de N zones ──────────────────────────
 // Ouvre/ferme le panneau ; à l'ouverture, lance un placement avec le N courant.
 window.glBest=function(){
   if(!META)return;
@@ -794,7 +802,7 @@ window.placeBest=function(){
   const b=map.getBounds();
   const s=Math.max(b.getSouth(),41),n=Math.min(b.getNorth(),51.5),w=Math.max(b.getWest(),-5.5),e=Math.min(b.getEast(),10);
   if(n<=s||e<=w){notif('Vue hors de France','err');return;}
-  setBar(true,'Recherche des meilleurs emplacements…');
+  setBar(true,'Recherche des zones les plus sous-équipées…');
   setTimeout(()=>{
     // Bornes de la vue en coordonnées grille (via les 4 coins projetés)
     const corners=[[s,w],[s,e],[n,w],[n,e]].map(c=>laeaForward(c[0],c[1]));
@@ -857,24 +865,24 @@ window.placeBest=function(){
       picks.push({x:best.x,y:best.y,zone:bestZone,captured:bestCapt,dem:bestDem});
     }
     setBar(false);bestLayer.clearLayers();
-    if(!picks.length){notif('Aucune demande non desservie notable dans cette zone','warn');return;}
+    if(!picks.length){notif('Aucune zone nettement sous la moyenne nationale dans cette vue','warn');return;}
     picks.forEach((c,i)=>{
       const rank=i+1;
       const ll=laeaInverse(META.E0+(c.x+.5)*1000,META.N0+(c.y+.5)*1000);
       const fill=Math.round(c.captured/capDem*100);
       const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
       L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
-        <div class="gp-name">Emplacement n° ${rank}</div>
-        <div class="gp-sub">Classé par déficit de zone · 15 min voiture</div>
-        <div class="kv"><span class="k">Non desservis à ≤ 15 min</span><span class="v">~${Math.round(c.zone).toLocaleString('fr')}</span></div>
-        <div class="kv"><span class="k">Une salle capterait</span><span class="v">~${Math.round(c.captured).toLocaleString('fr')} <small>(${fill} %)</small></span></div>
-        <div class="kv"><span class="k">Potentiels à ≤ 15 min</span><span class="v">~${Math.round(c.dem).toLocaleString('fr')}</span></div>
-        <div class="gp-note">« Non desservis » est le même indicateur que l'analyse de zone et que la carte « Déficit 15 min ». Les emplacements mieux classés sont supposés déjà implantés.</div>
+        <div class="gp-name">Zone n° ${rank}</div>
+        <div class="gp-sub">Classée par déficit relatif · 15 min voiture</div>
+        <div class="kv"><span class="k">Déficit relatif à ≤ 15 min</span><span class="v">~${Math.round(c.zone).toLocaleString('fr')} <small>adhérents</small></span></div>
+        <div class="kv"><span class="k">Captable par ${NEW_GYM_M2.toLocaleString('fr')} m² <small>(pondéré trajet)</small></span><span class="v">~${Math.round(c.captured).toLocaleString('fr')} <small>(${fill} %)</small></span></div>
+        <div class="kv"><span class="k">Adhérents potentiels à ≤ 15 min</span><span class="v">~${Math.round(c.dem).toLocaleString('fr')}</span></div>
+        <div class="gp-note">« Déficit relatif » est le même indicateur que l'analyse de zone et que la carte « Déficit 15 min » : un écart à la couverture moyenne nationale. Les zones mieux classées sont supposées déjà équipées. Présélection à vérifier sur le terrain (foncier, loyer, visibilité non modélisés).</div>
         <button class="iso-btn" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
       </div>`);
     });
     const full=picks.filter(p=>p.captured>=capDem*0.95).length;
-    notif(`${picks.length}/${bestN} emplacement${picks.length>1?'s':''} placé${picks.length>1?'s':''}${full?` · ${full} à remplissage complet`:''}`,'ok');
+    notif(`${picks.length}/${bestN} zone${picks.length>1?'s':''} repérée${picks.length>1?'s':''}${full?` · ${full} avec un déficit captable d'au moins une salle`:''}`,'ok');
   },30);
 };
 
@@ -905,14 +913,14 @@ function updLegend(){
     document.getElementById('leg-title').textContent='Couverture vs moyenne nationale';
     bar.style.background='linear-gradient(to right,#d53e4f,#fdae61,#e6f598,#66c2a5,#3288bd)';
     document.getElementById('leg-lo').textContent='Sous-équipé';
-    document.getElementById('leg-hi').textContent='Saturé (≥200 %)';
+    document.getElementById('leg-hi').textContent='≥ 2× la moyenne';
   }else{
     document.getElementById('leg-title').textContent=viewMode==='deficit'
-      ?'Non desservis (par carreau de 1 km)'
-      :'Non desservis à ≤ 15 min voiture';
+      ?'Déficit relatif (par carreau de 1 km)'
+      :'Déficit relatif à ≤ 15 min voiture';
     bar.style.background='linear-gradient(to right,#3288bd,#66c2a5,#abdda4,#e6f598,#fee08b,#fdae61,#f46d43,#d53e4f)';
-    document.getElementById('leg-lo').textContent='Couvert';
-    document.getElementById('leg-hi').textContent='Fort déficit';
+    document.getElementById('leg-lo').textContent='Au niveau moyen';
+    document.getElementById('leg-hi').textContent='Très sous la moyenne';
   }
 }
 function buildLegend(){
@@ -1026,7 +1034,8 @@ async function loadData(){
     AREF=META.Aref;
     COLOR={min:META.colorLogU.min,max:META.colorLogU.max};
     if(META.colorLogUZ)COLORZ={min:META.colorLogUZ.min,max:META.colorLogUZ.max};
-    NEW_GYM_ABS=Math.round((M.newGymM2||1200)*MEMBERS_PER_M2/AREF);
+    NEW_GYM_M2=M.newGymM2||1200;
+    NEW_GYM_ABS=Math.round(NEW_GYM_M2*MEMBERS_PER_M2/AREF);
     // chiffres réels injectés dans la modale Méthode
     document.getElementById('m-date').textContent=META.generated;
     document.getElementById('m-aref').textContent=META.Aref.toFixed(2).replace('.',',');

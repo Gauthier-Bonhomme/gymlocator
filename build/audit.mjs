@@ -167,8 +167,14 @@ let sansSalle = 0; for (let i = 0; i < n; i++) if (M.A[i] === 0) sansSalle += ce
 const sites = topSites(UZ);
 const hbE = toLaea(HALLB.lat, HALLB.lon);
 const hb = { pop: 0, dem: 0, brut: 0, pondere: 0 };
-around(hbE[0], hbE[1], (i, w) => { hb.pop += cells[i].ind; hb.dem += cells[i].dem; hb.brut += M.U[i]; hb.pondere += M.U[i] * w; });
-hb.ecartSalles = Math.floor(hb.brut / (NEW_M2 * PER_M2 / M.Aref));
+let hbDW = 0, hbDW2 = 0;
+around(hbE[0], hbE[1], (i, w) => {
+  hb.pop += cells[i].ind; hb.dem += cells[i].dem; hb.brut += M.U[i]; hb.pondere += M.U[i] * w;
+  hbDW += cells[i].dem * w; hbDW2 += cells[i].dem * w * w;
+});
+// Écart en salles de référence : une salle placée là réduit le déficit pondéré de
+// (capacité / Aref) × w̄, w̄ = Σ dem·w² / Σ dem·w (même règle que verdict() dans le front)
+hb.ecartSalles = Math.floor(hb.pondere / (NEW_M2 * PER_M2 / M.Aref * (hbDW > 0 ? hbDW2 / hbDW : 1)));
 const model = {
   Aref: M.Aref, deficitNational: totU, uzMax: Math.max(...sites.map(i => UZ[i])),
   partDemandeSansSalle: sansSalle / totD,
@@ -258,7 +264,7 @@ if (SENSI) {
   const G = gyms.map(g => { const [E, N] = toLaea(g.lat, g.lon); return { g, E, N }; });
   const DEM0 = Float64Array.from(cells, c => c.dem), IND = Float64Array.from(cells, c => c.ind);
   const S0 = Math.sqrt(SIGMA2 / 2);
-  function run({ keep = () => true, dem = DEM0, detour = 1, sigma = S0, tmax = T_MAX, cap = g => g.cap, weighted = false } = {}) {
+  function run({ keep = () => true, dem = DEM0, detour = 1, sigma = S0, tmax = T_MAX, cap = g => g.cap, weighted = true } = {}) {
     const S2 = 2 * sigma * sigma, R = Math.ceil((tmax - T_ACCESS) / 60 * speedKmh(0) / detour) + 1;
     const A = new Float64Array(n);
     for (const { g, E, N } of G) {
@@ -307,7 +313,7 @@ if (SENSI) {
       ['Pratique ×0,6 en rural → ×1,35 en dense', { dem: demUR }],
       ['Adhérents/m² par type de salle', { cap: g => Math.min(6000, g.surf) * PER_CAT[g.cat] }],
       ['Sans les SIRENE sans salarié', { cap: g => nonEmpSet.has(g) ? 0 : g.cap }],
-      ['Déficit de zone pondéré par le trajet', { weighted: true }],
+      ['Déficit de zone non pondéré (somme brute)', { weighted: false }],
     ];
     const t1 = topShare(UZ, 0.01);
     sensibilite = VARIANTES.map(([nom, o]) => {
@@ -369,6 +375,8 @@ if (ref) {
     ['Déficit < 1 000 hab/km²', r => r.model.partDeficitMoinsDe1000, pct],
     ['Top 20 sites en Île-de-France', r => r.model.top20IDF, fmt],
     ['Hall b : déficit relatif brut', r => r.model.hallb.brut, fmt],
+    ['Hall b : déficit relatif pondéré', r => r.model.hallb.pondere, fmt],
+    ['Hall b : écart en salles', r => r.model.hallb.ecartSalles, fmt],
     ['Backtest toutes · pondéré', r => r.backtest.toutes.pondere.median, v => dec(v, 1)],
     ['Backtest avec salariés · pondéré', r => r.backtest.avecSalaries.pondere.median, v => dec(v, 1)],
     ['Backtest chaînes · pondéré', r => r.backtest.chaines.pondere.median, v => dec(v, 1)],

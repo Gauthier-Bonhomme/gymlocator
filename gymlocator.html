@@ -175,7 +175,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
   <div id="bestpanel">
     <div class="bp-h">Zones les plus sous-équipées</div>
     <div class="bp-row"><span>Repérer</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>zone(s)</span></div>
-    <div class="bp-sub">Repère les points où l'<b>écart à la couverture moyenne nationale</b>, cumulé sur la zone 15 min voiture, est le plus grand — le même indicateur que la carte et l'analyse de zone. Chaque zone retenue est supposée équipée avant la suivante. Calcul sur la grille nationale, dans la vue affichée. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
+    <div class="bp-sub">Repère les points où l'<b>écart à la couverture moyenne nationale</b>, cumulé sur la zone 15 min voiture et pondéré par le trajet, est le plus grand — le même indicateur que la carte et l'analyse de zone. Chaque zone retenue est supposée équipée avant la suivante. Calcul sur la grille nationale, dans la vue affichée. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
     <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Repérer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
   </div>
 
@@ -195,15 +195,16 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       <p><b>3 · La confrontation</b> (E2SFCA, la méthode utilisée pour les déserts médicaux) :</p>
       <div class="f">Étape 1 — chaque salle <b>répartit sa capacité</b> entre les habitants situés à ≤ 15 min de voiture (poids décroissant avec le temps de trajet)<br>
       Étape 2 — chaque carreau <b>cumule les parts</b> des salles qu'il peut atteindre → sa <b>couverture</b><br>
-      Déficit relatif = demande × max(0 ; 1 − couverture / couverture nationale)</div>
+      Déficit relatif = demande × max(0 ; 1 − couverture / couverture nationale)<br>
+      Déficit de zone (carte, clic, analyse) = Σ déficit relatif à ≤ 15 min × <b>le même poids de trajet</b></div>
       <p style="font-size:11.5px;color:#8a92a6">La capacité d'une salle n'est jamais comptée deux fois — contrairement à un simple « demande − offre » par zone. La couverture est relative au niveau national (<b id="m-aref">–</b> place/adhérent potentiel) : la carte lit des écarts, ce qui neutralise une erreur d'estimation des capacités <b>identique partout</b>, mais pas une erreur qui varie selon les territoires ou les enseignes.</p>
 
       <h3>Lire le déficit relatif</h3>
-      <p>Le déficit relatif compte les adhérents potentiels qu'il faudrait équiper pour ramener une zone à la <b>couverture moyenne nationale</b>. Ce n'est pas une demande insatisfaite en absolu : par construction, les déficits des zones sous-équipées égalent les excédents des zones sur-équipées, et la carte resterait identique si toutes les salles de France doublaient ou si la moitié fermait. L'écart « ≈ N salles » est un équivalent pour rejoindre cette moyenne, pas une place garantie : l'outil ne dit pas si un marché est saturé.</p>
+      <p>Le déficit relatif compte les adhérents potentiels qu'il faudrait équiper pour ramener une zone à la <b>couverture moyenne nationale</b>. Ce n'est pas une demande insatisfaite en absolu : par construction, les déficits des zones sous-équipées égalent les excédents des zones sur-équipées, et la carte resterait identique si toutes les salles de France doublaient ou si la moitié fermait. Dans la zone de 15 min, chaque adhérent potentiel compte avec le poids de trajet de la couverture (½ à <span id="m-t50">7</span> min, ¼ à <span id="m-t25">10</span> min) : un déficit proche pèse plus qu'un déficit en limite de zone. L'écart « ≈ N salles » est un équivalent pour rejoindre cette moyenne, pas une place garantie : l'outil ne dit pas si un marché est saturé.</p>
 
       <h3>Comment l'utiliser</h3>
       <ol>
-        <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon le <b>déficit relatif cumulé dans sa zone de chalandise</b> — c'est le même chiffre que le clic, l'analyse de zone et le repérage des zones sous-équipées. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = au-dessus de la moyenne).</li>
+        <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon le <b>déficit relatif cumulé dans sa zone de chalandise</b>, pondéré par le temps de trajet — c'est le même chiffre que le clic, l'analyse de zone et le repérage des zones sous-équipées. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = au-dessus de la moyenne).</li>
         <li><b>Exploration &amp; zones sous-équipées.</b> Recherchez une ville ou zoomez ; dès le zoom 10 les salles s'affichent, colorées par type. « Zones sous-équipées » repère le <b>nombre de zones de votre choix</b> là où le <b>déficit relatif cumulé sur 15 min est maximal</b> (l'indicateur de la carte), chaque zone retenue étant supposée équipée d'une salle de 1 200 m² avant la suivante. Le calcul se fait sur la grille nationale de 1 km : pour une même zone, les résultats sont stables quel que soit le cadrage. C'est une présélection, pas une recommandation d'emplacement.</li>
         <li><b>Filtrage de la concurrence.</b> Dans la légende (fermable via le ×, réouvrable par le bouton « Légende &amp; filtres »), décochez les <b>types</b> de salles non concurrents de votre projet, ou retirez une <b>salle précise</b> via son popup (« Retirer cette salle du calcul »). Le modèle est <b>recalculé en direct</b> sur toute la France.</li>
         <li><b>Analyse d'un point.</b> Un clic donne l'estimation de la zone accessible en 15 min : demande, couverture, déficit relatif, écart à la moyenne nationale. « Analyser la zone » trace le périmètre, détaille la concurrence par segment, et tente en arrière-plan le <b>tracé routier exact</b> (service tiers).</li>
@@ -220,7 +221,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Validation — ce que le score dit (et ne dit pas)</h3>
       <div class="val">Backtest : les <b id="m-bt-n">–</b> créations de salles depuis 2023 (SIRENE) se situent au <b id="m-bt-med">–</b>ᵉ percentile médian du déficit calculé avec l'offre antérieure (hasard = 50ᵉ). Les ouvertures réelles <b>ne ciblent donc pas</b> les zones les plus déficitaires : les enseignes arbitrent d'abord sur le foncier commercial et la co-implantation. Le score mesure le manque <b>du point de vue de l'habitant</b> — un filtre de marché — pas la probabilité qu'une chaîne s'installe.</div>
-      <div class="warn">Limites : indicateur relatif à la moyenne nationale (ne mesure pas la saturation absolue d'un marché) · déficit sommé sur la zone 15 min sans pondération par le temps de trajet · modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
+      <div class="warn">Limites : indicateur relatif à la moyenne nationale (ne mesure pas la saturation absolue d'un marché) · temps de trajet estimés par une vitesse moyenne selon la densité, pas par le réseau routier · modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
     </div>
   </div>
 
@@ -336,30 +337,37 @@ function sample2(lat,lon){ // bilinéaire : [u, rel, ind, uz] au point
   }
   return has?[u,rel,ind,uz]:null;
 }
-// Indicateurs de la zone accessible en ≤ 15 min depuis un point (sommes BRUTES —
-// mêmes unités que l'analyse isochrone : le clic est l'estimation, l'isochrone l'exact)
+// Indicateurs de la zone accessible en ≤ 15 min depuis un point. Le déficit u est
+// pondéré par exp(−t²/SIGMA2) comme la couverture et la couche uz ; habitants, demande
+// et couverture restent des totaux de la zone. wbar = Σ dem·w² / Σ dem·w (voir verdict).
 function zoneStats(lat,lon){
   const p=laeaForward(lat,lon);
   const cx=Math.floor((p[0]-META.E0)/1000),cy=Math.floor((p[1]-META.N0)/1000);
   const gk=cellK(cx,cy),gDens=gk!==undefined?IND[gk]:0;
-  let u=0,dem=0,pop=0,relW=0;
+  let u=0,dem=0,pop=0,relW=0,dw=0,dw2=0;
   for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
     const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
     const k=cellK(x,y);if(k===undefined)continue;
     const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
     const d=Math.hypot(cE-p[0],cN-p[1])/1000;
-    if(T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60>T_MAX)continue;
-    u+=uAt(k);dem+=DEM[k];pop+=IND[k];relW+=relAt(k)*DEM[k];
+    const t=T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60;if(t>T_MAX)continue;
+    const w=Math.exp(-t*t/SIGMA2);
+    u+=uAt(k)*w;dem+=DEM[k];pop+=IND[k];relW+=relAt(k)*DEM[k];dw+=DEM[k]*w;dw2+=DEM[k]*w*w;
   }
-  return {u,dem,pop,cov:dem>0?relW/dem:0};
+  return {u,dem,pop,cov:dem>0?relW/dem:0,wbar:dw>0?dw2/dw:1};
 }
+// Temps de trajet (min) auquel le poids exp(−t²/SIGMA2) vaut w — pour les textes
+const tPoids=w=>Math.round(Math.sqrt(-SIGMA2*Math.log(w)));
 // Verdict RELATIF : écart à la couverture moyenne nationale, exprimé en équivalent
 // salles de référence. Il ne dit pas si un marché est saturé en absolu (voir Méthode) ;
 // distingue encore « au niveau de la moyenne » de « petit bassin ».
-function verdict(u,dem){
-  const n=Math.floor(u/NEW_GYM_ABS);
+// Une salle de référence placée au point répartit sa capacité selon dem·w (E2SFCA) :
+// elle réduit le déficit PONDÉRÉ d'au plus NEW_GYM_ABS × wbar. L'écart en salles ne
+// dépend donc pas de l'échelle du noyau.
+function verdict(u,dem,wbar){
+  const abs=NEW_GYM_ABS*wbar,n=Math.floor(u/abs);
   if(n>=1)return{t:`Sous la moyenne nationale : écart ≈ ${n} salle${n>1?'s':''} de ${NEW_GYM_M2.toLocaleString('fr')} m²`,c:'var(--ok)'};
-  if(u>NEW_GYM_ABS*0.4)return{t:'Légèrement sous la moyenne nationale',c:'var(--warn)'};
+  if(u>abs*0.4)return{t:'Légèrement sous la moyenne nationale',c:'var(--warn)'};
   if(dem<NEW_GYM_ABS*1.5)return{t:`Petit bassin : moins de ~${(Math.round(NEW_GYM_ABS*1.5/100)*100).toLocaleString('fr')} adhérents potentiels`,c:'var(--txt3)'};
   return{t:'Au niveau de la moyenne nationale ou au-dessus',c:'var(--err)'};
 }
@@ -472,9 +480,9 @@ async function recomputeLayer(){
       }
       const q=weightedQ(logU,wD,[0.12,0.97]);
       COLOR={min:q[0],max:Math.max(q[1],q[0]+1e-6)};
-      // Phase 2 : déficit de zone (Σ u sur la chalandise de chaque carreau), par lots.
-      // Offsets pré-calculés (d ≤ 12,4 km = portée max à 62 km/h) ; seuls les voisins
-      // ayant du déficit (u>0) paient le test de vitesse.
+      // Phase 2 : déficit de zone (Σ u·exp(−t²/SIGMA2) sur la chalandise de chaque carreau,
+      // comme build/lib-e2sfca.mjs), par lots. Offsets pré-calculés (d ≤ 12,4 km = portée
+      // max à 62 km/h) ; seuls les voisins ayant du déficit (u>0) paient le calcul du temps.
       const uz=new Float32Array(n),cols=META.cols,rows=META.rows;
       const OFFS=[];
       for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
@@ -491,7 +499,8 @@ async function recomputeLayer(){
             if(xx<0||yy<0||xx>=cols||yy>=rows)continue;
             const j=KIDX[xx+yy*cols];if(j<0)continue;
             const uj=u[j];if(uj===0)continue;
-            if(T_ACCESS+OFFS[o][2]/speedKmh((indK+IND[j])/2)*60<=T_MAX)sZ+=uj;
+            const t=T_ACCESS+OFFS[o][2]/speedKmh((indK+IND[j])/2)*60;
+            if(t<=T_MAX)sZ+=uj*Math.exp(-t*t/SIGMA2);
           }
           uz[k]=sZ;
         }
@@ -584,7 +593,7 @@ function initClick(){
     // indice /100 = intensité de la vue « déficit 15 min » (le même nombre que « Déficit relatif »)
     const s=sZone(smp[3]),p=Math.round(s*100);
     const col='rgb('+rgb(s).join(',')+')';
-    const vd=verdict(z.u,z.dem);
+    const vd=verdict(z.u,z.dem,z.wbar);
     L.circleMarker([lat,lng],{radius:8,color:'white',fillColor:col,fillOpacity:1,weight:2.5})
      .addTo(clkLayer).bindPopup(`<div class="gp">
        <div class="gp-score"><b style="color:${col}">${p}<span style="font-size:13px;color:var(--txt3);font-weight:400">/100</span></b><span style="color:${col}">${slbl(p)}</span></div>
@@ -592,9 +601,9 @@ function initClick(){
        <div class="kv"><span class="k">Habitants</span><span class="v">~${Math.round(z.pop).toLocaleString('fr')}</span></div>
        <div class="kv"><span class="k">Adhérents potentiels</span><span class="v">~${Math.round(z.dem).toLocaleString('fr')}</span></div>
        <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(z.cov*100)} % <small>du niveau national</small></span></div>
-       <div class="kv"><span class="k">Déficit relatif</span><span class="v">~${Math.round(z.u).toLocaleString('fr')} <small>adhérents</small></span></div>
+       <div class="kv"><span class="k">Déficit relatif <small>(pondéré trajet)</small></span><span class="v">~${Math.round(z.u).toLocaleString('fr')} <small>adhérents</small></span></div>
        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
-       <div class="gp-note">Déficit relatif : écart à la couverture moyenne nationale, pas une demande insatisfaite en absolu. Chiffres estimés (périmètre modélisé) ; « Analyser la zone » détaille la concurrence.</div>
+       <div class="gp-note">Déficit relatif : écart à la couverture moyenne nationale, pas une demande insatisfaite en absolu ; un adhérent compte d'autant moins qu'il est loin (poids ½ à ${tPoids(.5)} min, ¼ à ${tPoids(.25)} min). Chiffres estimés (périmètre modélisé) ; « Analyser la zone » détaille la concurrence.</div>
        <button class="iso-btn" onclick="glIso(${lat},${lng})">Analyser la zone · 15 min voiture</button>
      </div>`,{offset:[0,-6],maxWidth:290}).openPopup();
   });
@@ -623,20 +632,29 @@ function gjToLatLngs(geom){
 function pip(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}return inside;}
 function outerRings(geom){return geom.type==='Polygon'?[geom.coordinates[0]]:geom.coordinates.map(p=>p[0]);}
 // Agrégats exacts dans l'union de polygones : PIP des centres de carreaux en plan LAEA.
-// Mêmes couches (uAt/relAt) et mêmes unités que zoneStats → estimation et exact concordent.
-function isoStats(geoms){
+// Le polygone sert de MASQUE ; chaque carreau garde le poids du modèle, calculé depuis
+// le point analysé (lat,lon) → mêmes couches, mêmes unités et même pondération que
+// zoneStats. Un carreau dans l'isochrone est à ≤ 15 min par la route : son temps
+// modélisé est plafonné à T_MAX.
+function isoStats(geoms,lat,lon){
+  const p0=laeaForward(lat,lon);
+  const gk=cellK(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000));
+  const gDens=gk!==undefined?IND[gk]:0;
   const rings=[];
   for(const g of geoms)for(const ring of outerRings(g))rings.push(ring.map(c=>laeaForward(c[1],c[0])));
   let minE=1e12,maxE=-1e12,minN=1e12,maxN=-1e12;
   for(const r of rings)for(const pt of r){if(pt[0]<minE)minE=pt[0];if(pt[0]>maxE)maxE=pt[0];if(pt[1]<minN)minN=pt[1];if(pt[1]>maxN)maxN=pt[1];}
   const x0=Math.max(0,Math.floor((minE-META.E0)/1000)),x1=Math.min(META.cols-1,Math.floor((maxE-META.E0)/1000));
   const y0=Math.max(0,Math.floor((minN-META.N0)/1000)),y1=Math.min(META.rows-1,Math.floor((maxN-META.N0)/1000));
-  let pop=0,dem=0,u=0,relW=0;
+  let pop=0,dem=0,u=0,relW=0,dw=0,dw2=0;
   for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
     const k=cellK(x,y);if(k===undefined)continue;
     const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
     let isin=false;for(const r of rings)if(pip(cE,cN,r)){isin=true;break;}
-    if(isin){pop+=IND[k];dem+=DEM[k];u+=uAt(k);relW+=relAt(k)*DEM[k];}
+    if(!isin)continue;
+    const d=Math.hypot(cE-p0[0],cN-p0[1])/1000;
+    const t=Math.min(T_MAX,T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60),w=Math.exp(-t*t/SIGMA2);
+    pop+=IND[k];dem+=DEM[k];u+=uAt(k)*w;relW+=relAt(k)*DEM[k];dw+=DEM[k]*w;dw2+=DEM[k]*w*w;
   }
   let cap=0,count=0,list=[];
   for(const g of GYMS){
@@ -646,7 +664,7 @@ function isoStats(geoms){
     let isin=false;for(const r of rings)if(pip(pt[0],pt[1],r)){isin=true;break;}
     if(isin){cap+=g.cap;count++;list.push(g);}
   }
-  return {pop:Math.round(pop),dem:Math.round(dem),u,cov:dem>0?relW/dem:0,cap,count,list};
+  return {pop:Math.round(pop),dem:Math.round(dem),u,cov:dem>0?relW/dem:0,wbar:dw>0?dw2/dw:1,cap,count,list};
 }
 function isoStyle(mode,mins){return mode==='pedestrian'?(mins>=15?'#2fb380':'#1d8a61'):(mins>=15?'#6e8bff':'#4c6ef5');}
 // Répartition des concurrents par segment, en clair
@@ -662,7 +680,7 @@ function zonePopupHTML(o){
     <div class="kv iso-salles" onclick="glHiGyms()"><span class="k">Concurrence</span><span class="v">${o.comp.count} salle${o.comp.count>1?'s':''} · ~${Math.round(o.comp.cap).toLocaleString('fr')} places</span></div>
     ${o.segs?`<div class="kv"><span class="k">Par segment</span><span class="v" style="font-weight:400;font-size:10.5px">${o.segs}</span></div>`:''}
     <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(o.cov*100)} % <small>du niveau national</small></span></div>
-    <div class="kv"><span class="k">Déficit relatif</span><span class="v">~${o.u.toLocaleString('fr')} <small>adhérents</small></span></div>
+    <div class="kv"><span class="k">Déficit relatif <small>(pondéré trajet)</small></span><span class="v">~${o.u.toLocaleString('fr')} <small>adhérents</small></span></div>
     <div class="gp-verdict" style="color:${o.vd.c}">${o.vd.t}</div>
     ${o.note?`<div class="gp-note">${o.note}</div>`:''}
     ${o.retry?`<button class="iso-btn sec" onclick="glIso(${o.lat},${o.lon})">Retenter le tracé routier exact</button>`:''}
@@ -716,7 +734,7 @@ function showModelFallback(lat,lon,upgrading){
   L.popup({offset:[0,-4],maxWidth:300}).setLatLng([lat,lon]).setContent(zonePopupHTML({
     title:'Analyse de zone',sub:'Périmètre modélisé · 15 min voiture',
     pop:Math.round(z.pop),dem:Math.round(z.dem),u:Math.round(z.u),cov:z.cov,
-    comp,segs:segsOf(comp.list),vd:verdict(z.u,z.dem),lat,lon,retry:!upgrading,
+    comp,segs:segsOf(comp.list),vd:verdict(z.u,z.dem,z.wbar),lat,lon,retry:!upgrading,
     note:upgrading?'Tracé routier exact en cours de tentative — il remplacera ce périmètre si le service répond.'
       :'Périmètre estimé par le modèle (le service public d’isochrones est actuellement hors ligne).'
   })).openOn(map);
@@ -752,12 +770,12 @@ window.glIso=async function(lat,lon){
   isoFetching=false;
 };
 function showIsoResult(lat,lon){
-  const st=isoStats([isoPolys.auto]);isoGymList=st.list;
+  const st=isoStats([isoPolys.auto],lat,lon);isoGymList=st.list;
   L.popup({offset:[0,-4],maxWidth:300}).setLatLng([lat,lon]).setContent(zonePopupHTML({
     title:'Analyse de zone',sub:'Isochrone routière réelle · 15 min voiture',
     pop:st.pop,dem:st.dem,u:Math.round(st.u),cov:st.cov,
     comp:{count:st.count,cap:st.cap,list:st.list},segs:segsOf(st.list),
-    vd:verdict(st.u,st.dem),lat,lon
+    vd:verdict(st.u,st.dem,st.wbar),lat,lon
   })).openOn(map);
 }
 window.glHiGyms=function(){
@@ -789,15 +807,14 @@ window.glBestN=function(d){
 window.clearBest=function(){bestLayer.clearLayers();};
 // Placement glouton sur la TRAME NATIONALE FIXE de 1 km (indépendante de l'écran :
 // mêmes résultats pour une même région, quel que soit le cadrage exact).
-//  1) Présélection : score grossier (Σ déficit à ±4 km) sur un carreau ancré sur 3,
+//  1) Présélection : maximum de la couche uz à ±1 carreau sur une trame ancrée sur 3,
 //     dans la zone affichée → meilleurs germes, départage déterministe.
 //  2) Candidats : les germes affinés à ±1 carreau, avec chalandise complète
 //     (poids temps de trajet, comme le modèle).
-//  3) Glouton : à chaque étape, l'emplacement qui CAPTE le plus de demande non
-//     desservie, PLAFONNÉ à la capacité d'une salle de 1 200 m² — une méga-poche
-//     ne vaut pas plus que ce qu'une salle peut réellement absorber. La salle
-//     placée absorbe ensuite cette demande : les suivantes s'espacent d'elles-mêmes
-//     (plusieurs salles dans une même grande ville si le déficit le justifie).
+//  3) Glouton : à chaque étape, l'emplacement au plus grand déficit de zone PONDÉRÉ
+//     (le chiffre de la carte et de l'analyse de zone). La salle de référence placée
+//     ajoute sa capacité à la couverture (E2SFCA) : les suivantes s'espacent d'elles-
+//     mêmes (plusieurs salles dans une même grande ville si le déficit le justifie).
 window.placeBest=function(){
   if(!META||recomputing)return;
   bestLayer.clearLayers();clkLayer.clearLayers();
@@ -813,7 +830,6 @@ window.placeBest=function(){
     const y0=Math.max(0,Math.floor((Math.min(...corners.map(c=>c[1]))-META.N0)/1000));
     const y1=Math.min(META.rows-1,Math.floor((Math.max(...corners.map(c=>c[1]))-META.N0)/1000));
     const newCap=Math.round(((META.modele&&META.modele.newGymM2)||1200)*MEMBERS_PER_M2);
-    const capDem=newCap/Math.max(AREF,0.05);   // capacité d'une salle en unités de demande
     // 1) Présélection sur trame absolue (x,y multiples de 3) : proxy = déficit de zone
     //    (la couche uz EST la métrique du classement → présélection déjà alignée)
     const seeds=[];
@@ -834,57 +850,56 @@ window.placeBest=function(){
       const key=x+y*META.cols;if(seen.has(key))continue;seen.add(key);
       const pE=META.E0+(x+.5)*1000,pN=META.N0+(y+.5)*1000;
       const gk=cellK(x,y),gDens=gk!==undefined?IND[gk]:0;
-      const ks=[],ws=[];let sumDW=0;
+      const ks=[],ws=[];let sumDW=0,sumDW2=0;
       for(let ddx=-13;ddx<=13;ddx++)for(let ddy=-13;ddy<=13;ddy++){
         const xx=x+ddx,yy=y+ddy;if(xx<0||yy<0||xx>=META.cols||yy>=META.rows)continue;
         const k=cellK(xx,yy);if(k===undefined)continue;
         const d=Math.hypot((xx-x),(yy-y));
         const t=T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60;if(t>T_MAX)continue;
-        const wt=Math.exp(-t*t/SIGMA2);ks.push(k);ws.push(wt);sumDW+=DEM[k]*wt;
+        const wt=Math.exp(-t*t/SIGMA2);ks.push(k);ws.push(wt);sumDW+=DEM[k]*wt;sumDW2+=DEM[k]*wt*wt;
       }
-      if(sumDW>=1)cands.push({x,y,ks,ws,sumDW});
+      if(sumDW>=1)cands.push({x,y,ks,ws,sumDW,wbar:sumDW2/sumDW});
     }
-    // 3) Glouton plafonné à la capacité, avec absorption de la demande captée
+    // 3) Glouton sur le déficit de zone pondéré, avec absorption par les salles placées
     const aeff=new Map();
     const getA=k=>{let v=aeff.get(k);if(v===undefined){v=relAt(k)*AREF;aeff.set(k,v);}return v;};
     const picks=[];
     for(let step=0;step<bestN;step++){
-      let best=null,bestZone=0,bestCapt=0,bestDem=0;
+      let best=null,bestZone=0,bestDem=0;
       for(const c of cands){
         if(picks.some(p=>Math.hypot(p.x-c.x,p.y-c.y)<2))continue;   // pas deux salles sur le même carreau
-        // Classement = déficit de la zone 15 min (LE chiffre de l'analyse de zone),
-        // avec l'absorption des salles déjà placées. La capture pondérée/plafonnée
-        // n'est qu'informative (remplissage).
-        let raw=0,wsum=0,dem=0;const ks=c.ks,ws=c.ws;
-        for(let i=0;i<ks.length;i++){const k=ks[i];const ue=DEM[k]*Math.max(0,1-getA(k)/AREF);raw+=ue;wsum+=ws[i]*ue;dem+=DEM[k];}
-        const better=raw>bestZone+1e-6
-          ||(raw>bestZone-1e-6&&best&&(c.x<best.x||(c.x===best.x&&c.y<best.y)));
-        if(better){bestZone=raw;bestCapt=Math.min(wsum,capDem);bestDem=dem;best=c;}
+        // Classement = déficit de la zone 15 min pondéré par le trajet (au premier pas,
+        // c'est la couche uz), après absorption par les salles déjà placées.
+        let wsum=0,dem=0;const ks=c.ks,ws=c.ws;
+        for(let i=0;i<ks.length;i++){const k=ks[i];wsum+=ws[i]*DEM[k]*Math.max(0,1-getA(k)/AREF);dem+=DEM[k];}
+        const better=wsum>bestZone+1e-6
+          ||(wsum>bestZone-1e-6&&best&&(c.x<best.x||(c.x===best.x&&c.y<best.y)));
+        if(better){bestZone=wsum;bestDem=dem;best=c;}
       }
-      if(!best||bestZone<NEW_GYM_ABS*0.1)break;
+      if(!best||bestZone<NEW_GYM_ABS*best.wbar*0.1)break;
       const R=newCap/best.sumDW;
       for(let i=0;i<best.ks.length;i++){const k=best.ks[i];aeff.set(k,getA(k)+R*best.ws[i]);}
-      picks.push({x:best.x,y:best.y,zone:bestZone,captured:bestCapt,dem:bestDem});
+      picks.push({x:best.x,y:best.y,zone:bestZone,dem:bestDem,wbar:best.wbar});
     }
     setBar(false);bestLayer.clearLayers();
     if(!picks.length){notif('Aucune zone nettement sous la moyenne nationale dans cette vue','warn');return;}
     picks.forEach((c,i)=>{
       const rank=i+1;
       const ll=laeaInverse(META.E0+(c.x+.5)*1000,META.N0+(c.y+.5)*1000);
-      const fill=Math.round(c.captured/capDem*100);
+      const vd=verdict(c.zone,c.dem,c.wbar);
       const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
       L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
         <div class="gp-name">Zone n° ${rank}</div>
         <div class="gp-sub">Classée par déficit relatif · 15 min voiture</div>
-        <div class="kv"><span class="k">Déficit relatif à ≤ 15 min</span><span class="v">~${Math.round(c.zone).toLocaleString('fr')} <small>adhérents</small></span></div>
-        <div class="kv"><span class="k">Captable par ${NEW_GYM_M2.toLocaleString('fr')} m² <small>(pondéré trajet)</small></span><span class="v">~${Math.round(c.captured).toLocaleString('fr')} <small>(${fill} %)</small></span></div>
+        <div class="kv"><span class="k">Déficit relatif à ≤ 15 min <small>(pondéré trajet)</small></span><span class="v">~${Math.round(c.zone).toLocaleString('fr')} <small>adhérents</small></span></div>
         <div class="kv"><span class="k">Adhérents potentiels à ≤ 15 min</span><span class="v">~${Math.round(c.dem).toLocaleString('fr')}</span></div>
+        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
         <div class="gp-note">« Déficit relatif » est le même indicateur que l'analyse de zone et que la carte « Déficit 15 min » : un écart à la couverture moyenne nationale. Les zones mieux classées sont supposées déjà équipées. Présélection à vérifier sur le terrain (foncier, loyer, visibilité non modélisés).</div>
         <button class="iso-btn" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
       </div>`);
     });
-    const full=picks.filter(p=>p.captured>=capDem*0.95).length;
-    notif(`${picks.length}/${bestN} zone${picks.length>1?'s':''} repérée${picks.length>1?'s':''}${full?` · ${full} avec un déficit captable d'au moins une salle`:''}`,'ok');
+    const full=picks.filter(p=>p.zone>=NEW_GYM_ABS*p.wbar).length;   // même seuil que verdict() : écart ≥ 1 salle
+    notif(`${picks.length}/${bestN} zone${picks.length>1?'s':''} repérée${picks.length>1?'s':''}${full?` · ${full} à au moins une salle d'écart`:''}`,'ok');
   },30);
 };
 
@@ -1043,6 +1058,8 @@ async function loadData(){
     document.getElementById('m-aref').textContent=META.Aref.toFixed(2).replace('.',',');
     document.getElementById('m-cells').textContent=META.n.toLocaleString('fr');
     document.getElementById('m-gyms').textContent=META.national.salles.toLocaleString('fr');
+    document.getElementById('m-t50').textContent=tPoids(.5);
+    document.getElementById('m-t25').textContent=tPoids(.25);
     if(META.backtest){
       document.getElementById('m-bt-n').textContent=META.backtest.toutes.n.toLocaleString('fr');
       document.getElementById('m-bt-med').textContent=Math.round(META.backtest.toutes.percentileMedian);

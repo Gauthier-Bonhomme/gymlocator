@@ -35,7 +35,8 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
   demande, couverture, déficit relatif et écart à la moyenne nationale en équivalent salles
   (« petit bassin » ≠ « au niveau de la moyenne »).
 - **Zones sous-équipées** → repérage glouton des N zones où le déficit relatif cumulé sur 15 min
-  est le plus grand — une présélection à vérifier, pas une recommandation d'emplacement.
+  (pondéré par le temps de trajet, avec le même noyau que la couverture) est le plus grand —
+  une présélection à vérifier, pas une recommandation d'emplacement.
 - **Analyse exacte** → isochrone détaillée sur les mêmes couches et les mêmes unités que
   l'estimation (pas de mélange pondéré/brut).
 - **Cases à cocher par type de salle** (chaînes, indépendants, équipements publics…) →

@@ -1,8 +1,9 @@
 // 03 — Calcul E2SFCA national → grid.bin + meta.json (consommés par le front)
 // grid.bin (little-endian) : Uint32[n] idx (col + row*cols, origine meta)
-//                            puis Uint16[n] ind, Uint16[n] dem, Uint16[n] rel×2000, Uint16[n] u
+//                            puis Uint16[n] ind, Uint16[n] dem, Uint16[n] rel×2000, Uint16[n] u, Uint16[n] uz
 // rel = A / Aref (couverture relative au niveau de service national)
 // u   = dem × max(0, 1 − rel)  (adhérents non desservis)
+// uz  = Σ u × exp(−t²/SIGMA2) sur la zone 15 min (déficit de zone, même noyau que A)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { toLaea, laeaForward, computeAccess, computeZoneDeficit, weightedQuantiles } from './lib-e2sfca.mjs';

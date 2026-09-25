@@ -74,9 +74,10 @@ export function computeAccess(cells, gyms) {
   return { A, skippedGyms };
 }
 
-// Déficit de ZONE : pour chaque carreau, somme du déficit U de tous les carreaux
-// atteignables en ≤ 15 min (même noyau temps/vitesse que le modèle, somme brute).
-// C'est la « surface d'opportunité » : ce qu'une salle implantée là aurait en face.
+// Déficit de ZONE : pour chaque carreau, somme du déficit U des carreaux atteignables
+// en ≤ 15 min, pondérée par exp(−t²/SIGMA2) — le même noyau que la couverture A.
+// C'est la « surface d'opportunité » : ce qu'une salle implantée là aurait en face,
+// un déficit lointain comptant moins qu'un déficit proche.
 // Le noyau est symétrique (vitesse = f(moyenne des densités des deux carreaux)).
 export function computeZoneDeficit(cells, U) {
   const key = (cx, cy) => cx * 100000 + cy;
@@ -95,7 +96,7 @@ export function computeZoneDeficit(cells, U) {
       if (j === undefined) continue;
       const d = Math.hypot(dx, dy);
       const t = T_ACCESS + d / speedKmh((c.ind + cells[j].ind) / 2) * 60;
-      if (t <= T_MAX) s += U[j];
+      if (t <= T_MAX) s += U[j] * Math.exp(-t * t / SIGMA2);
     }
     UZ[i] = s;
   }

@@ -82,7 +82,8 @@ L'outil lit uniquement `data/` et écrit dans `build/audit/` (non versionné, co
 - **Modèle** : Aref, déficit par classe de densité, 20 meilleurs sites (maxima à 20 km l'un de
   l'autre), zone 15 min de Hall b en somme brute et pondérée.
 - **Backtest** sur des ouvertures **figées** au premier lancement (`audit/ouvertures-figees.json`) :
-  toutes, avec salariés, chaînes ; métrique pondérée (celle de 04) et brute (celle de la carte).
+  toutes, avec salariés, chaînes ; métrique pondérée (celle de 04 et de la carte) et brute
+  (somme sans pondération, celle de la carte jusqu'à 09/2026).
   Le percentile ne peut donc pas bouger simplement parce que l'offre a été nettoyée.
 - **Stabilité** par rapport à la référence : corrélation de rang du déficit de zone, top 1 % des
   carreaux conservé, top 20 sites retrouvés à 10 km près.

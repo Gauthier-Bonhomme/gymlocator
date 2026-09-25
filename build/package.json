@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "audit": "node audit.mjs",
+    "audit:figer": "node audit.mjs --figer",
+    "audit:sensibilite": "node audit.mjs --sensibilite"
   },
   "keywords": [],
   "author": "",

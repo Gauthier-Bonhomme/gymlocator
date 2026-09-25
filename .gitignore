@@ -11,3 +11,5 @@ Thumbs.db
 data/
 build/node_modules/
 
+# Outil de mesure : référence et rapports liés à data/ (local)
+build/audit/

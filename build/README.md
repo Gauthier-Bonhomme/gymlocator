@@ -37,6 +37,36 @@ node 04-backtest.mjs   # validation ouvertures ≥ 2023 → complète ../meta.js
 
 Chaque script affiche des contrôles (population totale ≈ 63 M, Basic-Fit ≈ 930, etc.).
 
+## Mesurer l'effet d'un changement : `audit.mjs`
+
+Avant de modifier le modèle, figer une référence ; après chaque changement, relancer la mesure
+et lire les écarts. Toutes les branches sont ainsi jugées avec le même étalon.
+
+```bash
+npm run audit:figer        # une fois, AVANT de toucher au code (sur les données actuelles de data/)
+node 02-supply.mjs         # … relancer les étapes modifiées du pipeline …
+npm run audit              # mesures + écarts à la référence
+npm run audit:sensibilite  # idem + variantes de paramètres (~3 min de plus)
+```
+
+L'outil lit uniquement `data/` et écrit dans `build/audit/` (non versionné, comme `data/`) :
+
+- **Offre** : part de capacité à surface par défaut, équipements Data ES non ouverts au public,
+  lignes Data ES en double pour une même installation, établissements SIRENE sans salarié,
+  surfaces mesurées vs par défaut des chaînes, salle Hall b.
+- **Modèle** : Aref, déficit par classe de densité, 20 meilleurs sites (maxima à 20 km l'un de
+  l'autre), zone 15 min de Hall b en somme brute et pondérée.
+- **Backtest** sur des ouvertures **figées** au premier lancement (`audit/ouvertures-figees.json`) :
+  toutes, avec salariés, chaînes ; métrique pondérée (celle de 04) et brute (celle de la carte).
+  Le percentile ne peut donc pas bouger simplement parce que l'offre a été nettoyée.
+- **Stabilité** par rapport à la référence : corrélation de rang du déficit de zone, top 1 % des
+  carreaux conservé, top 20 sites retrouvés à 10 km près.
+
+La référence dépend de `data/` : après un nouveau téléchargement des sources, la refiger
+**avant** de modifier le code, sinon les écarts mélangent effet des données et effet du code.
+Le calcul des couches reprend les étapes de `03-e2sfca.mjs` et le signale s'il ne reproduit
+plus `grid.bin` (quand celui-ci vient des mêmes données) : l'aligner si 03 change.
+
 ## Raffinement possible : temps de trajet OSRM
 
 Le modèle utilise une vitesse porte-à-porte analytique (21–62 km/h selon la densité).

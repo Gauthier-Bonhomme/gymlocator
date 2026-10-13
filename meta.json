@@ -6,21 +6,21 @@
  "E0": 3210000,
  "N0": 2029000,
  "cell": 1000,
- "Aref": 1.0276,
+ "Aref": 1.1356,
  "colorLogU": {
   "min": 0,
-  "max": 5.693
+  "max": 5.3164
  },
  "colorLogUZ": {
-  "min": 2.8219,
-  "max": 7.6853
+  "min": 3.0403,
+  "max": 7.4721
  },
  "national": {
   "pop": 62592659,
   "demande": 6259468,
-  "capacite": 6432121,
-  "deficit": 1959915,
-  "salles": 10045
+  "capacite": 7108562,
+  "deficit": 1852950,
+  "salles": 10556
  },
  "modele": {
   "millesimePop": 2021,
@@ -33,29 +33,30 @@
    "vMax": 62,
    "vAmp": 41,
    "logMin": 1.5,
-   "logSpan": 2.2
+   "logSpan": 2.2,
+   "lissageKm": 5
   },
   "newGymM2": 1200
  },
  "backtest": {
   "cutoff": "2023-01-01",
   "toutes": {
-   "n": 2242,
-   "percentileMedian": 43.6,
-   "partTop20": 19,
-   "partTop10": 9.2
+   "n": 2399,
+   "percentileMedian": 39.5,
+   "partTop20": 16.6,
+   "partTop10": 8.3
   },
   "chaines": {
-   "n": 346,
-   "percentileMedian": 39.6,
-   "partTop20": 20.2,
-   "partTop10": 12.4
+   "n": 506,
+   "percentileMedian": 40.8,
+   "partTop20": 20,
+   "partTop10": 13.2
   },
   "sallesConnues": {
-   "n": 428,
-   "percentileMedian": 40.7,
-   "partTop20": 19.9,
-   "partTop10": 11.7
+   "n": 568,
+   "percentileMedian": 39.4,
+   "partTop20": 19.7,
+   "partTop10": 12.7
   }
  }
 }

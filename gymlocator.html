@@ -212,7 +212,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       </ol>
 
       <h3>Périmètre modélisé et tracé routier exact</h3>
-      <p>L'analyse de zone affiche <b>immédiatement</b> un périmètre 15 min estimé par le modèle (vitesse porte-à-porte selon la densité) et ses indicateurs. En arrière-plan, l'outil tente d'obtenir l'<b>isochrone routière exacte</b> auprès d'un service public tiers (Valhalla/OSM) : si celui-ci répond, le tracé et les chiffres sont remplacés par la version exacte. Ce service étant fréquemment hors ligne, l'estimation constitue le résultat de référence.</p>
+      <p>L'analyse de zone affiche <b>immédiatement</b> un périmètre 15 min estimé par le modèle (vitesse porte-à-porte selon la densité de population, moyennée sur un carré de <span id="m-liss">5</span> km de côté pour qu'un champ en lisière de ville ne compte pas comme une route de campagne) et ses indicateurs. En arrière-plan, l'outil tente d'obtenir l'<b>isochrone routière exacte</b> auprès d'un service public tiers (Valhalla/OSM) : si celui-ci répond, le tracé et les chiffres sont remplacés par la version exacte. Ce service étant fréquemment hors ligne, l'estimation constitue le résultat de référence.</p>
 
       <h3>Sources</h3>
       <div class="src"><span>—</span><span><b>Population, âges, revenus</b> : INSEE Filosofi 2021, carroyage 1 km</span></div>
@@ -299,6 +299,7 @@ function laeaInverse(E,N){
 
 // ── État ───────────────────────────────────────────────────────────────────────
 let META=null,KIDX=null,CXA=null,CYA=null,IND=null,DEM=null,RELQ=null,UQ=null,UZQ=null,GYMS=[];
+let DENS=null,DENS_H=0;            // densité lissée par carreau (vitesse) ; fenêtre (2·DENS_H+1)² km
 let LAYER=null;                    // {u,rel,uz} Float32Array si filtre actif, sinon null (couche précalculée)
 let COLOR={min:0,max:5.8};         // échelle de couleur du déficit local (log1p)
 let COLORZ={min:0,max:9.9};        // échelle du déficit de zone 15 min (log1p)
@@ -319,6 +320,18 @@ let isoPoint=null,isoPolys={auto:null,pedestrian:null},isoGymList=[];
 // KIDX : table plate idx → k (-1 = carreau vide) — bien plus rapide qu'une Map
 // pour les ~7 M de consultations d'un recalcul national.
 const cellK=(cx,cy)=>{const v=KIDX[cx+cy*META.cols];return v<0?undefined:v;};
+// Densité lissée (hab/km²) qui règle la vitesse — même règle que densityField() de
+// build/lib-e2sfca.mjs : population de la fenêtre centrée sur le carreau / sa surface,
+// carreaux vides comptés à 0. Définie aussi hors des carreaux habités (point cliqué, salle
+// en zone d'activité) : un champ en lisière de ville ne roule plus à 62 km/h.
+function densAt(cx,cy){
+  let s=0;
+  for(let dy=-DENS_H;dy<=DENS_H;dy++){
+    const y=cy+dy;if(y<0||y>=META.rows)continue;
+    for(let dx=-DENS_H;dx<=DENS_H;dx++){const x=cx+dx;if(x<0||x>=META.cols)continue;const k=KIDX[x+y*META.cols];if(k>=0)s+=IND[k];}
+  }
+  return s/((2*DENS_H+1)*(2*DENS_H+1));
+}
 const uAt=k=>LAYER?LAYER.u[k]:UQ[k];
 const relAt=k=>LAYER?LAYER.rel[k]:RELQ[k]/2000;
 const uzAt=k=>LAYER?LAYER.uz[k]:UZQ[k];
@@ -343,14 +356,14 @@ function sample2(lat,lon){ // bilinéaire : [u, rel, ind, uz] au point
 function zoneStats(lat,lon){
   const p=laeaForward(lat,lon);
   const cx=Math.floor((p[0]-META.E0)/1000),cy=Math.floor((p[1]-META.N0)/1000);
-  const gk=cellK(cx,cy),gDens=gk!==undefined?IND[gk]:0;
+  const gDens=densAt(cx,cy);
   let u=0,dem=0,pop=0,relW=0,dw=0,dw2=0;
   for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
     const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
     const k=cellK(x,y);if(k===undefined)continue;
     const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
     const d=Math.hypot(cE-p[0],cN-p[1])/1000;
-    const t=T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60;if(t>T_MAX)continue;
+    const t=T_ACCESS+d/speedKmh((DENS[k]+gDens)/2)*60;if(t>T_MAX)continue;
     const w=Math.exp(-t*t/SIGMA2);
     u+=uAt(k)*w;dem+=DEM[k];pop+=IND[k];relW+=relAt(k)*DEM[k];dw+=DEM[k]*w;dw2+=DEM[k]*w*w;
   }
@@ -450,14 +463,14 @@ async function recomputeLayer(){
         for(let gi=i0;gi<end;gi++){
           const g=active[gi],p=laeaForward(g.lat,g.lon);
           const cx=Math.floor((p[0]-META.E0)/1000),cy=Math.floor((p[1]-META.N0)/1000);
-          const gk=cellK(cx,cy),gDens=gk!==undefined?IND[gk]:0;
+          const gDens=densAt(cx,cy);
           neigh.length=0;let sumDW=0;
           for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
             const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
             const k=cellK(x,y);if(k===undefined)continue;
             const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
             const d=Math.hypot(cE-p[0],cN-p[1])/1000;
-            const t=T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60;
+            const t=T_ACCESS+d/speedKmh((DENS[k]+gDens)/2)*60;
             if(t>T_MAX)continue;
             const w=Math.exp(-t*t/SIGMA2);
             neigh.push(k,w);sumDW+=DEM[k]*w;
@@ -492,14 +505,14 @@ async function recomputeLayer(){
       for(let k0=0;k0<n;k0+=CH2){
         const kEnd=Math.min(n,k0+CH2);
         for(let k=k0;k<kEnd;k++){
-          const x=CXA[k],y=CYA[k],indK=IND[k];
+          const x=CXA[k],y=CYA[k],densK=DENS[k];
           let sZ=0;
           for(let o=0;o<OFFS.length;o++){
             const xx=x+OFFS[o][0],yy=y+OFFS[o][1];
             if(xx<0||yy<0||xx>=cols||yy>=rows)continue;
             const j=KIDX[xx+yy*cols];if(j<0)continue;
             const uj=u[j];if(uj===0)continue;
-            const t=T_ACCESS+OFFS[o][2]/speedKmh((indK+IND[j])/2)*60;
+            const t=T_ACCESS+OFFS[o][2]/speedKmh((densK+DENS[j])/2)*60;
             if(t<=T_MAX)sZ+=uj*Math.exp(-t*t/SIGMA2);
           }
           uz[k]=sZ;
@@ -641,8 +654,7 @@ function outerRings(geom){return geom.type==='Polygon'?[geom.coordinates[0]]:geo
 // modélisé est plafonné à T_MAX.
 function isoStats(geoms,lat,lon){
   const p0=laeaForward(lat,lon);
-  const gk=cellK(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000));
-  const gDens=gk!==undefined?IND[gk]:0;
+  const gDens=densAt(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000));
   const rings=[];
   for(const g of geoms)for(const ring of outerRings(g))rings.push(ring.map(c=>laeaForward(c[1],c[0])));
   let minE=1e12,maxE=-1e12,minN=1e12,maxN=-1e12;
@@ -656,7 +668,7 @@ function isoStats(geoms,lat,lon){
     let isin=false;for(const r of rings)if(pip(cE,cN,r)){isin=true;break;}
     if(!isin)continue;
     const d=Math.hypot(cE-p0[0],cN-p0[1])/1000;
-    const t=Math.min(T_MAX,T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60),w=Math.exp(-t*t/SIGMA2);
+    const t=Math.min(T_MAX,T_ACCESS+d/speedKmh((DENS[k]+gDens)/2)*60),w=Math.exp(-t*t/SIGMA2);
     pop+=IND[k];dem+=DEM[k];u+=uAt(k)*w;relW+=relAt(k)*DEM[k];dw+=DEM[k]*w;dw2+=DEM[k]*w*w;
   }
   let cap=0,count=0,list=[];
@@ -701,14 +713,12 @@ function localInverter(lat,lon){
 // Contour radial de la zone atteignable en 15 min selon le modèle (vitesse fn densité)
 function modelIsoRing(lat,lon){
   const p0=laeaForward(lat,lon),inv=localInverter(lat,lon);
-  const gk=cellK(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000));
-  const gDens=gk!==undefined?IND[gk]:0,NA=64,pts=[];
+  const gDens=densAt(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000)),NA=64,pts=[];
   for(let a=0;a<NA;a++){
     const th=a/NA*2*Math.PI,ux=Math.cos(th),uy=Math.sin(th);let rMax=0.6;
     for(let r=0.6;r<=13;r+=0.4){
       const E=p0[0]+ux*r*1000,N=p0[1]+uy*r*1000;
-      const k=cellK(Math.floor((E-META.E0)/1000),Math.floor((N-META.N0)/1000));
-      const dens=k!==undefined?IND[k]:0;
+      const dens=densAt(Math.floor((E-META.E0)/1000),Math.floor((N-META.N0)/1000));
       if(T_ACCESS+r/speedKmh((dens+gDens)/2)*60<=T_MAX)rMax=r;
     }
     pts.push(inv(p0[0]+ux*rMax*1000,p0[1]+uy*rMax*1000));
@@ -718,13 +728,11 @@ function modelIsoRing(lat,lon){
 // Concurrence dans le disque-temps 15 min (même test que zoneStats), salles exclues ignorées
 function modelCompetition(lat,lon){
   const p0=laeaForward(lat,lon);
-  const gk=cellK(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000));
-  const gDens=gk!==undefined?IND[gk]:0;let cap=0,count=0,list=[];
+  const gDens=densAt(Math.floor((p0[0]-META.E0)/1000),Math.floor((p0[1]-META.N0)/1000));let cap=0,count=0,list=[];
   for(const g of GYMS){
     if(!gymActive(g))continue;
     const pg=laeaForward(g.lat,g.lon),d=Math.hypot(pg[0]-p0[0],pg[1]-p0[1])/1000;if(d>13)continue;
-    const k=cellK(Math.floor((pg[0]-META.E0)/1000),Math.floor((pg[1]-META.N0)/1000));
-    const dens=k!==undefined?IND[k]:0;
+    const dens=densAt(Math.floor((pg[0]-META.E0)/1000),Math.floor((pg[1]-META.N0)/1000));
     if(T_ACCESS+d/speedKmh((dens+gDens)/2)*60<=T_MAX){cap+=g.cap;count++;list.push(g);}
   }
   return {cap,count,list};
@@ -813,7 +821,7 @@ window.clearBest=function(){bestLayer.clearLayers();};
 //  1) Présélection : maximum de la couche uz à ±1 carreau sur une trame ancrée sur 3,
 //     dans la zone affichée → meilleurs germes, départage déterministe.
 //  2) Candidats : les germes affinés à ±1 carreau, avec chalandise complète
-//     (poids temps de trajet, comme le modèle).
+//     (poids temps de trajet, comme le modèle) ; seuls les carreaux habités en sont.
 //  3) Glouton : à chaque étape, l'emplacement au plus grand déficit de zone PONDÉRÉ
 //     (le chiffre de la carte et de l'analyse de zone). La salle de référence placée
 //     ajoute sa capacité à la couverture (E2SFCA) : les suivantes s'espacent d'elles-
@@ -851,14 +859,14 @@ window.placeBest=function(){
     for(const sd of seeds)for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
       const x=sd.x+dx,y=sd.y+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
       const key=x+y*META.cols;if(seen.has(key))continue;seen.add(key);
-      const pE=META.E0+(x+.5)*1000,pN=META.N0+(y+.5)*1000;
-      const gk=cellK(x,y),gDens=gk!==undefined?IND[gk]:0;
+      const gk=cellK(x,y);if(gk===undefined)continue;   // carreau sans habitant : pas un emplacement
+      const gDens=DENS[gk];
       const ks=[],ws=[];let sumDW=0,sumDW2=0;
       for(let ddx=-13;ddx<=13;ddx++)for(let ddy=-13;ddy<=13;ddy++){
         const xx=x+ddx,yy=y+ddy;if(xx<0||yy<0||xx>=META.cols||yy>=META.rows)continue;
         const k=cellK(xx,yy);if(k===undefined)continue;
         const d=Math.hypot((xx-x),(yy-y));
-        const t=T_ACCESS+d/speedKmh((IND[k]+gDens)/2)*60;if(t>T_MAX)continue;
+        const t=T_ACCESS+d/speedKmh((DENS[k]+gDens)/2)*60;if(t>T_MAX)continue;
         const wt=Math.exp(-t*t/SIGMA2);ks.push(k);ws.push(wt);sumDW+=DEM[k]*wt;sumDW2+=DEM[k]*wt*wt;
       }
       if(sumDW>=1)cands.push({x,y,ks,ws,sumDW,wbar:sumDW2/sumDW});
@@ -1051,6 +1059,11 @@ async function loadData(){
     if(M.sigmaMin!=null)SIGMA2=2*M.sigmaMin*M.sigmaMin;
     if(M.membresParM2!=null)MEMBERS_PER_M2=M.membresParM2;
     if(M.vitesse){const v=M.vitesse;speedKmh=d=>v.vMax-v.vAmp*Math.min(1,Math.max(0,(Math.log10(d+1)-v.logMin)/v.logSpan));}
+    // Fenêtre de lissage de la densité : celle du grid.bin servi (meta.json antérieurs à 10/2026 :
+    // densité du seul carreau, donc 1 km) — le front reste aligné sur les couches précalculées.
+    DENS_H=(((M.vitesse&&M.vitesse.lissageKm)||1)-1)/2;
+    DENS=new Float64Array(n);
+    for(let k=0;k<n;k++)DENS[k]=densAt(CXA[k],CYA[k]);
     AREF=META.Aref;
     COLOR={min:META.colorLogU.min,max:META.colorLogU.max};
     if(META.colorLogUZ)COLORZ={min:META.colorLogUZ.min,max:META.colorLogUZ.max};
@@ -1063,6 +1076,7 @@ async function loadData(){
     document.getElementById('m-gyms').textContent=META.national.salles.toLocaleString('fr');
     document.getElementById('m-t50').textContent=tPoids(.5);
     document.getElementById('m-t25').textContent=tPoids(.25);
+    document.getElementById('m-liss').textContent=2*DENS_H+1;
     if(META.backtest){
       document.getElementById('m-bt-n').textContent=META.backtest.toutes.n.toLocaleString('fr');
       document.getElementById('m-bt-med').textContent=Math.round(META.backtest.toutes.percentileMedian);

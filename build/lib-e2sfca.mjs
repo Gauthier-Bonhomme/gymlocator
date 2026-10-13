@@ -26,11 +26,40 @@ export function laeaForward(lat, lon) {
 // Vitesse porte-à-porte décroissante avec la densité (congestion + stationnement) :
 // ~62 km/h en rural, ~21 km/h en hyper-urbain. Approximation analytique ; le
 // pipeline accepte un raffinement OSRM ultérieur sans changer le reste.
+// La densité est LISSÉE sur DENS_WINDOW × DENS_WINDOW km : celle d'un seul carreau faisait
+// d'un champ ou d'une zone d'activité en lisière de ville une route de campagne (62 km/h),
+// donc une zone de 15 min plus grande que celle de la ville voisine (audit n° 2, N2).
 export const T_ACCESS = 3;          // min (stationnement, marche terminale)
 export const T_MAX = 15;            // min — zone de chalandise standard
 export const SIGMA2 = 2 * 6 * 6;    // décroissance gaussienne, sigma = 6 min
+export const DENS_WINDOW = 5;       // km — côté (impair) de la fenêtre de lissage de la densité
 export const speedKmh = dens =>
   62 - 41 * Math.min(1, Math.max(0, (Math.log10(dens + 1) - 1.5) / 2.2));
+
+// Densité lissée (hab/km²) : population de la fenêtre win × win km centrée sur un carreau,
+// divisée par sa surface (carreaux sans habitant comptés à 0). Elle existe pour TOUT carreau
+// de la grille, habité ou non (salle en zone commerciale, point cliqué…).
+// Retourne { at(cx, cy), dens } : cx, cy = coin SW en km EPSG:3035 ; dens[i] = densité du carreau i.
+export function densityField(cells, win = DENS_WINDOW) {
+  const h = (win - 1) / 2;
+  let minCx = Infinity, minCy = Infinity, maxCx = -Infinity, maxCy = -Infinity;
+  for (const c of cells) {
+    const cx = c.E / 1000, cy = c.N / 1000;
+    minCx = Math.min(minCx, cx); minCy = Math.min(minCy, cy); maxCx = Math.max(maxCx, cx); maxCy = Math.max(maxCy, cy);
+  }
+  const W = maxCx - minCx + 1, H = maxCy - minCy + 1, pop = new Float64Array(W * H);
+  for (const c of cells) pop[(c.E / 1000 - minCx) + (c.N / 1000 - minCy) * W] = c.ind;
+  const at = (cx, cy) => {
+    const x = cx - minCx, y = cy - minCy;
+    let s = 0;
+    for (let dy = -h; dy <= h; dy++) {
+      const yy = y + dy; if (yy < 0 || yy >= H) continue;
+      for (let dx = -h; dx <= h; dx++) { const xx = x + dx; if (xx >= 0 && xx < W) s += pop[xx + yy * W]; }
+    }
+    return s / (win * win);
+  };
+  return { at, dens: Float64Array.from(cells, c => at(c.E / 1000, c.N / 1000)) };
+}
 
 // ── E2SFCA ──────────────────────────────────────────────────────────────────────
 // cells : [{E,N,ind,dem}] (coins SW 3035, mètres) · gyms : [{lat,lon,cap}]
@@ -38,7 +67,8 @@ export const speedKmh = dens =>
 // Étape 1 : chaque salle répartit sa capacité entre les demandeurs de sa chalandise
 // (une seule fois — pas de double comptage). Étape 2 : chaque carreau cumule ce
 // qui lui revient des salles atteignables.
-export function computeAccess(cells, gyms) {
+// field : densityField(cells), à passer quand l'appelant l'a déjà calculé.
+export function computeAccess(cells, gyms, field = densityField(cells)) {
   const key = (cx, cy) => cx * 100000 + cy;
   const cellIdx = new Map();
   for (let i = 0; i < cells.length; i++) {
@@ -51,8 +81,7 @@ export function computeAccess(cells, gyms) {
   for (const g of gyms) {
     const [gE, gN] = toLaea(g.lat, g.lon);
     const gcx = Math.floor(gE / 1000), gcy = Math.floor(gN / 1000);
-    const gi = cellIdx.get(key(gcx, gcy));
-    const gDens = gi !== undefined ? cells[gi].ind : 0;   // carreau 1 km → ind = hab/km²
+    const gDens = field.at(gcx, gcy);   // densité lissée au carreau de la salle, habité ou non
     neigh.length = 0;
     let sumDW = 0;
     for (let dx = -RMAX; dx <= RMAX; dx++) for (let dy = -RMAX; dy <= RMAX; dy++) {
@@ -60,7 +89,7 @@ export function computeAccess(cells, gyms) {
       if (i === undefined) continue;
       const c = cells[i];
       const d = Math.hypot(c.E + 500 - gE, c.N + 500 - gN) / 1000;   // km
-      const v = speedKmh((c.ind + gDens) / 2);
+      const v = speedKmh((field.dens[i] + gDens) / 2);
       const t = T_ACCESS + d / v * 60;
       if (t > T_MAX) continue;
       const w = Math.exp(-t * t / SIGMA2);
@@ -78,15 +107,15 @@ export function computeAccess(cells, gyms) {
 // en ≤ 15 min, pondérée par exp(−t²/SIGMA2) — le même noyau que la couverture A.
 // C'est la « surface d'opportunité » : ce qu'une salle implantée là aurait en face,
 // un déficit lointain comptant moins qu'un déficit proche.
-// Le noyau est symétrique (vitesse = f(moyenne des densités des deux carreaux)).
-export function computeZoneDeficit(cells, U) {
+// Le noyau est symétrique (vitesse = f(moyenne des densités lissées des deux carreaux)).
+export function computeZoneDeficit(cells, U, field = densityField(cells)) {
   const key = (cx, cy) => cx * 100000 + cy;
   const cellIdx = new Map();
   for (let i = 0; i < cells.length; i++) {
     cellIdx.set(key(Math.floor(cells[i].E / 1000), Math.floor(cells[i].N / 1000)), i);
   }
   const UZ = new Float64Array(cells.length);
-  const R = 13;
+  const R = 13, dens = field.dens;
   for (let i = 0; i < cells.length; i++) {
     const c = cells[i];
     const cx = Math.floor(c.E / 1000), cy = Math.floor(c.N / 1000);
@@ -95,7 +124,7 @@ export function computeZoneDeficit(cells, U) {
       const j = cellIdx.get(key(cx + dx, cy + dy));
       if (j === undefined) continue;
       const d = Math.hypot(dx, dy);
-      const t = T_ACCESS + d / speedKmh((c.ind + cells[j].ind) / 2) * 60;
+      const t = T_ACCESS + d / speedKmh((dens[i] + dens[j]) / 2) * 60;
       if (t <= T_MAX) s += U[j] * Math.exp(-t * t / SIGMA2);
     }
     UZ[i] = s;

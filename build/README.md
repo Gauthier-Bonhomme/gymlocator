@@ -100,7 +100,8 @@ plus `grid.bin` (quand celui-ci vient des mêmes données) : l'aligner si 03 cha
 
 ## Raffinement possible : temps de trajet OSRM
 
-Le modèle utilise une vitesse porte-à-porte analytique (21–62 km/h selon la densité).
+Le modèle utilise une vitesse porte-à-porte analytique (21–62 km/h selon la densité de population
+lissée sur 5 × 5 km, `densityField` de `lib-e2sfca.mjs`).
 Pour des temps routiers exacts, remplacer `speedKmh`/distance dans `lib-e2sfca.mjs`
 par des appels à l'API `table` d'un OSRM local (le graphe France est déjà préparé
 dans `../pipeline/osrm-data/`, voir `../pipeline/README.md`). Le reste du pipeline

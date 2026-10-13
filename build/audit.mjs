@@ -12,7 +12,7 @@
 // le percentile ne doit pas bouger simplement parce que l'offre a été nettoyée.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
-import { toLaea, computeAccess, computeZoneDeficit, speedKmh, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
+import { toLaea, computeAccess, computeZoneDeficit, densityField, speedKmh, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
 
 const args = new Set(process.argv.slice(2));
 const FIGER = args.has('--figer'), SENSI = args.has('--sensibilite');
@@ -47,24 +47,24 @@ const KIDX = new Int32Array(cols * rows).fill(-1);
 const CX = new Int32Array(n), CY = new Int32Array(n);
 cells.forEach((c, i) => { CX[i] = c.E / 1000 - minCx; CY[i] = c.N / 1000 - minCy; KIDX[CX[i] + CY[i] * cols] = i; });
 const cellKey = i => (CX[i] + minCx) * 10000 + (CY[i] + minCy);   // clé stable : km EPSG:3035
+const field = densityField(cells), DENS = field.dens;              // densité lissée, pour la vitesse
 
 // Carreaux atteignables en ≤ 15 min depuis un point (même noyau que 04-backtest et le front)
 function around(E, N, fn) {
   const cx = Math.floor(E / 1000) - minCx, cy = Math.floor(N / 1000) - minCy;
-  const gi = (cx >= 0 && cy >= 0 && cx < cols && cy < rows) ? KIDX[cx + cy * cols] : -1;
-  const gD = gi >= 0 ? cells[gi].ind : 0;
+  const gD = field.at(cx + minCx, cy + minCy);
   for (let dx = -13; dx <= 13; dx++) for (let dy = -13; dy <= 13; dy++) {
     const x = cx + dx, y = cy + dy; if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
     const i = KIDX[x + y * cols]; if (i < 0) continue;
     const c = cells[i];
     const d = Math.hypot(c.E + 500 - E, c.N + 500 - N) / 1000;
-    const t = T_ACCESS + d / speedKmh((c.ind + gD) / 2) * 60; if (t > T_MAX) continue;
+    const t = T_ACCESS + d / speedKmh((DENS[i] + gD) / 2) * 60; if (t > T_MAX) continue;
     fn(i, Math.exp(-t * t / SIGMA2));
   }
 }
 // Couches du modèle — mêmes étapes que 03-e2sfca.mjs (à tenir alignées si 03 change)
 function layers(gymSet) {
-  const { A } = computeAccess(cells, gymSet);
+  const { A } = computeAccess(cells, gymSet, field);
   let sDA = 0, sD = 0;
   for (let i = 0; i < n; i++) { sDA += cells[i].dem * A[i]; sD += cells[i].dem; }
   const Aref = sDA / sD, rel = new Float64Array(n), U = new Float64Array(n);
@@ -155,7 +155,7 @@ const supply = {
 // ── 2. Modèle actuel ────────────────────────────────────────────────────────────
 console.log('Calcul du modèle actuel (≈ 40 s)…');
 const M = layers(gyms);
-const UZ = computeZoneDeficit(cells, M.U);
+const UZ = computeZoneDeficit(cells, M.U, field);
 const totD = sum(cells, c => c.dem), totU = M.U.reduce((s, u) => s + u, 0);
 const CLASSES = [[0, 50, '< 50'], [50, 200, '50–200'], [200, 1000, '200–1 000'], [1000, 4000, '1 000–4 000'], [4000, Infinity, '> 4 000']];
 const densite = CLASSES.map(([lo, hi, lbl]) => {
@@ -164,7 +164,8 @@ const densite = CLASSES.map(([lo, hi, lbl]) => {
   return { classe: lbl, partDemande: d / totD, couverture: dr / d, partDeficit: u / totU, partNonDesservie: u / d };
 });
 let sansSalle = 0; for (let i = 0; i < n; i++) if (M.A[i] === 0) sansSalle += cells[i].dem;
-const sites = topSites(UZ);
+const sites30 = topSites(UZ, 30), sites = sites30.slice(0, 20);   // glouton : les 20 premiers = topSites(UZ, 20)
+const VIDE = 50;   // hab/km² : carreau « quasi vide » (champ, forêt, zone d'activité ; audit n° 2, N2)
 const hbE = toLaea(HALLB.lat, HALLB.lon);
 const hb = { pop: 0, dem: 0, brut: 0, pondere: 0 };
 let hbDW = 0, hbDW2 = 0;
@@ -182,6 +183,8 @@ const model = {
   densite,
   top20: sites.map(i => ({ lat: cells[i].lat, lon: cells[i].lon, E: cells[i].E, N: cells[i].N, uz: Math.round(UZ[i]) })),
   top20IDF: sites.filter(i => inIDF(cells[i])).length,
+  top30Vides: sites30.filter(i => cells[i].ind < VIDE).length,
+  top30Densites: sites30.map(i => Math.round(cells[i].ind)),
   hallb: hb,
 };
 // Reproduction : grid.bin publié == calcul local ? (seulement s'il vient des mêmes données)
@@ -262,7 +265,7 @@ let sensibilite = null;
 if (SENSI) {
   console.log('Variantes de paramètres (≈ 3 min)…');
   const G = gyms.map(g => { const [E, N] = toLaea(g.lat, g.lon); return { g, E, N }; });
-  const DEM0 = Float64Array.from(cells, c => c.dem), IND = Float64Array.from(cells, c => c.ind);
+  const DEM0 = Float64Array.from(cells, c => c.dem);
   const S0 = Math.sqrt(SIGMA2 / 2);
   function run({ keep = () => true, dem = DEM0, detour = 1, sigma = S0, tmax = T_MAX, cap = g => g.cap, weighted = true } = {}) {
     const S2 = 2 * sigma * sigma, R = Math.ceil((tmax - T_ACCESS) / 60 * speedKmh(0) / detour) + 1;
@@ -270,13 +273,13 @@ if (SENSI) {
     for (const { g, E, N } of G) {
       if (!keep(g)) continue; const c = cap(g); if (!(c > 0)) continue;
       const gx = Math.floor(E / 1000) - minCx, gy = Math.floor(N / 1000) - minCy;
-      const gi = (gx >= 0 && gy >= 0 && gx < cols && gy < rows) ? KIDX[gx + gy * cols] : -1, gD = gi >= 0 ? IND[gi] : 0;
+      const gD = field.at(gx + minCx, gy + minCy);
       const ks = [], ws = []; let sdw = 0;
       for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) {
         const x = gx + dx, y = gy + dy; if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
         const i = KIDX[x + y * cols]; if (i < 0) continue;
         const d = Math.hypot((x + minCx) * 1000 + 500 - E, (y + minCy) * 1000 + 500 - N) / 1000 * detour;
-        const t = T_ACCESS + d / speedKmh((IND[i] + gD) / 2) * 60; if (t > tmax) continue;
+        const t = T_ACCESS + d / speedKmh((DENS[i] + gD) / 2) * 60; if (t > tmax) continue;
         const w = Math.exp(-t * t / S2); ks.push(i); ws.push(w); sdw += dem[i] * w;
       }
       if (sdw < 1) continue;
@@ -291,7 +294,7 @@ if (SENSI) {
       for (const [dx, dy, d] of OFFS) {
         const x = CX[i] + dx, y = CY[i] + dy; if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
         const j = KIDX[x + y * cols]; if (j < 0 || U[j] === 0) continue;
-        const t = T_ACCESS + d / speedKmh((IND[i] + IND[j]) / 2) * 60; if (t > tmax) continue;
+        const t = T_ACCESS + d / speedKmh((DENS[i] + DENS[j]) / 2) * 60; if (t > tmax) continue;
         s += weighted ? U[j] * Math.exp(-t * t / S2) : U[j];
       }
       Z[i] = s;
@@ -323,8 +326,17 @@ if (SENSI) {
   }
 }
 
+// ── 6. Contrôles : l'audit est « vert » si tous passent ─────────────────────────
+const hbOffre = supply.hallb;
+const controles = [
+  ['Reproduction de grid.bin', reproduction === 'identique à grid.bin', reproduction],
+  ['Hall b : 2 400 m² et 1 600 adhérents réels', hbOffre?.surface === 2400 && hbOffre.capacite === 1600 && hbOffre.source === 'reel',
+    hbOffre ? `${hbOffre.surface} m² · ${hbOffre.capacite} places (${hbOffre.source})` : 'absente'],
+  [`Top 30 sites sur un carreau < ${VIDE} hab/km² : au plus 1`, model.top30Vides <= 1, `${model.top30Vides}/30`],
+].map(([controle, ok, valeur]) => ({ controle, ok, valeur }));
+
 // ── Rapport ─────────────────────────────────────────────────────────────────────
-const report = { date: new Date().toISOString().slice(0, 10), donnees: { carreaux: n, salles: gyms.length }, reproduction, supply, model, backtest: bt, stabilite, sensibilite };
+const report = { date: new Date().toISOString().slice(0, 10), donnees: { carreaux: n, salles: gyms.length }, reproduction, supply, model, backtest: bt, stabilite, sensibilite, controles };
 writeFileSync(new URL('dernier.json', AUD), JSON.stringify(report, null, 1));
 
 const line = (l, v) => console.log(`  ${l.padEnd(46)} ${v}`);
@@ -350,6 +362,7 @@ console.log('  Densité (hab/km²)  demande  couverture  déficit  demande « no
 for (const d of densite) console.log(`  ${d.classe.padEnd(18)} ${pct(d.partDemande).padStart(7)}  ${dec(d.couverture).padStart(10)}  ${pct(d.partDeficit).padStart(7)}  ${pct(d.partNonDesservie, 0).padStart(6)}`);
 line('Déficit dans les carreaux < 1 000 hab/km²', pct(model.partDeficitMoinsDe1000));
 line('Top 20 sites en Île-de-France', `${model.top20IDF}/20`);
+line(`Top 30 sites sur un carreau < ${VIDE} hab/km²`, `${model.top30Vides}/30`);
 console.log('  Top 5 sites : ' + model.top20.slice(0, 5).map(s => `${s.lat.toFixed(3)},${s.lon.toFixed(3)} (${fmt(s.uz)})`).join(' · '));
 line('Hall b : zone 15 min', `${fmt(hb.pop)} hab. · ${fmt(hb.dem)} adhérents potentiels`);
 line('Hall b : déficit relatif brut / pondéré', `${fmt(hb.brut)} / ${fmt(hb.pondere)} · écart ≈ ${hb.ecartSalles} salle(s)`);
@@ -374,6 +387,7 @@ if (ref) {
     ['Aref', r => r.model.Aref, v => dec(v, 4)], ['Déficit relatif national', r => r.model.deficitNational, fmt],
     ['Déficit < 1 000 hab/km²', r => r.model.partDeficitMoinsDe1000, pct],
     ['Top 20 sites en Île-de-France', r => r.model.top20IDF, fmt],
+    [`Top 30 sites sur < ${VIDE} hab/km²`, r => r.model.top30Vides, fmt],
     ['Hall b : déficit relatif brut', r => r.model.hallb.brut, fmt],
     ['Hall b : déficit relatif pondéré', r => r.model.hallb.pondere, fmt],
     ['Hall b : écart en salles', r => r.model.hallb.ecartSalles, fmt],
@@ -384,8 +398,9 @@ if (ref) {
   ];
   console.log(`  ${'Indicateur'.padEnd(40)} ${'Actuel'.padStart(12)} ${'Référence'.padStart(12)}`);
   for (const [l, get, f] of TRACK) {
-    const a = get(report), b = get(ref), changed = Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b));
-    console.log(`  ${l.padEnd(40)} ${f(a).padStart(12)} ${f(b).padStart(12)}${changed ? '  ←' : ''}`);
+    const a = get(report), b = get(ref);   // b absent : indicateur ajouté après le gel de la référence
+    const changed = b != null && Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b));
+    console.log(`  ${l.padEnd(40)} ${f(a).padStart(12)} ${(b == null ? '–' : f(b)).padStart(12)}${changed ? '  ←' : ''}`);
   }
 }
 if (sensibilite) {
@@ -403,4 +418,9 @@ if (FIGER) {
 } else if (!ref) {
   console.log('\nAucune référence : lancez « node audit.mjs --figer » avant de modifier le code.');
 }
+console.log('\nContrôles');
+for (const c of controles) console.log(`  ${(c.ok ? 'OK' : 'ÉCHEC').padEnd(6)} ${c.controle.padEnd(52)} ${c.valeur}`);
+const echecs = controles.filter(c => !c.ok).length;
+console.log(echecs ? `Audit rouge : ${echecs} contrôle${echecs > 1 ? 's' : ''} en échec` : 'Audit vert : tous les contrôles passent');
+if (echecs) process.exitCode = 1;
 console.log(`\nRapport complet : build/audit/dernier.json · ${Math.round((Date.now() - t0) / 1000)} s`);

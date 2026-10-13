@@ -6,7 +6,7 @@
 // uz  = Σ u × exp(−t²/SIGMA2) sur la zone 15 min (déficit de zone, même noyau que A)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { toLaea, laeaForward, computeAccess, computeZoneDeficit, weightedQuantiles } from './lib-e2sfca.mjs';
+import { toLaea, laeaForward, computeAccess, computeZoneDeficit, densityField, DENS_WINDOW, weightedQuantiles } from './lib-e2sfca.mjs';
 
 const cells = JSON.parse(readFileSync(new URL('../data/cells.json', import.meta.url), 'utf8'));
 const gyms = JSON.parse(readFileSync(new URL('../data/gyms-fused.json', import.meta.url), 'utf8'));
@@ -22,7 +22,8 @@ console.log(`Projection embarquée vs proj4 : écart max ${maxErr.toFixed(3)} m 
 if (maxErr >= 2) process.exit(1);
 
 console.time('E2SFCA');
-const { A, skippedGyms } = computeAccess(cells, gyms);
+const field = densityField(cells);   // densité lissée 5 × 5 km, pour la vitesse
+const { A, skippedGyms } = computeAccess(cells, gyms, field);
 console.timeEnd('E2SFCA');
 console.log(`Salles sans demande atteignable (ignorées) : ${skippedGyms}`);
 
@@ -41,7 +42,7 @@ for (let i = 0; i < cells.length; i++) {
 
 // Déficit de zone (surface d'opportunité) — la vue par défaut du front
 console.time('Déficit de zone');
-const UZ = computeZoneDeficit(cells, U);
+const UZ = computeZoneDeficit(cells, U, field);
 console.timeEnd('Déficit de zone');
 const topZ = cells.map((c, i) => ({ lat: c.lat, lon: c.lon, uz: UZ[i] }))
   .sort((a, b) => b.uz - a.uz).slice(0, 5);
@@ -114,7 +115,7 @@ const meta = {
     millesimePop: 2021,
     penetration: 0.10, membresParM2: 1.4,
     tMaxMin: 15, sigmaMin: 6, accesMin: 3,
-    vitesse: { vMax: 62, vAmp: 41, logMin: 1.5, logSpan: 2.2 },
+    vitesse: { vMax: 62, vAmp: 41, logMin: 1.5, logSpan: 2.2, lissageKm: DENS_WINDOW },
     newGymM2: 1200,
   },
 };

@@ -23,7 +23,7 @@ reconstruction complète du modèle, plus rigoureuse et validée par backtest.
 | **Maille** | carroyage INSEE **Filosofi 2021** 1 km — 374 511 carreaux habités |
 | **Demande** | population × taux de pratique ancré à 10 %, modulé par structure d'âge et niveau de vie (±15 %) |
 | **Offre** | ≈ 10 000 salles : établissements **SIRENE** NAF 93.13Z actifs ∪ **Data ES** (ministère des Sports, regroupé par installation), fusionnés par SIRET/proximité ; chaînes au format publié de l'enseigne, indépendants sans surface mesurée estimés par tranche d'effectifs ; écartés : équipements à accès réservé, coachs sans salle, sièges de franchisés, activités hors salle (détail dans `build/README.md`) |
-| **Modèle** | **E2SFCA** (Enhanced Two-Step Floating Catchment Area), rayon 15 min porte-à-porte, décroissance gaussienne (σ = 6 min), vitesse analytique 21–62 km/h selon la densité |
+| **Modèle** | **E2SFCA** (Enhanced Two-Step Floating Catchment Area), rayon 15 min porte-à-porte, décroissance gaussienne (σ = 6 min), vitesse analytique 21–62 km/h selon la densité de population lissée sur 5 × 5 km |
 | **Capacité** | 1,4 membre par m² de plateau, sauf valeurs réelles connues (Hall b : 1 600 adhérents pour 2 400 m²) ; simulation d'une nouvelle salle de 1 200 m² |
 
 Toutes les constantes du modèle vivent dans **`meta.json`** — le front les lit au chargement,
@@ -35,8 +35,8 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
   demande, couverture, déficit relatif et écart à la moyenne nationale en équivalent salles
   (« petit bassin » ≠ « au niveau de la moyenne »).
 - **Zones sous-équipées** → repérage glouton des N zones où le déficit relatif cumulé sur 15 min
-  (pondéré par le temps de trajet, avec le même noyau que la couverture) est le plus grand —
-  une présélection à vérifier, pas une recommandation d'emplacement.
+  (pondéré par le temps de trajet, avec le même noyau que la couverture) est le plus grand, parmi
+  les carreaux habités — une présélection à vérifier, pas une recommandation d'emplacement.
 - **Analyse exacte** → isochrone détaillée sur les mêmes couches et les mêmes unités que
   l'estimation (pas de mélange pondéré/brut).
 - **Cases à cocher par type de salle** (chaînes, indépendants, équipements publics…) →
@@ -52,7 +52,7 @@ via `DecompressionStream`, repli `grid.bin` 4,5 Mo), `gyms.json` et `meta.json`.
 
 Backtest sur les **≈ 2 000 ouvertures de salles depuis 2023** (SIRENE, après nettoyage de l'offre)
 contre la carte de déficit calculée sur les données antérieures : les ouvertures se situent autour
-du **43ᵉ percentile médian** du déficit (un tirage au hasard donnerait 50).
+du **39ᵉ percentile médian** du déficit (un tirage au hasard donnerait 50).
 
 Autrement dit : **les opérateurs ne ciblent pas les zones les plus déficitaires** — leurs choix
 suivent d'autres logiques (foncier, visibilité, zones commerciales). Le score GymLocator doit donc

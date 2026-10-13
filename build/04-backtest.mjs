@@ -7,7 +7,7 @@
 // au hasard de la demande → percentile médian ≈ 50. Au-delà = le classement
 // du modèle coïncide avec les choix des professionnels de l'implantation.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { toLaea, computeAccess, speedKmh, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
+import { toLaea, computeAccess, densityField, speedKmh, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
 
 const CUTOFF = '2023-01-01';
 const cells = JSON.parse(readFileSync(new URL('../data/cells.json', import.meta.url), 'utf8'));
@@ -17,7 +17,8 @@ const openings = gyms.filter(g => g.src.startsWith('sirene') && g.date && g.date
 const preGyms = gyms.filter(g => !(g.src.startsWith('sirene') && g.date && g.date >= CUTOFF));
 console.log(`Ouvertures ${CUTOFF.slice(0, 4)}+ : ${openings.length} · offre antérieure : ${preGyms.length}`);
 
-const { A } = computeAccess(cells, preGyms);
+const field = densityField(cells);   // densité lissée 5 × 5 km, pour la vitesse (comme 03)
+const { A } = computeAccess(cells, preGyms, field);
 let sumDA = 0, sumD = 0;
 for (let i = 0; i < cells.length; i++) { sumDA += cells[i].dem * A[i]; sumD += cells[i].dem; }
 const Aref = sumDA / sumD;
@@ -32,15 +33,14 @@ for (let i = 0; i < cells.length; i++) cellIdx.set(key(Math.floor(cells[i].E / 1
 // Déficit atteignable depuis un point (même noyau temps/décroissance que le modèle)
 function uCatch(E, N) {
   const cx = Math.floor(E / 1000), cy = Math.floor(N / 1000);
-  const gi = cellIdx.get(key(cx, cy));
-  const gDens = gi !== undefined ? cells[gi].ind : 0;
+  const gDens = field.at(cx, cy);
   let s = 0;
   for (let dx = -13; dx <= 13; dx++) for (let dy = -13; dy <= 13; dy++) {
     const i = cellIdx.get(key(cx + dx, cy + dy));
     if (i === undefined) continue;
     const c = cells[i];
     const d = Math.hypot(c.E + 500 - E, c.N + 500 - N) / 1000;
-    const t = T_ACCESS + d / speedKmh((c.ind + gDens) / 2) * 60;
+    const t = T_ACCESS + d / speedKmh((field.dens[i] + gDens) / 2) * 60;
     if (t > T_MAX) continue;
     s += U[i] * Math.exp(-t * t / SIGMA2);
   }

@@ -6,23 +6,23 @@ référence est refigée (`npm run audit:figer`, voir `build/README.md`).
 
 ## En cours
 
-_Rien pour l'instant._
-
-## Prochaines (dans cet ordre)
-
 - [ ] **b. Audit n° 2, actions 1 et 2**
   - Densité lissée pour la vitesse (fenêtre 5 × 5 km : `lib-e2sfca.mjs`, `audit.mjs`, front) et
     candidats sans habitant interdits dans « Zones sous-équipées » (N2).
   - Offre complétée : NAF 93.11Z, 93.12Z et 85.51Z filtrés par nom, franchisés reconnus par nom
     ou par OpenStreetMap (`brand`, `leisure=fitness_centre`), assertions de CI sur la taille des
     réseaux (Keep Cool ≥ 250, Fitness Park ≥ 280…) (N3).
-- [ ] **c. Calibrer la décroissance et la pénétration** sur les codes postaux des adhérents de
-  Hall b (prérequis : export depuis le logiciel de gestion).
-- [ ] **d. Étape 5** (Huff, verdict absolu) : taille de projet réglable (défaut 2 000 m², objectif
+
+## Prochaines (dans cet ordre)
+
+- [ ] **c. Recaler la vitesse rurale (N1), avant le calibrage et l'étape 5** : hors agglomération,
+  le modèle roule 1,4 à 1,8 fois trop vite par rapport à OSRM ; recaler `meta.modele.vitesse` par
+  classe de densité (action 3). Sans ce recalage, d et e partiraient d'une zone rurale environ
+  70 % trop peuplée (zone 15 min de Hall b : 38 321 habitants, environ 22 000 à 38 km/h).
+- [ ] **d. Calibrer la décroissance et la pénétration** sur les codes postaux des adhérents de
+  Hall b (prérequis : c, et l'export depuis le logiciel de gestion).
+- [ ] **e. Étape 5** (Huff, verdict absolu) : taille de projet réglable (défaut 2 000 m², objectif
   1 600 adhérents ou plus), segment haut de gamme, revenu pondéré.
-- [ ] **e. Recaler la vitesse rurale (N1) avant tout chiffre absolu** : hors agglomération, le
-  modèle roule 1,4 à 1,8 fois trop vite par rapport à OSRM ; recaler `meta.modele.vitesse` par
-  classe de densité (action 3).
 
 ## Plus tard
 
@@ -84,4 +84,5 @@ Le reste de l'audit n° 2, sans ordre.
   vérifié sur la démo en ligne : « 2 400 m² · réelle (exploitant) », « 1 600 · réels ».
   Effet mesuré par l'audit (sources du 25/09) : la zone de Hall b passe de 83 % à 115 % de la
   couverture nationale (« au niveau de la moyenne nationale ou au-dessus ») ; ses 1 600 adhérents
-  valent 42 % des 3 815 adhérents potentiels que le modèle place à 15 min, ce que c doit éclairer.
+  valent 42 % des 3 815 adhérents potentiels que le modèle place à 15 min, ce que c et d doivent
+  éclairer.

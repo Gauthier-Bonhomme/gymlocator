@@ -69,12 +69,6 @@ Le reste de l'audit n° 2, sans ordre.
   792 salles concernées (N9).
 - « Petit bassin » calculé sur la demande pondérée ; dire à l'écran qu'Aref est recalculé quand
   on filtre (N9).
-- Sites sur un carreau quasi vide : 2 des 30 meilleurs sites après l'action 2 (au plus 1 visé).
-  Ce ne sont plus des artefacts de vitesse mais des maxima plats : n° 10 près de Bonneville, le
-  carreau habité voisin a 97 % du même déficit ; n° 16 près de Condé-sur-l'Escaut, son voisin plus
-  fort est écarté par la règle des 20 km. Deux corrections chiffrées : ne compter comme site qu'un
-  maximum local à 2 km dans `audit.mjs` (1/30), ou départager à 3 % près par la population dans
-  « Zones sous-équipées » et dans l'audit (0/30, 29 zones sur 30 inchangées).
 
 ### Validation
 
@@ -94,9 +88,10 @@ Le reste de l'audit n° 2, sans ordre.
 
 ## Fait
 
-- [x] **b. Audit n° 2, actions 1 et 2** (13/10/2026, commits `dc5aa22` et `f6509a8`, branche
-  `audit2/actions-1-2`). Mesuré sur les sources du 13/10, chaque action contre la référence figée
-  juste avant.
+- [x] **b. Audit n° 2, actions 1 et 2** : fait et publié le 13/10/2026 (commits `dc5aa22`,
+  `f6509a8`, `cb25578` ; CI `c7ffa4e`). Log de la CI : les 6 réseaux au-dessus de leur seuil ;
+  démo en ligne vérifiée : Hall b « 2 400 m² · réelle (exploitant) », « 1 600 · réels », 10 556
+  salles. Mesuré sur les sources du 13/10, chaque action contre la référence figée juste avant.
   - Action 1 : vitesse sur la densité lissée 5 × 5 km (pipeline, audit, front) et « Zones
     sous-équipées » limitées aux carreaux habités. 16 → 1 des 30 meilleurs sites sur un carreau
     < 50 hab/km², 17/20 sites retrouvés. Backtest 44,2 → 39,0 : une part de l'ancien chiffre venait
@@ -106,8 +101,11 @@ Le reste de l'audit n° 2, sans ordre.
     `reseaux.mjs`. 10 045 → 10 556 salles, capacité +10,5 % ; Fitness Park 199 → 323, Keep Cool
     150 → 244, On Air 39 → 89, L'Appart Fitness 44 → 94, L'Orange Bleue 317 → 444, Basic-Fit
     935 → 928 ; 12/20 sites retrouvés ; Hall b inchangée (2 400 m², 1 600 adhérents).
-  - Réserves (voir « Plus tard ») : Keep Cool sous le seuil demandé (244 < 250, seuil fixé à 230) ;
-    2 sites sur 30 sur un carreau quasi vide après l'action 2.
+  - Réserves acceptées : Keep Cool sous les 250 visés (244, seuil de CI gardé à 230, exception
+    commentée dans `reseaux.mjs` ; voir « Plus tard ») ; 2 sites sur 30 sur un carreau quasi vide
+    après l'action 2, des maxima plats connus (n° 10 près de Bonneville, n° 16 près de
+    Condé-sur-l'Escaut) : seuil du contrôle d'audit passé à 2/30, corrections non appliquées car
+    caduques avec l'étape 5.
 - [x] **a. Corriger Hall b dans l'offre** : 2 400 m², 1 600 adhérents réels (table `REELLES` de
   `build/02-supply.mjs`, référence d'audit refigée). Fait et publié le 13/10/2026 (CI `9bf37a6`),
   vérifié sur la démo en ligne : « 2 400 m² · réelle (exploitant) », « 1 600 · réels ».

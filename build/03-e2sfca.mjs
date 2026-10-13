@@ -6,7 +6,7 @@
 // uz  = Σ u × exp(−t²/SIGMA2) sur la zone 15 min (déficit de zone, même noyau que A)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { toLaea, laeaForward, computeAccess, computeZoneDeficit, densityField, DENS_WINDOW, weightedQuantiles } from './lib-e2sfca.mjs';
+import { toLaea, laeaForward, computeAccess, computeZoneDeficit, densityField, DENS_WINDOW, VITESSE, weightedQuantiles } from './lib-e2sfca.mjs';
 
 const cells = JSON.parse(readFileSync(new URL('../data/cells.json', import.meta.url), 'utf8'));
 const gyms = JSON.parse(readFileSync(new URL('../data/gyms-fused.json', import.meta.url), 'utf8'));
@@ -115,7 +115,7 @@ const meta = {
     millesimePop: 2021,
     penetration: 0.10, membresParM2: 1.4,
     tMaxMin: 15, sigmaMin: 6, accesMin: 3,
-    vitesse: { vMax: 62, vAmp: 41, logMin: 1.5, logSpan: 2.2, lissageKm: DENS_WINDOW },
+    vitesse: { paliers: VITESSE.paliers, lissageKm: DENS_WINDOW },
     newGymM2: 1200,
   },
 };

@@ -9,10 +9,16 @@ Le pipeline actuel vit dans **`../build/`** (E2SFCA sur carroyage INSEE).
 ## Pourquoi ce dossier existe encore
 
 `osrm-data/` contient le **graphe routier France pré-calculé pour OSRM** (~15 Go,
-non versionné). Il est conservé car c'est exactement l'outil nécessaire au
-raffinement prévu du modèle : remplacer la vitesse analytique de
-`../build/lib-e2sfca.mjs` par de vrais temps de trajet via l'API `table` d'OSRM
-(serveur local : `docker run --rm -t -p 5000:5000 -v "${PWD}/osrm-data:/data"
-osrm/osrm-backend osrm-routed --algorithm mld /data/france-latest.osrm`).
+non versionné, OpenStreetMap du 01/07/2026, construit par OSRM v26.6.5). Il sert à
+`../build/calage-vitesse.mjs` (mesure de la vitesse du modèle contre des temps routiers)
+et servirait au raffinement possible du modèle : remplacer la vitesse fonction de la
+densité de `../build/lib-e2sfca.mjs` par de vrais temps de trajet via l'API `table`.
 
-Si ce raffinement ne vous intéresse plus, ce dossier peut être supprimé sans risque.
+Serveur local (même version que le graphe ; `--mmap` évite de charger ~8 Go en mémoire) :
+
+```bash
+docker run -d --name osrm-fr -p 5000:5000 -v "${PWD}/osrm-data:/data:ro" \
+  ghcr.io/project-osrm/osrm-backend:v26.6.5-debian osrm-routed --algorithm mld --mmap --max-table-size 2000 /data/france-latest.osrm
+```
+
+Si ces usages ne vous intéressent plus, ce dossier peut être supprimé sans risque.

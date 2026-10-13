@@ -23,9 +23,14 @@ export function laeaForward(lat, lon) {
 }
 
 // ── Modèle de temps d'accès : t = accès/parking + distance / vitesse(densité) ──
-// Vitesse porte-à-porte décroissante avec la densité (congestion + stationnement) :
-// ~62 km/h en rural, ~21 km/h en hyper-urbain. Approximation analytique ; le
-// pipeline accepte un raffinement OSRM ultérieur sans changer le reste.
+// Distance à vol d'oiseau ; la vitesse (km/h à vol d'oiseau, détours compris) dépend de la
+// densité de population lissée moyenne des deux carreaux. Elle est calée sur les temps en voiture
+// de Valhalla, le moteur de l'isochrone exacte du front (calage-vitesse.mjs, 13/10/2026 : 6 380
+// paires de carreaux, contrôle sur 50 isochrones) : un palier par classe de densité, à la densité
+// médiane de la classe, interpolé en log(densité) et constant au-delà des extrêmes. Le rural très
+// peu dense (relief, routes sinueuses) roule moins vite que les campagnes de 100 à 500 hab/km² ;
+// la ville, de moins en moins vite. L'ancienne rampe (62 km/h en rural → 21 en ville) allait 1,6 à
+// 1,9 fois trop vite sous 200 hab/km², 1,2 fois au-delà.
 // La densité est LISSÉE sur DENS_WINDOW × DENS_WINDOW km : celle d'un seul carreau faisait
 // d'un champ ou d'une zone d'activité en lisière de ville une route de campagne (62 km/h),
 // donc une zone de 15 min plus grande que celle de la ville voisine (audit n° 2, N2).
@@ -33,8 +38,21 @@ export const T_ACCESS = 3;          // min (stationnement, marche terminale)
 export const T_MAX = 15;            // min — zone de chalandise standard
 export const SIGMA2 = 2 * 6 * 6;    // décroissance gaussienne, sigma = 6 min
 export const DENS_WINDOW = 5;       // km — côté (impair) de la fenêtre de lissage de la densité
-export const speedKmh = dens =>
-  62 - 41 * Math.min(1, Math.max(0, (Math.log10(dens + 1) - 1.5) / 2.2));
+export const VITESSE = { paliers: [[28, 25.3], [102, 29.3], [438, 30.7], [1987, 21.6], [7911, 15.4]] };   // [hab/km², km/h]
+export function vitesseDe(paliers) {
+  const xs = paliers.map(([d]) => Math.log10(d + 1)), vs = paliers.map(([, v]) => v);
+  return dens => {
+    const x = Math.log10(dens + 1);
+    if (x <= xs[0]) return vs[0];
+    for (let k = 1; k < xs.length; k++) if (x <= xs[k]) return vs[k - 1] + (vs[k] - vs[k - 1]) * (x - xs[k - 1]) / (xs[k] - xs[k - 1]);
+    return vs[vs.length - 1];
+  };
+}
+export const speedKmh = vitesseDe(VITESSE.paliers);
+export const V_MAX = Math.max(...VITESSE.paliers.map(([, v]) => v));
+// Les recherches de voisins (ici, dans audit.mjs et dans le front) s'arrêtent à 13 km :
+// 15 min à 62 km/h, borne sûre tant qu'aucun palier ne la dépasse.
+if (T_ACCESS + 13 / V_MAX * 60 <= T_MAX) throw new Error(`vitesse maximale ${V_MAX} km/h : agrandir les rayons de recherche (13 km)`);
 
 // Densité lissée (hab/km²) : population de la fenêtre win × win km centrée sur un carreau,
 // divisée par sa surface (carreaux sans habitant comptés à 0). Elle existe pour TOUT carreau
@@ -75,7 +93,7 @@ export function computeAccess(cells, gyms, field = densityField(cells)) {
     cellIdx.set(key(Math.floor(cells[i].E / 1000), Math.floor(cells[i].N / 1000)), i);
   }
   const A = new Float64Array(cells.length);
-  const RMAX = 13;                  // km — rayon max (15 min à 62 km/h)
+  const RMAX = 13;                  // km — borne de recherche (15 min à 62 km/h, voir V_MAX)
   const neigh = [];                 // buffer réutilisé [idx, w]
   let skippedGyms = 0;
   for (const g of gyms) {

@@ -12,7 +12,7 @@
 // le percentile ne doit pas bouger simplement parce que l'offre a été nettoyée.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
-import { toLaea, computeAccess, computeZoneDeficit, densityField, speedKmh, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
+import { toLaea, computeAccess, computeZoneDeficit, densityField, speedKmh, V_MAX, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
 import { RESEAUX } from './reseaux.mjs';
 
 const args = new Set(process.argv.slice(2));
@@ -178,6 +178,18 @@ around(hbE[0], hbE[1], (i, w) => {
 // Écart en salles de référence : une salle placée là réduit le déficit pondéré de
 // (capacité / Aref) × w̄, w̄ = Σ dem·w² / Σ dem·w (même règle que verdict() dans le front)
 hb.ecartSalles = Math.floor(hb.pondere / (NEW_M2 * PER_M2 / M.Aref * (hbDW > 0 ? hbDW2 / hbDW : 1)));
+// Témoin routier (calage-vitesse.mjs --isochrones) : population des zones de 15 min du modèle
+// contre celle des isochrones Valhalla, autour de Hall b et de 50 points répartis par densité
+const ISOS = new URL('vitesse-isochrones.json', DATA);
+let temoin = null;
+if (existsSync(ISOS)) {
+  const pts = readJson(ISOS).points.filter(p => p.pop > 0).map(p => {
+    const [E, N] = toLaea(p.lat, p.lon); let pop = 0; around(E, N, i => { pop += cells[i].ind; });
+    return { nom: p.nom, iso: p.pop, rapport: pop / p.pop };
+  });
+  const r = pts.filter(p => p.nom !== 'Hall b').map(p => p.rapport).sort((a, b) => a - b);
+  temoin = { points: r.length, mediane: (r[(r.length - 1) >> 1] + r[r.length >> 1]) / 2, hallb: pts.find(p => p.nom === 'Hall b') ?? null };
+}
 const model = {
   Aref: M.Aref, deficitNational: totU, uzMax: Math.max(...sites.map(i => UZ[i])),
   partDemandeSansSalle: sansSalle / totD,
@@ -188,6 +200,7 @@ const model = {
   top30Vides: sites30.filter(i => cells[i].ind < VIDE).length,
   top30Densites: sites30.map(i => Math.round(cells[i].ind)),
   hallb: hb,
+  temoin,
 };
 // Reproduction : grid.bin publié == calcul local ? (seulement s'il vient des mêmes données)
 let reproduction;
@@ -270,7 +283,7 @@ if (SENSI) {
   const DEM0 = Float64Array.from(cells, c => c.dem);
   const S0 = Math.sqrt(SIGMA2 / 2);
   function run({ keep = () => true, dem = DEM0, detour = 1, sigma = S0, tmax = T_MAX, cap = g => g.cap, weighted = true } = {}) {
-    const S2 = 2 * sigma * sigma, R = Math.ceil((tmax - T_ACCESS) / 60 * speedKmh(0) / detour) + 1;
+    const S2 = 2 * sigma * sigma, R = Math.ceil((tmax - T_ACCESS) / 60 * V_MAX / detour) + 1;
     const A = new Float64Array(n);
     for (const { g, E, N } of G) {
       if (!keep(g)) continue; const c = cap(g); if (!(c > 0)) continue;
@@ -289,7 +302,7 @@ if (SENSI) {
     }
     let sDA = 0, sD = 0; for (let i = 0; i < n; i++) { sDA += dem[i] * A[i]; sD += dem[i]; }
     const U = new Float64Array(n); for (let i = 0; i < n; i++) U[i] = dem[i] * Math.max(0, 1 - A[i] / (sDA / sD));
-    const OFFS = []; for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) { const d = Math.hypot(dx, dy) * detour; if (T_ACCESS + d / speedKmh(0) * 60 <= tmax) OFFS.push([dx, dy, d]); }
+    const OFFS = []; for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) { const d = Math.hypot(dx, dy) * detour; if (T_ACCESS + d / V_MAX * 60 <= tmax) OFFS.push([dx, dy, d]); }
     const Z = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       let s = 0;
@@ -341,6 +354,9 @@ const controles = [
   [`Top 30 sites sur un carreau < ${VIDE} hab/km² : au plus ${SITES_VIDES_MAX}`, model.top30Vides <= SITES_VIDES_MAX, `${model.top30Vides}/30`],
   ['Réseaux de franchise au-dessus des seuils (reseaux.mjs)', chains.every(c => c.n >= c.min),
     chains.filter(c => c.n < c.min).map(c => `${c.nom} ${c.n} < ${c.min}`).join(', ') || `${chains.length}/${chains.length}`],
+  // Pas de contrôle sur Hall b seule : un point s'écarte de ±30 % d'une vitesse fonction de la densité
+  ...(temoin ? [['Zones de 15 min / isochrones Valhalla : médiane à ±15 %', Math.abs(temoin.mediane - 1) <= 0.15,
+    `${dec(temoin.mediane)} sur ${temoin.points} points`]] : []),
 ].map(([controle, ok, valeur]) => ({ controle, ok, valeur }));
 
 // ── Rapport ─────────────────────────────────────────────────────────────────────
@@ -373,6 +389,10 @@ line('Top 20 sites en Île-de-France', `${model.top20IDF}/20`);
 line(`Top 30 sites sur un carreau < ${VIDE} hab/km²`, `${model.top30Vides}/30`);
 console.log('  Top 5 sites : ' + model.top20.slice(0, 5).map(s => `${s.lat.toFixed(3)},${s.lon.toFixed(3)} (${fmt(s.uz)})`).join(' · '));
 line('Hall b : zone 15 min', `${fmt(hb.pop)} hab. · ${fmt(hb.dem)} adhérents potentiels`);
+if (temoin) {
+  line('Zones de 15 min / isochrones Valhalla', `médiane ${dec(temoin.mediane)} sur ${temoin.points} points (calage-vitesse.mjs)`);
+  if (temoin.hallb) line('Hall b : zone 15 min / isochrone Valhalla', `${dec(temoin.hallb.rapport)} (isochrone : ${fmt(temoin.hallb.iso)} hab.)`);
+}
 line('Hall b : déficit relatif brut / pondéré', `${fmt(hb.brut)} / ${fmt(hb.pondere)} · écart ≈ ${hb.ecartSalles} salle(s)`);
 console.log('\nBacktest (percentile médian · part dans le top 20 % ; hasard = 50 · 20 %)');
 for (const [k, lbl] of [['toutes', 'Toutes les ouvertures'], ['avecSalaries', 'Ouvertures avec salariés'], ['chaines', 'Ouvertures de chaînes']]) {
@@ -397,6 +417,9 @@ if (ref) {
     ['Top 20 sites en Île-de-France', r => r.model.top20IDF, fmt],
     [`Top 30 sites sur < ${VIDE} hab/km²`, r => r.model.top30Vides, fmt],
     ...RESEAUX.map(({ nom }) => [`Clubs ${nom}`, r => r.supply.chaines?.find(c => c.nom === nom)?.n, fmt]),
+    ['Demande sans salle à ≤ 15 min', r => r.model.partDemandeSansSalle, pct],
+    ['Zones 15 min / isochrones Valhalla', r => r.model.temoin?.mediane, v => v == null ? '–' : dec(v)],
+    ['Hall b : habitants à 15 min', r => r.model.hallb.pop, fmt],
     ['Hall b : déficit relatif brut', r => r.model.hallb.brut, fmt],
     ['Hall b : déficit relatif pondéré', r => r.model.hallb.pondere, fmt],
     ['Hall b : écart en salles', r => r.model.hallb.ecartSalles, fmt],

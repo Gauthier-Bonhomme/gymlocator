@@ -118,7 +118,9 @@ L'outil lit uniquement `data/` et écrit dans `build/audit/` (non versionné, co
   lignes Data ES en double pour une même installation, établissements SIRENE sans salarié,
   surfaces mesurées vs par défaut des chaînes, salle Hall b.
 - **Modèle** : Aref, déficit par classe de densité, 20 meilleurs sites (maxima à 20 km l'un de
-  l'autre), zone 15 min de Hall b en somme brute et pondérée.
+  l'autre), zone 15 min de Hall b en somme brute et pondérée ; si `data/vitesse-isochrones.json`
+  existe (voir `calage-vitesse.mjs`), population des zones de 15 min du modèle contre celle des
+  isochrones Valhalla (contrôle : médiane à ±15 %).
 - **Backtest** sur des ouvertures **figées** au premier lancement (`audit/ouvertures-figees.json`) :
   toutes, avec salariés, chaînes ; métrique pondérée (celle de 04 et de la carte) et brute
   (somme sans pondération, celle de la carte jusqu'à 09/2026).
@@ -131,11 +133,49 @@ La référence dépend de `data/` : après un nouveau téléchargement des sourc
 Le calcul des couches reprend les étapes de `03-e2sfca.mjs` et le signale s'il ne reproduit
 plus `grid.bin` (quand celui-ci vient des mêmes données) : l'aligner si 03 change.
 
-## Raffinement possible : temps de trajet OSRM
+## Vitesse calée sur les temps routiers : `calage-vitesse.mjs`
 
-Le modèle utilise une vitesse porte-à-porte analytique (21–62 km/h selon la densité de population
-lissée sur 5 × 5 km, `densityField` de `lib-e2sfca.mjs`).
-Pour des temps routiers exacts, remplacer `speedKmh`/distance dans `lib-e2sfca.mjs`
-par des appels à l'API `table` d'un OSRM local (le graphe France est déjà préparé
-dans `../pipeline/osrm-data/`, voir `../pipeline/README.md`). Le reste du pipeline
-et le front sont inchangés.
+Le modèle estime le temps de trajet par `accès (3 min) + distance à vol d'oiseau / vitesse`, la
+vitesse dépendant de la densité de population lissée sur 5 × 5 km (moyenne des deux carreaux).
+Les paliers de vitesse (`VITESSE` dans `lib-e2sfca.mjs`, exportés dans `meta.modele.vitesse`) sont
+calés sur les temps en voiture de **Valhalla**, le moteur de l'isochrone exacte du front :
+
+| Densité lissée (hab/km²) | 28 | 102 | 438 | 1 987 | 7 911 |
+|---|---|---|---|---|---|
+| Vitesse à vol d'oiseau (km/h) | 25,3 | 29,3 | 30,7 | 21,6 | 15,4 |
+
+Interpolation en log(densité) entre deux paliers, constante au-delà. Critère : dans chaque classe
+de densité (< 50, 50–200, 200–1 000, 1 000–4 000, > 4 000), rapport médian temps Valhalla / temps du
+modèle égal à 1 sur les paires que le modèle place entre 10 et 20 min (autour de la limite des
+15 min, qui décide des zones), chaque paire pesant la population de son carreau d'arrivée.
+
+```bash
+node calage-vitesse.mjs --osrm         # 160 000 paires de carreaux, OSRM local (quelques minutes)
+node calage-vitesse.mjs --valhalla     # 6 400 de ces paires, Valhalla public : lots de 40, 3 s de pause (~15 min)
+node calage-vitesse.mjs --isochrones   # 51 isochrones de 15 min (Hall b + 10 points par classe), 5 s de pause
+node calage-vitesse.mjs                # rapports avec la vitesse actuelle
+node calage-vitesse.mjs --caler        # + paliers recalés, à reporter dans VITESSE
+```
+
+Mesures dans `data/` (`vitesse-paires.json`, `vitesse-valhalla.json`, `vitesse-isochrones.json`) ;
+les deux dernières passent par le serveur public FOSSGIS (`VALHALLA_URL` pour un autre). L'OSRM
+local sert le graphe de `../pipeline/osrm-data/` (voir `../pipeline/README.md`).
+
+Ce que disent les mesures du 13/10/2026 :
+
+- OSRM est 1,2 à 1,6 fois plus rapide que Valhalla sur les mêmes itinéraires (même kilométrage :
+  OSRM ne pénalise ni carrefours ni ville). Avec OSRM, la zone de 15 min de Hall b compte 64 221
+  habitants, contre 33 331 dans l'isochrone Valhalla de l'appli : le choix du moteur pèse autant
+  que la vitesse elle-même. Valhalla est la référence parce que c'est le tracé que l'appli affiche.
+- Contrôle indépendant : sur 50 points répartis par densité, la population de la zone de 15 min du
+  modèle vaut 0,96 fois celle de l'isochrone Valhalla (médiane ; 0,90 à 1,02 selon la classe),
+  contre 1,82 avec l'ancienne rampe (21–62 km/h).
+- Un lieu isolé peut s'écarter de ±30 % : la vitesse ne dépend que de la densité, pas du réseau.
+  Hall b est dans ce cas (0,71 : 23 523 habitants contre 33 331), car ses villages voisins sont
+  reliés par des axes rapides (N113, A9, D40).
+- Le modèle garde 3 min d'accès fixes ; Valhalla compte de 4 à 8 min à courte distance selon la
+  densité. Le rapport vaut donc 1 autour de la limite des 15 min, mais le modèle est un peu plus
+  lent que Valhalla au-delà de 8 km (hors des zones de 15 min).
+
+Raffinement possible : remplacer `speedKmh` par les temps d'un moteur de routage (API `table`
+d'un OSRM ou d'un Valhalla local) ; le reste du pipeline et le front sont inchangés.

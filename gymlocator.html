@@ -212,7 +212,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       </ol>
 
       <h3>Périmètre modélisé et tracé routier exact</h3>
-      <p>L'analyse de zone affiche <b>immédiatement</b> un périmètre 15 min estimé par le modèle (vitesse porte-à-porte selon la densité de population, moyennée sur un carré de <span id="m-liss">5</span> km de côté pour qu'un champ en lisière de ville ne compte pas comme une route de campagne) et ses indicateurs. En arrière-plan, l'outil tente d'obtenir l'<b>isochrone routière exacte</b> auprès d'un service public tiers (Valhalla/OSM) : si celui-ci répond, le tracé et les chiffres sont remplacés par la version exacte. Ce service étant fréquemment hors ligne, l'estimation constitue le résultat de référence.</p>
+      <p>L'analyse de zone affiche <b>immédiatement</b> un périmètre 15 min estimé par le modèle (vitesse porte-à-porte selon la densité de population, moyennée sur un carré de <span id="m-liss">5</span> km de côté pour qu'un champ en lisière de ville ne compte pas comme une route de campagne ; <span id="m-vit">calée sur les temps en voiture de Valhalla, le service du tracé exact</span>) et ses indicateurs. En arrière-plan, l'outil tente d'obtenir l'<b>isochrone routière exacte</b> auprès d'un service public tiers (Valhalla/OSM) : si celui-ci répond, le tracé et les chiffres sont remplacés par la version exacte. Ce service étant fréquemment hors ligne, l'estimation constitue le résultat de référence.</p>
 
       <h3>Sources</h3>
       <div class="src"><span>—</span><span><b>Population, âges, revenus</b> : INSEE Filosofi 2021, carroyage 1 km</span></div>
@@ -221,7 +221,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Validation — ce que le score dit (et ne dit pas)</h3>
       <div class="val">Backtest : les <b id="m-bt-n">–</b> créations de salles depuis 2023 (SIRENE) se situent au <b id="m-bt-med">–</b>ᵉ percentile médian du déficit calculé avec l'offre antérieure (hasard = 50ᵉ). Les ouvertures réelles <b>ne ciblent donc pas</b> les zones les plus déficitaires : les enseignes arbitrent d'abord sur le foncier commercial et la co-implantation. Le score mesure le manque <b>du point de vue de l'habitant</b> — un filtre de marché — pas la probabilité qu'une chaîne s'installe.</div>
-      <div class="warn">Limites : indicateur relatif à la moyenne nationale (ne mesure pas la saturation absolue d'un marché) · temps de trajet estimés par une vitesse moyenne selon la densité, pas par le réseau routier · modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
+      <div class="warn">Limites : indicateur relatif à la moyenne nationale (ne mesure pas la saturation absolue d'un marché) · temps de trajet estimés par une vitesse moyenne selon la densité, pas par le réseau routier (près d'un axe rapide, la zone réelle de 15 min peut être 40 % plus peuplée que l'estimation) · modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
     </div>
   </div>
 
@@ -256,6 +256,14 @@ const ISO_URL='https://valhalla1.openstreetmap.de/isochrone';
 // Paramètres du modèle : valeurs de repli, ÉCRASÉES par meta.json au chargement
 // (source unique de vérité = build/03-e2sfca.mjs → meta.modele).
 let T_ACCESS=3, T_MAX=15, SIGMA2=72;
+// Vitesse (km/h à vol d'oiseau) selon la densité lissée : paliers interpolés en log(densité),
+// même règle que vitesseDe() de build/lib-e2sfca.mjs. Repli : rampe des meta.json sans paliers.
+function vitesseDe(paliers){
+  const xs=paliers.map(p=>Math.log10(p[0]+1)),vs=paliers.map(p=>p[1]);
+  return d=>{const x=Math.log10(d+1);if(x<=xs[0])return vs[0];
+    for(let k=1;k<xs.length;k++)if(x<=xs[k])return vs[k-1]+(vs[k]-vs[k-1])*(x-xs[k-1])/(xs[k]-xs[k-1]);
+    return vs[vs.length-1];};
+}
 let speedKmh=d=>62-41*Math.min(1,Math.max(0,(Math.log10(d+1)-1.5)/2.2));
 let MEMBERS_PER_M2=1.4;
 const CAT={lowcost:{lbl:'Chaîne low-cost',col:'#d98a2b'},premium:{lbl:'Club premium',col:'#b06cd9'},
@@ -323,7 +331,7 @@ const cellK=(cx,cy)=>{const v=KIDX[cx+cy*META.cols];return v<0?undefined:v;};
 // Densité lissée (hab/km²) qui règle la vitesse — même règle que densityField() de
 // build/lib-e2sfca.mjs : population de la fenêtre centrée sur le carreau / sa surface,
 // carreaux vides comptés à 0. Définie aussi hors des carreaux habités (point cliqué, salle
-// en zone d'activité) : un champ en lisière de ville ne roule plus à 62 km/h.
+// en zone d'activité) : un champ en lisière de ville ne roule plus comme la campagne.
 function densAt(cx,cy){
   let s=0;
   for(let dy=-DENS_H;dy<=DENS_H;dy++){
@@ -495,7 +503,8 @@ async function recomputeLayer(){
       COLOR={min:q[0],max:Math.max(q[1],q[0]+1e-6)};
       // Phase 2 : déficit de zone (Σ u·exp(−t²/SIGMA2) sur la chalandise de chaque carreau,
       // comme build/lib-e2sfca.mjs), par lots. Offsets pré-calculés (d ≤ 12,4 km = portée
-      // max à 62 km/h) ; seuls les voisins ayant du déficit (u>0) paient le calcul du temps.
+      // à 62 km/h, au-delà de toute vitesse du modèle : V_MAX de build/lib-e2sfca.mjs) ; seuls les voisins ayant
+      // du déficit (u>0) paient le calcul du temps.
       const uz=new Float32Array(n),cols=META.cols,rows=META.rows;
       const OFFS=[];
       for(let dx=-13;dx<=13;dx++)for(let dy=-13;dy<=13;dy++){
@@ -1058,7 +1067,8 @@ async function loadData(){
     if(M.tMaxMin!=null)T_MAX=M.tMaxMin;
     if(M.sigmaMin!=null)SIGMA2=2*M.sigmaMin*M.sigmaMin;
     if(M.membresParM2!=null)MEMBERS_PER_M2=M.membresParM2;
-    if(M.vitesse){const v=M.vitesse;speedKmh=d=>v.vMax-v.vAmp*Math.min(1,Math.max(0,(Math.log10(d+1)-v.logMin)/v.logSpan));}
+    // Vitesse : paliers calés sur Valhalla (meta.json depuis 10/2026), sinon l'ancienne rampe
+    if(M.vitesse){const v=M.vitesse;speedKmh=v.paliers?vitesseDe(v.paliers):d=>v.vMax-v.vAmp*Math.min(1,Math.max(0,(Math.log10(d+1)-v.logMin)/v.logSpan));}
     // Fenêtre de lissage de la densité : celle du grid.bin servi (meta.json antérieurs à 10/2026 :
     // densité du seul carreau, donc 1 km) — le front reste aligné sur les couches précalculées.
     DENS_H=(((M.vitesse&&M.vitesse.lissageKm)||1)-1)/2;
@@ -1077,6 +1087,9 @@ async function loadData(){
     document.getElementById('m-t50').textContent=tPoids(.5);
     document.getElementById('m-t25').textContent=tPoids(.25);
     document.getElementById('m-liss').textContent=2*DENS_H+1;
+    if(M.vitesse&&M.vitesse.paliers){const vs=M.vitesse.paliers.map(p=>p[1]),f=v=>String(Math.round(v));
+      document.getElementById('m-vit').textContent=`calée sur les temps en voiture de Valhalla, le service du tracé exact : de ${f(Math.min(...vs))} à ${f(Math.max(...vs))} km/h à vol d'oiseau selon la densité`;}
+    else document.getElementById('m-vit').textContent='vitesse analytique, non calée';
     if(META.backtest){
       document.getElementById('m-bt-n').textContent=META.backtest.toutes.n.toLocaleString('fr');
       document.getElementById('m-bt-med').textContent=Math.round(META.backtest.toutes.percentileMedian);

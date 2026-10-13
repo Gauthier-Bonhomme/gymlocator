@@ -6,13 +6,7 @@ référence est refigée (`npm run audit:figer`, voir `build/README.md`).
 
 ## En cours
 
-- [x] **a. Corriger Hall b dans l'offre** : 2 400 m², 1 600 adhérents réels. Fait le 13/10/2026
-  (table `REELLES` de `build/02-supply.mjs`, référence d'audit refigée). Reste à publier : fusion
-  dans `main`, puis CI « Rafraîchir les données » pour régénérer `gyms.json`, `grid.bin` et
-  `meta.json`.
-  Effet : la zone de Hall b passe de 83 % à 115 % de la couverture nationale (« au niveau de la
-  moyenne nationale ou au-dessus ») ; ses 1 600 adhérents valent 42 % des 3 815 adhérents
-  potentiels que le modèle place à 15 min, ce que c doit éclairer.
+_Rien pour l'instant._
 
 ## Prochaines (dans cet ordre)
 
@@ -82,3 +76,12 @@ Le reste de l'audit n° 2, sans ordre.
 - Valeurs réelles ignorées par deux filtres : la variante « adhérents/m² par type de salle »
   d'`audit:sensibilite` recalcule Hall b depuis sa surface, et « surface connue » de
   `04-backtest.mjs` ne retient que `dataes`.
+
+## Fait
+
+- [x] **a. Corriger Hall b dans l'offre** : 2 400 m², 1 600 adhérents réels (table `REELLES` de
+  `build/02-supply.mjs`, référence d'audit refigée). Fait et publié le 13/10/2026 (CI `9bf37a6`),
+  vérifié sur la démo en ligne : « 2 400 m² · réelle (exploitant) », « 1 600 · réels ».
+  Effet mesuré par l'audit (sources du 25/09) : la zone de Hall b passe de 83 % à 115 % de la
+  couverture nationale (« au niveau de la moyenne nationale ou au-dessus ») ; ses 1 600 adhérents
+  valent 42 % des 3 815 adhérents potentiels que le modèle place à 15 min, ce que c doit éclairer.

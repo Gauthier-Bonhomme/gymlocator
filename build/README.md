@@ -59,8 +59,13 @@ Chaque exclusion est tracée dans `data/offre-journal.json` (règle, nom, positi
   écartés, et un point portant ≥ 3 établissements tous non attestés est une adresse de domiciliation.
 - **Activités hors salle** (épilation, UV, cryothérapie, spa, minceur) sauf si le nom évoque
   aussi une salle (« Fit & Spa »).
-- Hall b (Saint-Dionisy) est « non employeur » dans SIRENE : aucune règle ne met les non-employeurs
-  à zéro ; 02 affiche sa capacité à chaque exécution.
+- **Valeurs réelles** (table `REELLES`, clé SIRET) : surface et adhérents communiqués par
+  l'exploitant, prioritaires sur toute estimation (`surfSrc = 'reel'`). La capacité est alors le
+  nombre d'adhérents constaté, **pas** surface × 1,4. Seul cas : Hall b (Saint-Dionisy), 2 400 m²
+  et 1 600 adhérents réels (0,67 adh/m², la règle en donnerait 3 360) ; « non employeur » dans
+  SIRENE, elle était estimée à 240 m² / 336 places.
+- Aucune règle ne met les non-employeurs à zéro ; 02 affiche Hall b à chaque exécution et signale
+  si ses valeurs réelles ne sont plus appliquées (SIRET changé).
 
 ## Mesurer l'effet d'un changement : `audit.mjs`
 

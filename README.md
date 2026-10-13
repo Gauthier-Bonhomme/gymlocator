@@ -24,7 +24,7 @@ reconstruction complète du modèle, plus rigoureuse et validée par backtest.
 | **Demande** | population × taux de pratique ancré à 10 %, modulé par structure d'âge et niveau de vie (±15 %) |
 | **Offre** | ≈ 10 000 salles : établissements **SIRENE** NAF 93.13Z actifs ∪ **Data ES** (ministère des Sports, regroupé par installation), fusionnés par SIRET/proximité ; chaînes au format publié de l'enseigne, indépendants sans surface mesurée estimés par tranche d'effectifs ; écartés : équipements à accès réservé, coachs sans salle, sièges de franchisés, activités hors salle (détail dans `build/README.md`) |
 | **Modèle** | **E2SFCA** (Enhanced Two-Step Floating Catchment Area), rayon 15 min porte-à-porte, décroissance gaussienne (σ = 6 min), vitesse analytique 21–62 km/h selon la densité |
-| **Capacité** | 1,4 membre par m² de plateau ; simulation d'une nouvelle salle de 1 200 m² |
+| **Capacité** | 1,4 membre par m² de plateau, sauf valeurs réelles connues (Hall b : 1 600 adhérents pour 2 400 m²) ; simulation d'une nouvelle salle de 1 200 m² |
 
 Toutes les constantes du modèle vivent dans **`meta.json`** — le front les lit au chargement,
 il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode » compris).

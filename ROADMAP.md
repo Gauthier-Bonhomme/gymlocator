@@ -6,11 +6,16 @@ référence est refigée (`npm run audit:figer`, voir `build/README.md`).
 
 ## En cours
 
-_Rien pour l'instant._
+- [x] **a. Corriger Hall b dans l'offre** : 2 400 m², 1 600 adhérents réels. Fait le 13/10/2026
+  (table `REELLES` de `build/02-supply.mjs`, référence d'audit refigée). Reste à publier : fusion
+  dans `main`, puis CI « Rafraîchir les données » pour régénérer `gyms.json`, `grid.bin` et
+  `meta.json`.
+  Effet : la zone de Hall b passe de 83 % à 115 % de la couverture nationale (« au niveau de la
+  moyenne nationale ou au-dessus ») ; ses 1 600 adhérents valent 42 % des 3 815 adhérents
+  potentiels que le modèle place à 15 min, ce que c doit éclairer.
 
 ## Prochaines (dans cet ordre)
 
-- [ ] **a. Corriger Hall b dans l'offre** : 2 400 m², 1 600 adhérents.
 - [ ] **b. Audit n° 2, actions 1 et 2**
   - Densité lissée pour la vitesse (fenêtre 5 × 5 km : `lib-e2sfca.mjs`, `audit.mjs`, front) et
     candidats sans habitant interdits dans « Zones sous-équipées » (N2).
@@ -45,7 +50,8 @@ Le reste de l'audit n° 2, sans ordre.
   établissement SIRENE, 4,2 % de la capacité (N3).
 - Micro-structures sur-comptées : 8 037 salles hors municipales contre 5 800 à 6 000 clubs
   estimés par la profession ; 2 843 indépendants sans salarié pèsent 14,7 % de la capacité (N3).
-- 1,4 adhérent/m² pour tous les formats.
+- 1,4 adhérent/m² pour tous les formats : Hall b réelle est à 0,67 adh/m² (1 600 adhérents pour
+  2 400 m²) ; distinguer capacité et adhérents.
 - Concurrence à 15 min de Hall b à vérifier (vers Sommières, Caveirac, l'ouest de Nîmes).
 
 ### Classement et affichage
@@ -69,7 +75,10 @@ Le reste de l'audit n° 2, sans ordre.
   l'offre « antérieure » (N6).
 - Calibrer aussi sur une ou deux autres salles (méthode des analogues).
 
-### Documentation
+### Documentation et outillage
 
 - README : « validée par backtest » alors que le backtest dit l'inverse ; `grid.bin` décrit en
   Float32 (c'est de l'Uint16) ; tailles 2,4 / 4,5 Mo (2,8 / 5,2 aujourd'hui) (N9).
+- Valeurs réelles ignorées par deux filtres : la variante « adhérents/m² par type de salle »
+  d'`audit:sensibilite` recalcule Hall b depuis sa surface, et « surface connue » de
+  `04-backtest.mjs` ne retient que `dataes`.

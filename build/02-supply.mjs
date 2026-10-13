@@ -11,13 +11,23 @@
 //     muscu/cardio, pas les studios de cours : Keep Cool 330 m² mesurés pour des clubs de 300–800 m²)
 //   - écartés : studios yoga/pilates purs, activités hors salle (épilation, UV, spa…), coachs sans
 //     salle, sièges de franchisés et doublons au même point
-//   - capacité = surface × 1,4 adh/m² (fourchette métier 1,2–1,7)
+//   - capacité = surface × 1,4 adh/m² (fourchette métier 1,2–1,7), sauf valeurs réelles connues
+//     (table REELLES : surface et adhérents de l'exploitant, jamais recalculés)
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const MET = { s: 41.2, n: 51.3, w: -5.5, e: 9.9 };
 const MEMBERS_PER_M2 = 1.4;
 const CAT_AREA = { lowcost: 1400, premium: 800, classic: 600, niche: 250, asso: 200 };
 const SURF_MIN = 40, SURF_MAX = 6000;
+
+// Valeurs RÉELLES communiquées par l'exploitant (clé = SIRET de l'établissement) : elles priment
+// sur Data ES, le format de l'enseigne et la surface par défaut. La capacité y est le nombre
+// d'adhérents constaté, PAS surface × MEMBERS_PER_M2 : Hall b compte 1 600 adhérents pour 2 400 m²
+// (0,67 adh/m² ; la règle en donnerait 3 360). Sans cette table, Hall b (« non employeur » dans
+// SIRENE) était estimée à 240 m² / 336 places (600 m² × 0,4 × 1,4).
+const REELLES = {
+  '94409256800012': { nom: 'Hall b', m2: 2400, adherents: 1600 },   // exploitant, 10/2026
+};
 
 // Multiplicateur de surface selon la tranche d'effectifs SIRENE — appliqué UNIQUEMENT
 // aux indépendants (classic/niche) sans surface Data ES : un « non employeur » est
@@ -131,7 +141,7 @@ for (const r of sirene) {
     date: r.datecreationetablissement || null,
     siren: (r.siret || '').slice(0, 9), tranche: r.trancheeffectifsetablissement || null,
     cp: r.codepostaletablissement, commune: r.libellecommuneetablissement,
-    tok: tokens(name), es: [],
+    tok: tokens(name), es: [], reel: REELLES[r.siret],
   };
   if (isYogaOnly(name)) { exclure('yoga-pilates', rec, surfSansMesure(rec) * MEMBERS_PER_M2); continue; }
   if (isHorsSalle(name)) { exclure('hors-salle', rec, surfSansMesure(rec) * MEMBERS_PER_M2); continue; }
@@ -202,12 +212,13 @@ for (const inst of installations) {
 // ── Surfaces des établissements SIRENE ──────────────────────────────────────────
 for (const g of gyms) {
   g.surfDataes = g.es.length ? Math.min(SURF_MAX, g.es.reduce((s, i) => s + i.surf, 0)) : null;
-  if (g.enseigne) { g.surf = surfSansMesure(g); g.surfSrc = 'enseigne'; }
+  if (g.reel) { g.surf = g.reel.m2; g.surfSrc = 'reel'; }
+  else if (g.enseigne) { g.surf = surfSansMesure(g); g.surfSrc = 'enseigne'; }
   else if (g.surfDataes > 0) { g.surf = g.surfDataes; g.surfSrc = 'dataes'; }
   else { g.surf = surfSansMesure(g); g.surfSrc = 'defaut'; }
   if (g.es.length) g.src = 'sirene+dataes';
 }
-const capOf = g => Math.round(Math.min(SURF_MAX, g.surf) * MEMBERS_PER_M2);
+const capOf = g => g.reel ? g.reel.adherents : Math.round(Math.min(SURF_MAX, g.surf) * MEMBERS_PER_M2);
 
 // ── Coachs sans salle ───────────────────────────────────────────────────────────
 gyms = gyms.filter(g => {
@@ -259,7 +270,7 @@ for (const g of gyms) {
   g.cap = capOf(g);
   if (g.es) { if (g.es.length) { g.inst = g.es[0].inst; g.ouvPublic = g.es.some(i => i.pub); } delete g.es; }
   g.enseigne = g.enseigne ? g.enseigne.nom : null;
-  delete g.tok; delete g.sansNom;
+  delete g.tok; delete g.sansNom; delete g.reel;
 }
 
 // ── Contrôles ───────────────────────────────────────────────────────────────────
@@ -282,7 +293,8 @@ for (const cat of ['lowcost', 'premium', 'classic', 'niche', 'asso'])
 console.log(`  Basic Fit détectés : ${gyms.filter(g => g.enseigne === 'Basic-Fit').length}, Fitness Park : ${gyms.filter(g => g.enseigne === 'Fitness Park').length}`);
 // Hall b (Saint-Dionisy) : seul point de calibration réel — elle ne doit jamais tomber dans une règle
 const hallb = gyms.find(g => /^hall ?b$/i.test(g.name) && g.cp === '30980');
-console.log(`  Hall b : ${hallb ? `${hallb.surf} m² · ${hallb.cap} places (${hallb.surfSrc})` : '!! ABSENTE — vérifier le journal'}`);
+const hbReel = hallb?.surfSrc === 'reel' ? '' : ' !! valeurs réelles non appliquées — SIRET changé ?';
+console.log(`  Hall b : ${hallb ? `${hallb.surf} m² · ${hallb.cap} places (${hallb.surfSrc})${hbReel}` : '!! ABSENTE — vérifier le journal'}`);
 
 writeFileSync(new URL('../data/gyms-fused.json', import.meta.url), JSON.stringify(gyms));
 writeFileSync(new URL('../data/offre-journal.json', import.meta.url), '[\n' + journal.map(j => JSON.stringify(j)).join(',\n') + '\n]\n');

@@ -13,6 +13,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { toLaea, computeAccess, computeZoneDeficit, densityField, speedKmh, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
+import { RESEAUX } from './reseaux.mjs';
 
 const args = new Set(process.argv.slice(2));
 const FIGER = args.has('--figer'), SENSI = args.has('--sensibilite');
@@ -131,12 +132,13 @@ const nonEmp = sir.filter((g, i) => NE.test(sirTranche[i] || ''));
 const byCoord = new Map();
 for (const g of gyms) { const k = `${g.lat}|${g.lon}`; (byCoord.get(k) || byCoord.set(k, []).get(k)).push(g); }
 const stacked = [...byCoord.values()].filter(a => a.length >= 3).flat();
-const CHAINS = [['Basic-Fit', /basic.?fit/i], ['Fitness Park', /fitness ?park/i], ['Keep Cool', /keep.?cool/i], ["L'Orange Bleue", /orange ?bleue/i], ['On Air', /on ?air/i]];
-const chains = CHAINS.map(([nom, re]) => {
+// Réseaux de franchise (reseaux.mjs) : clubs portant l'enseigne, que 02 l'ait reconnue par le nom, le
+// SIREN ou OpenStreetMap — un franchisé déclaré sous sa raison sociale compte dans son réseau
+const chains = RESEAUX.map(({ nom, publie, min }) => {
   // surface mesurée = Data ES (surfDataes quand 02 retient le format de l'enseigne à la place)
-  const a = gyms.filter(g => re.test(g.name)), mes = g => g.surfDataes ?? (g.surfSrc === 'dataes' ? g.surf : null);
+  const a = gyms.filter(g => g.enseigne === nom), mes = g => g.surfDataes ?? (g.surfSrc === 'dataes' ? g.surf : null);
   const m = a.filter(g => mes(g) > 0);
-  return { nom, n: a.length, mesurees: m.length, surfMesuree: median(m.map(mes)), surfRetenue: median(a.map(g => g.surf)) };
+  return { nom, n: a.length, publie, min, mesurees: m.length, surfMesuree: median(m.map(mes)), surfRetenue: median(a.map(g => g.surf)) };
 });
 const hallbGym = gyms.find(g => /hall ?b\b/i.test(g.name) && Math.hypot(g.lat - HALLB.lat, g.lon - HALLB.lon) < 0.02);
 const supply = {
@@ -333,6 +335,8 @@ const controles = [
   ['Hall b : 2 400 m² et 1 600 adhérents réels', hbOffre?.surface === 2400 && hbOffre.capacite === 1600 && hbOffre.source === 'reel',
     hbOffre ? `${hbOffre.surface} m² · ${hbOffre.capacite} places (${hbOffre.source})` : 'absente'],
   [`Top 30 sites sur un carreau < ${VIDE} hab/km² : au plus 1`, model.top30Vides <= 1, `${model.top30Vides}/30`],
+  ['Réseaux de franchise au-dessus des seuils (reseaux.mjs)', chains.every(c => c.n >= c.min),
+    chains.filter(c => c.n < c.min).map(c => `${c.nom} ${c.n} < ${c.min}`).join(', ') || `${chains.length}/${chains.length}`],
 ].map(([controle, ok, valeur]) => ({ controle, ok, valeur }));
 
 // ── Rapport ─────────────────────────────────────────────────────────────────────
@@ -352,7 +356,7 @@ line('Lignes Data ES en trop (même installation)', `${fmt(extraRows)} · ${fmt(
 line('SIRENE sans salarié', `${fmt(nonEmp.length)} · ${pct(supply.partCapaciteSansSalarie)} de la capacité`);
 line('Salles empilées sur un même point (≥ 3)', `${fmt(stacked.length)} · ${fmt(supply.capaciteEmpilee)} places`);
 line('Jointure avec les sources', `SIRENE ${pct(supply.jointure.sirene, 0)} · Data ES ${pct(supply.jointure.dataes, 0)}`);
-for (const c of chains) line(`  ${c.nom}`, `${c.n} salles · surface médiane ${c.surfMesuree == null ? '–' : fmt(c.surfMesuree)} m² mesurée (${c.mesurees}) / ${fmt(c.surfRetenue ?? c.surfDefaut)} m² retenue`);
+for (const c of chains) line(`  ${c.nom}`, `${c.n} clubs (publiés ${c.publie}, seuil ${c.min}) · surface médiane ${c.surfMesuree == null ? '–' : fmt(c.surfMesuree)} m² mesurée (${c.mesurees}) / ${fmt(c.surfRetenue ?? c.surfDefaut)} m² retenue`);
 line('Hall b dans l\'offre', supply.hallb ? `${supply.hallb.surface} m² · ${supply.hallb.capacite} places (${supply.hallb.source})` : 'absente');
 console.log('\nModèle');
 line('Aref (couverture moyenne nationale)', dec(M.Aref, 4));
@@ -388,6 +392,7 @@ if (ref) {
     ['Déficit < 1 000 hab/km²', r => r.model.partDeficitMoinsDe1000, pct],
     ['Top 20 sites en Île-de-France', r => r.model.top20IDF, fmt],
     [`Top 30 sites sur < ${VIDE} hab/km²`, r => r.model.top30Vides, fmt],
+    ...RESEAUX.map(({ nom }) => [`Clubs ${nom}`, r => r.supply.chaines?.find(c => c.nom === nom)?.n, fmt]),
     ['Hall b : déficit relatif brut', r => r.model.hallb.brut, fmt],
     ['Hall b : déficit relatif pondéré', r => r.model.hallb.pondere, fmt],
     ['Hall b : écart en salles', r => r.model.hallb.ecartSalles, fmt],

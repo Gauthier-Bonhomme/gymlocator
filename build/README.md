@@ -23,6 +23,17 @@ curl -s -o data/dataes.json "https://equipements.sports.gouv.fr/api/explore/v2.1
 
 # Établissements actifs NAF 93.13Z géolocalisés — SIRENE (via OpenDataSoft)
 curl -s -o data/sirene.json "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/exports/json?where=activiteprincipaleetablissement%3D%2293.13Z%22%20and%20etatadministratifetablissement%3D%22Actif%22&select=siret,datecreationetablissement,enseigne1etablissement,denominationusuelleetablissement,denominationunitelegale,geolocetablissement,codepostaletablissement,libellecommuneetablissement,trancheeffectifsetablissement"
+
+# NAF 93.11Z, 93.12Z, 85.51Z : sur-ensemble filtré par nom côté serveur (≈ 18 000 lignes sur 330 000),
+# 02 affine. Une enseigne ajoutée à ENSEIGNES doit aussi l'être à ces termes de recherche.
+curl -s -G -o data/sirene-autres.json "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/exports/json" \
+  --data-urlencode 'where=activiteprincipaleetablissement in ("93.11Z","93.12Z","85.51Z") and etatadministratifetablissement="Actif" and (search("fitness") or search("fit") or search("gym") or search("muscu") or search("musculation") or search("kc") or search("keep cool") or search("keepcool") or search("basicfit") or search("on air") or search("orange bleue") or search("appart") or search("magic form") or search("vita liberte") or search("vita libre") or search("elancia") or search("wellness") or search("gigafit") or search("neoness") or search("movida") or search("episod") or search("neofit") or search("interval") or search("cmg") or search("usine") or search("amazonia") or search("health city") or search("healthcity") or search("holmes place"))' \
+  --data-urlencode 'select=siret,datecreationetablissement,enseigne1etablissement,denominationusuelleetablissement,denominationunitelegale,geolocetablissement,codepostaletablissement,libellecommuneetablissement,trancheeffectifsetablissement,activiteprincipaleetablissement,categoriejuridiqueunitelegale,caractereemployeuretablissement'
+
+# Salles de sport d'OpenStreetMap (leisure=fitness_centre, ~4 500) — Overpass exige un User-Agent
+curl -s --fail --retry 3 --retry-delay 30 -m 300 -A "GymLocator (+https://github.com/Gauthier-Bonhomme/gymlocator)" -o data/osm-fitness.json \
+  --data-urlencode 'data=[out:json][timeout:180];area["ISO3166-1"="FR"][admin_level=2]->.fr;nwr["leisure"="fitness_centre"](area.fr);out center tags;' \
+  https://overpass-api.de/api/interpreter
 ```
 
 ## 1–4. Lancer le pipeline
@@ -30,12 +41,14 @@ curl -s -o data/sirene.json "https://public.opendatasoft.com/api/explore/v2.1/ca
 ```bash
 npm install            # proj4 (conversion EPSG:3035 → WGS84)
 node 01-demand.mjs     # demande par carreau (pénétration par âge ancrée 10 % + revenu)
-node 02-supply.mjs     # offre fusionnée SIRENE ∪ Data ES → ../gyms.json
+node 02-supply.mjs     # offre fusionnée SIRENE ∪ Data ES ∪ OSM → ../gyms.json
 node 03-e2sfca.mjs     # E2SFCA national → ../grid.bin + ../meta.json
 node 04-backtest.mjs   # validation ouvertures ≥ 2023 → complète ../meta.json
 ```
 
-Chaque script affiche des contrôles (population totale ≈ 63 M, Basic-Fit ≈ 930, etc.).
+Chaque script affiche des contrôles (population totale ≈ 63 M, etc.). 02 échoue si un grand
+réseau de franchise passe sous son seuil (`reseaux.mjs` : 85 % du réseau publié, Keep Cool excepté)
+ou si une source arrive tronquée : la CI ne publie alors rien.
 
 ## Règles de l'offre (`02-supply.mjs`)
 
@@ -51,6 +64,26 @@ Chaque exclusion est tracée dans `data/offre-journal.json` (règle, nom, positi
 - **Chaînes** : format publié de l'enseigne (annuaires de franchise, 09/2026) pour *tous* ses
   clubs, qu'ils soient mesurés par Data ES ou non — Data ES ne mesure que la salle muscu/cardio
   (Keep Cool : 300 m² mesurés pour des clubs de 300–800 m²). Table `ENSEIGNES`.
+- **Autres codes NAF** (93.11Z, 93.12Z, 85.51Z) : des clubs de chaîne y sont déclarés (Fitness Park :
+  74 établissements en 93.11Z), mais surtout des associations (gym volontaire, gymnastique) et des
+  coachs. Retenus : une enseigne connue, ou un nom de salle (fitness, fit, gym, muscu — pas la
+  gymnastique) porté par une société ou un employeur ; sans enseigne, il faut encore un salarié ou un
+  équipement Data ES (règle `autre-naf-non-atteste`). Associations et personnes publiques écartées :
+  leur salle est déjà dans Data ES.
+- **Enseigne d'un franchisé** : lue dans l'enseigne, le nom usuel puis la raison sociale ; sinon
+  **SIREN connu** (un autre établissement de l'unité légale porte l'enseigne, raison sociale « KC … »
+  de Keep Cool, installation Data ES ou SIRET OpenStreetMap de l'enseigne), si l'établissement est
+  attesté par un salarié ou un équipement Data ES ; sinon **OpenStreetMap** : la salle sans enseigne
+  à ≤ 150 m d'un club de la chaîne (≤ 1 km si son SIREN est connu de l'enseigne) est ce club. Un club
+  repris garde parfois son ancienne étiquette dans SIRENE (les Amazonia de KC NANCY CENTRE, KC METZ
+  GARE… sont des Keep Cool) : SIREN connu + club OSM au même lieu ⇒ enseigne d'OSM.
+- **Clubs de chaîne d'OpenStreetMap** : chaque club OSM est apparié au club de même enseigne le
+  plus proche à ≤ 3 km, un pour un ; ceux qui restent sont ajoutés (`src = 'osm'`, format de
+  l'enseigne), sauf une salle d'une autre enseigne à ≤ 50 m (même local).
+- **Même enseigne** : une installation Data ES est rattachée au club SIRENE de même enseigne à
+  < 500 m, ou à < 3 km quand c'est le seul club de l'enseigne dans la commune des deux côtés
+  (Basic-Fit Béthune, Keep Cool Narbonne) ; deux clubs de même enseigne à < 150 m n'en font qu'un
+  (règle `doublon-meme-enseigne`).
 - **Coachs sans salle** : sans salarié, sans Data ES, nom de coach sans mot désignant un local
   (« Studio Coaching » reste), ou entrepreneur individuel sans nom diffusé.
 - **Même point exact** : sièges de franchisés domiciliés chez le gérant et SIRET en double. Une

@@ -191,7 +191,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Le modèle, en trois couches</h3>
       <p><b>1 · La demande.</b> La France est découpée en <b id="m-cells">–</b> carreaux de 1 km (INSEE Filosofi 2021 : habitants, âges, niveau de vie). On applique un taux de pratique de 10 % (moyenne nationale), <b>modulé par l'âge</b> — ≈ 22 % chez les 18-24 ans, ≈ 4 % chez les 65-79 ans — et légèrement par le revenu (± 15 %). Chaque carreau porte ainsi un nombre d'<b>adhérents potentiels</b>.</p>
-      <p><b>2 · L'offre.</b> <b id="m-gyms">–</b> salles issues du registre des entreprises (SIRENE, NAF 93.13Z) croisé avec le recensement des équipements sportifs (Data ES, surfaces réelles, regroupées par installation). Capacité = surface × 1,4 adhérent/m² (fourchette métier 1,2–1,7), sauf valeurs réelles connues (Hall b : 1 600 adhérents pour 2 400 m²). Chaînes : format publié de l'enseigne (Data ES ne mesure que la salle de musculation). Indépendants sans surface connue : estimation dimensionnée par la tranche d'effectifs. Sont écartés les équipements à accès réservé (lycées, casernes, prisons, hôtels, clubs d'un autre sport), les coachs sans salle, les sièges de franchisés et les activités hors salle (instituts, UV, spa).</p>
+      <p><b>2 · L'offre.</b> <b id="m-gyms">–</b> salles issues du registre des entreprises (SIRENE : NAF 93.13Z, plus 93.11Z, 93.12Z et 85.51Z filtrés par nom) croisé avec le recensement des équipements sportifs (Data ES, surfaces réelles, regroupées par installation), et complétées par les clubs de chaîne d'OpenStreetMap absents des deux. Un franchisé déclaré sous sa raison sociale est rattaché à son enseigne (SIREN connu, ou club de la chaîne au même endroit dans OpenStreetMap). Capacité = surface × 1,4 adhérent/m² (fourchette métier 1,2–1,7), sauf valeurs réelles connues (Hall b : 1 600 adhérents pour 2 400 m²). Chaînes : format publié de l'enseigne (Data ES ne mesure que la salle de musculation). Indépendants sans surface connue : estimation dimensionnée par la tranche d'effectifs. Sont écartés les équipements à accès réservé (lycées, casernes, prisons, hôtels, clubs d'un autre sport), les coachs sans salle, les sièges de franchisés et les activités hors salle (instituts, UV, spa).</p>
       <p><b>3 · La confrontation</b> (E2SFCA, la méthode utilisée pour les déserts médicaux) :</p>
       <div class="f">Étape 1 — chaque salle <b>répartit sa capacité</b> entre les habitants situés à ≤ 15 min de voiture (poids décroissant avec le temps de trajet)<br>
       Étape 2 — chaque carreau <b>cumule les parts</b> des salles qu'il peut atteindre → sa <b>couverture</b><br>
@@ -216,7 +216,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Sources</h3>
       <div class="src"><span>—</span><span><b>Population, âges, revenus</b> : INSEE Filosofi 2021, carroyage 1 km</span></div>
-      <div class="src"><span>—</span><span><b>Salles</b> : SIRENE (établissements actifs NAF 93.13Z, géolocalisés) ∪ Data ES ministère des Sports</span></div>
+      <div class="src"><span>—</span><span><b>Salles</b> : SIRENE (établissements actifs géolocalisés, NAF 93.13Z ; 93.11Z, 93.12Z, 85.51Z filtrés par nom) ∪ Data ES ministère des Sports ∪ clubs de chaîne OpenStreetMap (© contributeurs OpenStreetMap, ODbL)</span></div>
       <div class="src"><span>—</span><span><b>Isochrones exactes</b> : Valhalla / OpenStreetMap (service tiers, tentative opportuniste) · <b>Fond de carte</b> : OpenStreetMap</span></div>
 
       <h3>Validation — ce que le score dit (et ne dit pas)</h3>
@@ -569,7 +569,7 @@ function gymPopup(g){
     <div class="kv"><span class="k">Surface</span><span class="v">${surfTxt}</span></div>
     <div class="kv"><span class="k">${reel?'Adhérents':'Capacité estimée'}</span><span class="v">${reel?`${g.cap.toLocaleString('fr')} <small>· réels</small>`:`~${g.cap.toLocaleString('fr')} adhérents`}</span></div>
     ${g.annee?`<div class="kv"><span class="k">Création</span><span class="v">${g.annee}</span></div>`:''}
-    <div class="kv"><span class="k">Source</span><span class="v">${g.src==='dataes'?'Data ES':g.src==='sirene'?'SIRENE':'SIRENE + Data ES'}</span></div>
+    <div class="kv"><span class="k">Source</span><span class="v">${g.src==='dataes'?'Data ES':g.src==='sirene'?'SIRENE':g.src==='osm'?'OpenStreetMap':'SIRENE + Data ES'}</span></div>
     <button class="iso-btn" onclick="glIso(${g.lat},${g.lon})">Analyser la zone · 15 min voiture</button>
     ${exclBtn}
   </div>`;

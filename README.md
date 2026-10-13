@@ -22,7 +22,7 @@ reconstruction complète du modèle, plus rigoureuse et validée par backtest.
 |---|---|
 | **Maille** | carroyage INSEE **Filosofi 2021** 1 km — 374 511 carreaux habités |
 | **Demande** | population × taux de pratique ancré à 10 %, modulé par structure d'âge et niveau de vie (±15 %) |
-| **Offre** | ≈ 10 000 salles : établissements **SIRENE** NAF 93.13Z actifs ∪ **Data ES** (ministère des Sports, regroupé par installation), fusionnés par SIRET/proximité ; chaînes au format publié de l'enseigne, indépendants sans surface mesurée estimés par tranche d'effectifs ; écartés : équipements à accès réservé, coachs sans salle, sièges de franchisés, activités hors salle (détail dans `build/README.md`) |
+| **Offre** | ≈ 10 500 salles : établissements **SIRENE** actifs (NAF 93.13Z ; 93.11Z, 93.12Z et 85.51Z filtrés par nom) ∪ **Data ES** (ministère des Sports, regroupé par installation) ∪ clubs de chaîne d'**OpenStreetMap** absents des deux, fusionnés par SIRET/proximité ; franchisés rattachés à leur enseigne (SIREN connu, OpenStreetMap) ; chaînes au format publié de l'enseigne, indépendants sans surface mesurée estimés par tranche d'effectifs ; écartés : équipements à accès réservé, coachs sans salle, sièges de franchisés, activités hors salle (détail dans `build/README.md`) |
 | **Modèle** | **E2SFCA** (Enhanced Two-Step Floating Catchment Area), rayon 15 min porte-à-porte, décroissance gaussienne (σ = 6 min), vitesse analytique 21–62 km/h selon la densité de population lissée sur 5 × 5 km |
 | **Capacité** | 1,4 membre par m² de plateau, sauf valeurs réelles connues (Hall b : 1 600 adhérents pour 2 400 m²) ; simulation d'une nouvelle salle de 1 200 m² |
 
@@ -52,7 +52,7 @@ via `DecompressionStream`, repli `grid.bin` 4,5 Mo), `gyms.json` et `meta.json`.
 
 Backtest sur les **≈ 2 000 ouvertures de salles depuis 2023** (SIRENE, après nettoyage de l'offre)
 contre la carte de déficit calculée sur les données antérieures : les ouvertures se situent autour
-du **39ᵉ percentile médian** du déficit (un tirage au hasard donnerait 50).
+du **40ᵉ percentile médian** du déficit (un tirage au hasard donnerait 50).
 
 Autrement dit : **les opérateurs ne ciblent pas les zones les plus déficitaires** — leurs choix
 suivent d'autres logiques (foncier, visibilité, zones commerciales). Le score GymLocator doit donc
@@ -78,12 +78,13 @@ gymlocator-v1.html       Première version (score gravitaire bi-critères), arch
 ```bash
 cd build
 npm install
-# télécharger les 3 sources ouvertes (INSEE Filosofi, Data ES, SIRENE) — voir build/README.md
+# télécharger les sources ouvertes (INSEE Filosofi, Data ES, SIRENE, OpenStreetMap) — voir build/README.md
 node 01-demand.mjs && node 02-supply.mjs && node 03-e2sfca.mjs && node 04-backtest.mjs
 ```
 
 ~2 minutes hors téléchargements. Chaque script vérifie des invariants (population totale ≈ 63 M,
-Basic-Fit ≈ 930…) et échoue bruyamment en cas de dérive des formats sources — depuis Filosofi 2021,
+taille des grands réseaux de franchise dans `build/reseaux.mjs`…) et échoue bruyamment en cas de
+dérive des formats sources — depuis Filosofi 2021,
 `lcog_geo` peut par exemple contenir plusieurs communes entre guillemets, piège intercepté par les
 assertions de `03-e2sfca.mjs`.
 
@@ -95,8 +96,9 @@ committe que si les couches ont changé (l'offre bouge vite : ~2 200 créations 
 | Source | Usage | Licence |
 |---|---|---|
 | [INSEE Filosofi 2021 carroyé 1 km](https://www.insee.fr/fr/statistiques/8735171) | population, âges, niveau de vie | Licence Ouverte |
-| [SIRENE](https://www.sirene.fr) (via OpenDataSoft, NAF 93.13Z) | établissements actifs, dates de création | Licence Ouverte |
+| [SIRENE](https://www.sirene.fr) (via OpenDataSoft, NAF 93.13Z, 93.11Z, 93.12Z, 85.51Z) | établissements actifs, dates de création | Licence Ouverte |
 | [Data ES](https://equipements.sports.gouv.fr) (ministère des Sports) | équipements sportifs, surfaces | Licence Ouverte |
+| [OpenStreetMap](https://www.openstreetmap.org) (Overpass, `leisure=fitness_centre`) | clubs de chaîne, enseigne des franchisés | ODbL, © contributeurs OpenStreetMap |
 
 ## Historique
 

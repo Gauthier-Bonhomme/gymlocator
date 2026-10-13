@@ -27,8 +27,16 @@ jobs:
           unzip -o data/filosofi2021.zip -d data/filosofi2021
           curl -s -o data/dataes.json "https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/exports/json?where=equip_type_name%3D%22Salle%20de%20musculation%2Fcardiotraining%22&select=equip_numero,inst_numero,inst_nom,equip_nom,equip_surf,equip_service_date,equip_coordonnees,inst_siret,inst_adresse,inst_cp,new_name,dep_code,equip_ouv_public_bool,equip_prop_type,equip_gest_type"
           curl -s -o data/sirene.json "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/exports/json?where=activiteprincipaleetablissement%3D%2293.13Z%22%20and%20etatadministratifetablissement%3D%22Actif%22&select=siret,datecreationetablissement,enseigne1etablissement,denominationusuelleetablissement,denominationunitelegale,geolocetablissement,codepostaletablissement,libellecommuneetablissement,trancheeffectifsetablissement"
+          # Autres codes NAF, filtrés par nom côté serveur (02 affine : voir build/README.md)
+          curl -s -G -o data/sirene-autres.json "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/economicref-france-sirene-v3/exports/json" \
+            --data-urlencode 'where=activiteprincipaleetablissement in ("93.11Z","93.12Z","85.51Z") and etatadministratifetablissement="Actif" and (search("fitness") or search("fit") or search("gym") or search("muscu") or search("musculation") or search("kc") or search("keep cool") or search("keepcool") or search("basicfit") or search("on air") or search("orange bleue") or search("appart") or search("magic form") or search("vita liberte") or search("vita libre") or search("elancia") or search("wellness") or search("gigafit") or search("neoness") or search("movida") or search("episod") or search("neofit") or search("interval") or search("cmg") or search("usine") or search("amazonia") or search("health city") or search("healthcity") or search("holmes place"))' \
+            --data-urlencode 'select=siret,datecreationetablissement,enseigne1etablissement,denominationusuelleetablissement,denominationunitelegale,geolocetablissement,codepostaletablissement,libellecommuneetablissement,trancheeffectifsetablissement,activiteprincipaleetablissement,categoriejuridiqueunitelegale,caractereemployeuretablissement'
+          # Salles de sport d'OpenStreetMap (clubs de chaîne) ; Overpass refuse les requêtes sans User-Agent
+          curl -s --fail --retry 3 --retry-delay 30 -m 300 -A "GymLocator (+https://github.com/Gauthier-Bonhomme/gymlocator)" -o data/osm-fitness.json \
+            --data-urlencode 'data=[out:json][timeout:180];area["ISO3166-1"="FR"][admin_level=2]->.fr;nwr["leisure"="fitness_centre"](area.fr);out center tags;' \
+            https://overpass-api.de/api/interpreter
 
-      - name: Pipeline (les assertions de 03 font échouer le job en cas de dérive)
+      - name: Pipeline (les assertions de 02 et 03 font échouer le job en cas de dérive)
         run: |
           cd build
           npm install --no-fund --no-audit

@@ -11,7 +11,10 @@ _Rien pour l'instant._
 ## Prochaines (dans cet ordre)
 
 - [ ] **d. Calibrer la décroissance et la pénétration** sur les codes postaux des adhérents de
-  Hall b (prérequis : c, et l'export depuis le logiciel de gestion).
+  Hall b (c est fait ; reste l'export depuis le logiciel de gestion). Mesurer la zone et les temps
+  de Hall b directement avec Valhalla, pas avec le modèle : sa vitesse fonction de la densité y
+  sous-estime la zone de 15 min de 29 % (23 523 habitants contre 33 331 dans l'isochrone), car
+  Hall b est reliée à Vergèze, Uchaud et Bernis par des axes rapides (N113, A9, D40).
 - [ ] **e. Étape 5** (Huff, verdict absolu) : taille de projet réglable (défaut 2 000 m², objectif
   1 600 adhérents ou plus), segment haut de gamme, revenu pondéré.
 
@@ -32,15 +35,10 @@ Le reste de l'audit n° 2, sans ordre.
   acceptent), mais la question presse : depuis c, 16,1 % de la demande n'a aucune salle à 15 min
   (6,2 % avant) et la zone d'un village tient dans 5 à 6 km. À trancher sur des trajets observés
   (codes postaux de Hall b en d, puis d'autres salles).
-- Zone de Hall b sous-estimée : 23 523 habitants à 15 min contre 33 331 dans l'isochrone Valhalla
-  (−29 %). La vitesse ne dépend que de la densité, et Hall b est reliée à Vergèze, Uchaud et Bernis
-  par des axes rapides (N113, A9, D40). En d, mesurer sa zone et ses temps avec Valhalla plutôt
-  qu'avec le modèle. Rattraper l'écart par la vitesse demanderait environ +7 % partout, soit des
-  zones de 15 min environ 7 % trop peuplées dans le reste de la France (mesuré sur 50 isochrones).
 - Temps routés à la place de la vitesse fonction de la densité (API `table` d'un OSRM ou d'un
-  Valhalla local) : supprimerait ces écarts locaux de ±30 %. Choisir alors le moteur sur des
-  trajets observés : OSRM est 1,2 à 1,6 fois plus rapide que Valhalla (Hall b : 64 221 habitants
-  à 15 min selon OSRM).
+  Valhalla local) : supprimerait les écarts locaux de ±30 % (Hall b : −29 %). Choisir alors le
+  moteur sur des trajets observés : OSRM est 1,2 à 1,6 fois plus rapide que Valhalla (Hall b :
+  64 221 habitants à 15 min selon OSRM).
 - Accès fixe de 3 min contre 4 à 8 min d'ordonnée chez Valhalla selon la densité : le modèle est
   juste autour de la limite des 15 min mais 10 à 25 % plus lent que Valhalla au-delà de 8 km ;
   recaler l'accès (`accesMin`) et la vitesse ensemble.
@@ -102,8 +100,11 @@ Le reste de l'audit n° 2, sans ordre.
 
 ## Fait
 
-- [x] **c. Vitesse recalée par classe de densité lissée (N1, action 3)** : fait le 13/10/2026
-  (commit `d30b24f`, pas encore publié : la CI régénère les couches après fusion). Outil de mesure :
+- [x] **c. Vitesse recalée par classe de densité lissée (N1, action 3)** : fait et publié le
+  13/10/2026 (commit `d30b24f` ; CI `9b20d32` : 10 556 salles, 6 réseaux au-dessus de leur seuil,
+  backtest 43,6). Démo en ligne vérifiée : modale Méthode « calée sur les temps en voiture de
+  Valhalla […] de 15 à 31 km/h à vol d'oiseau », backtest 44 ; analyse de zone sur Hall b :
+  ~23 533 habitants en estimation, ~33 331 en tracé Valhalla. Outil de mesure :
   `build/calage-vitesse.mjs` (voir `build/README.md`).
   - Mesures : 159 461 paires de carreaux sur un OSRM local (graphe de `pipeline/osrm-data`), 6 380
     sur le serveur public Valhalla (lots de 40, 3 s de pause), 51 isochrones Valhalla de 15 min.
@@ -119,13 +120,16 @@ Le reste de l'audit n° 2, sans ordre.
   - Contrôle indépendant, devenu contrôle d'audit : population de la zone de 15 min du modèle /
     isochrone Valhalla, médiane sur 50 points 1,82 → 0,96 (0,90 à 1,02 selon la classe).
   - Hall b : 54 773 → 23 523 habitants à 15 min, contre 33 331 dans l'isochrone : −29 %, hors de la
-    cible de ±15 %. Écart local (axes rapides), non rattrapé pour ne pas fausser le reste de la France
-    (voir « Plus tard »). σ variable : non justifié par ces mesures (voir « Plus tard »).
+    cible de ±15 %. Écart local (axes rapides). Calage national gardé (décision de Gauthier) :
+    rattraper Hall b demanderait environ +7 % de vitesse partout, soit des zones de 15 min environ
+    7 % trop peuplées ailleurs (mesuré sur 50 isochrones) ; sa zone se mesurera avec Valhalla en d.
+    σ variable : non justifié par ces mesures (voir « Plus tard »).
   - Effets (audit, sources du 13/10) : top 20 13/20 sites retrouvés, rang 0,846, Île-de-France
     6 → 8/20 ; sortent Sathonay-Camp, Chevreuse, Le Pont-de-Claix, Denain, Onnaing, Carpentras et
     Beautiran, entrent Eaubonne, Trappes, Yerres, Strasbourg, Gex, Wattrelos et Dagneux. Backtest
-    pondéré 39,0 → 43,1, toujours sous le hasard (50). Demande sans salle à 15 min 6,2 → 16,1 % ; déficit relatif national +17,6 %. Audit vert
-    5/5 ; référence refigée (celle d'avant c gardée dans `build/audit/_ref-1310-avant-c`).
+    pondéré 39,0 → 43,1, toujours sous le hasard (50). Demande sans salle à 15 min 6,2 → 16,1 % ;
+    déficit relatif national +17,6 %. Audit vert 5/5 ; référence refigée (celle d'avant c gardée
+    dans `build/audit/_ref-1310-avant-c`).
 - [x] **b. Audit n° 2, actions 1 et 2** : fait et publié le 13/10/2026 (commits `dc5aa22`,
   `f6509a8`, `cb25578` ; CI `c7ffa4e`). Log de la CI : les 6 réseaux au-dessus de leur seuil ;
   démo en ligne vérifiée : Hall b « 2 400 m² · réelle (exploitant) », « 1 600 · réels », 10 556

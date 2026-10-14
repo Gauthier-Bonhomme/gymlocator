@@ -448,6 +448,8 @@ function rgb(s){
 const sDef=u=>Math.max(0,Math.min(1,(Math.log1p(u)-COLOR.min)/(COLOR.max-COLOR.min)));
 const sZone=v=>Math.max(0,Math.min(1,(Math.log1p(v)-COLORZ.min)/(COLORZ.max-COLORZ.min)));
 function tR(z){return z>=14?96:z>=12?64:z>=10?40:z>=9?28:18;}
+// Popups des estimations en adhérents : sur mobile, hauteur bornée (contenu défilant) pour tenir sous l'en-tête
+const popOpts=o=>Object.assign(o,window.innerWidth<=680?{maxHeight:Math.round(window.innerHeight*.55)}:{});
 
 // ── Heatmap ────────────────────────────────────────────────────────────────────
 function initHeat(){
@@ -682,7 +684,7 @@ function initClick(){
        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
        <div class="gp-note">Déficit relatif : écart à la couverture moyenne nationale, pas une demande insatisfaite en absolu ; un adhérent compte d'autant moins qu'il est loin (poids ½ à ${tPoids(.5)} min, ¼ à ${tPoids(.25)} min). Chiffres estimés (périmètre modélisé) ; « Analyser la zone » détaille la concurrence.</div>
        <button class="iso-btn sec" onclick="glIso(${lat},${lng})">Analyser la zone · 15 min voiture</button>
-     </div>`,{offset:[0,-6],maxWidth:300}).openPopup();
+     </div>`,popOpts({offset:[0,-6],maxWidth:300})).openPopup();
   });
 }
 
@@ -1067,7 +1069,7 @@ window.glExacte=async function(lat,lon){
   for(const [m,dash,op] of [[30,'5,4',.04],[15,null,.08]])
     L.polygon(gjToLatLngs(I.contours[m]),{color:'#6e8bff',weight:2,dashArray:dash,fillColor:'#6e8bff',fillOpacity:op})
       .addTo(isoLayer).bindTooltip(`${m} min en voiture (Valhalla)`,{sticky:true});
-  L.popup({offset:[0,-4],maxWidth:300}).setLatLng([lat,lon]).setContent(`<div class="gp">
+  L.popup(popOpts({offset:[0,-4],maxWidth:300})).setLatLng([lat,lon]).setContent(`<div class="gp">
     <div class="gp-name">Zone exacte</div>
     <div class="gp-sub">${projetLbl()} · isochrones Valhalla</div>
     <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(zx.adherents)}</span></div>
@@ -1172,7 +1174,7 @@ window.placeBest=async function(){
     sites.forEach((st,i)=>{
       const ll=laeaInverse(META.E0+(CXA[st.k]+.5)*1000,META.N0+(CYA[st.k]+.5)*1000);
       const ico=L.divIcon({className:'',html:`<div class="bestm">${i+1}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
-      bestMarkers.push(L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(capSitePopup(st,i+1,ll),{maxWidth:300}));
+      bestMarkers.push(L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(capSitePopup(st,i+1,ll),popOpts({maxWidth:300})));
     });
     let html=sites.map((st,i)=>`<div class="bp-item" onclick="glBestGo(${i})"><span class="bp-rk">${i+1}</span><span class="bp-v">≈ ${fmtAdh(st.adherents)}</span><span class="bp-f">${fourchette(st)}</span><span class="bp-d" title="Variantes où le site reste dans le top ${CAP.topRobustesse} de la vue">${st.robustesse===null?'n. m.':`${st.robustesse}/${nv}`}</span></div>`).join('');
     if(sites.length)html=`<div class="bp-cols"><span>adhérents attendus</span><span>fourchette</span><span>robustesse</span></div>`+html;

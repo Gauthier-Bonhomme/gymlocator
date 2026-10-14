@@ -122,16 +122,27 @@ L'outil lit uniquement `data/` et écrit dans `build/audit/` (non versionné, co
 - **Offre** : part de capacité à surface par défaut, équipements Data ES non ouverts au public,
   lignes Data ES en double pour une même installation, établissements SIRENE sans salarié,
   surfaces mesurées vs par défaut des chaînes, salle Hall b.
-- **Modèle** : Aref, déficit par classe de densité, 20 meilleurs sites (maxima à 20 km l'un de
-  l'autre), zone 15 min de Hall b en somme brute et pondérée ; si `data/vitesse-isochrones.json`
-  existe (voir `calage-vitesse.mjs`), population des zones de 15 min du modèle contre celle des
-  isochrones Valhalla (contrôle : médiane à ±15 %).
+- **Modèle** : Aref, déficit par classe de densité, maxima de la carte (déficit de zone, à 20 km
+  l'un de l'autre), zone 15 min de Hall b en somme brute et pondérée ; si
+  `data/vitesse-isochrones.json` existe (voir `calage-vitesse.mjs`), population des zones de 15 min
+  du modèle contre celle des isochrones Valhalla (contrôle : médiane à ±15 %).
+- **Classement des meilleurs sites** (depuis le 14/10/2026, celui du front) : projet premium de
+  2 000 m², France entière, sites à au moins 2 km (`classerSites`). Top 20 avec estimation centrale,
+  fourchette et robustesse ; sites en Île-de-France, sur un carreau < 50 hab/km², carreaux au-dessus
+  du seuil de 1 600. Contrôles : aucun site sur un carreau sans habitant, espacement respecté, et la
+  recherche grossière puis fine redonne le top 20 du calcul exhaustif (`champCentral`).
+  **Changement du 14/10/2026** : les « 20 meilleurs sites » de l'audit étaient jusque-là les maxima
+  du déficit de zone (le proxy de l'ancien « Zones sous-équipées »). Ils ne servent plus qu'à la
+  sensibilité de la carte, et le contrôle « au plus 2 des 30 sur un carreau < 50 hab/km² », qui les
+  visait, est remplacé par ceux du classement. Une référence figée avant cette date n'a pas de
+  classement (« – » dans les écarts) : la refiger.
 - **Backtest** sur des ouvertures **figées** au premier lancement (`audit/ouvertures-figees.json`) :
   toutes, avec salariés, chaînes ; métrique pondérée (celle de 04 et de la carte) et brute
   (somme sans pondération, celle de la carte jusqu'à 09/2026).
   Le percentile ne peut donc pas bouger simplement parce que l'offre a été nettoyée.
-- **Stabilité** par rapport à la référence : corrélation de rang du déficit de zone, top 1 % des
-  carreaux conservé, top 20 sites retrouvés à 10 km près.
+- **Stabilité** par rapport à la référence : pour la carte, corrélation de rang du déficit de zone
+  et top 1 % des carreaux conservé ; pour le classement, corrélation de rang des adhérents attendus
+  (champ figé dans `reference-capture.bin.gz`), top 1 % des carreaux et top 20 retrouvé à 2 km près.
 
 La référence dépend de `data/` : après un nouveau téléchargement des sources, la refiger
 **avant** de modifier le code, sinon les écarts mélangent effet des données et effet du code.

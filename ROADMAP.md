@@ -8,19 +8,14 @@ référence est refigée (`npm run audit:figer`, voir `build/README.md`).
 
 ## En cours
 
-_Rien pour l'instant._
+- [ ] **Publier la seconde moitié de e** (voir « Fait ») : branche `interface/classement-capture`, à
+  fusionner, puis lancer la CI à la main : `05-capture.mjs` y publie le bloc `capture` de `meta.json`
+  (paramètres et rang national). D'ici là, le front tourne sur ses valeurs de repli, sans rang national.
 
 ## Prochaines (dans cet ordre)
 
-- [ ] **e. Étape 5, seconde moitié** (verdict absolu) : le modèle de capture a son option « pas de
-  salle » (voir « Fait ») ; reste à s'en servir.
-  - Verdict absolu : adhérents attendus contre l'objectif de 1 600 adhérents ou plus (point mort),
-    avec la fourchette de `FAMILLE`. En ville elle reste large (Paris centre : 461 à 2 475 pour un
-    projet premium de 2 000 m²) : la pratique maximale et le poids des concurrents ne sont pas
-    identifiés par un club périurbain peu concurrencé. À la campagne, voir la réserve sur la pratique
-    implicite (« Plus tard », modèle de capture).
-  - Taille de projet réglable (défaut 2 000 m²) et segment premium / classique dans le front.
-  - Revenu pondéré.
+- [ ] **e. Reste : revenu pondéré** dans le modèle de capture (élasticité au revenu mesurée en d, forte
+  et peu précise).
   - Rappel : avec un seul club, la validation est circulaire. Les paramètres de d et de e viennent
     de Hall b ; les retrouver sur Hall b ne prouve rien. Il faut d'autres salles (« Calibrer aussi
     sur une ou deux autres salles », dans « Plus tard »).
@@ -72,7 +67,13 @@ Le reste de l'audit n° 2, sans ordre.
 - Attractivité : deux densités seulement (premium 0,67 adh/m², venue de Hall b ; 1,4 pour tous les
   autres). Les low-cost tiennent sans doute plus d'adhérents au m² ; à caler sur d'autres clubs.
 - Suivre dans l'audit les adhérents attendus de Hall b (`capture.mjs --hallb`) et le test sur 12 sites
-  (`capture.mjs --sites`), pour mesurer la seconde moitié de e.
+  (`capture.mjs --sites`).
+- Classement national dominé par l'Île-de-France (18 des 20 premiers sites au 14/10/2026, projet
+  premium de 2 000 m²) : un marché de 400 000 à 1,5 million d'habitants à 30 min l'emporte malgré la
+  concurrence. En ville, la pratique maximale et le poids des concurrents ne sont pas identifiés
+  (fourchettes de 1 300 à 4 800 dans ce top 20) : à confronter à un club urbain.
+- Rang national quand la légende retire des salles : la distribution publiée suppose toute l'offre,
+  le front n'affiche alors pas de rang. La recalculer dans le navigateur (~10 s) le permettrait.
 
 ### Offre
 
@@ -98,12 +99,17 @@ Le reste de l'audit n° 2, sans ordre.
 
 ### Classement et affichage
 
-- Classer sur les adhérents captés plutôt que sur la somme du déficit : effet de taille, double
-  lissage de A puis de UZ sur environ 30 min (N5).
-- Score /100 : percentile national ou suppression, libellés indexés sur le verdict ; il dit
-  « élevé » pour 55 % de la demande (N7).
-- Robustesse de chaque zone repérée : part des variantes et des tirages de capacité où elle
-  reste en tête (`run()` d'`audit.mjs`) (action 7).
+- Robustesse des meilleurs sites aux tirages de capacité de l'offre (`run()` d'`audit.mjs`) : elle
+  ne couvre aujourd'hui que les paramètres du modèle de capture (action 7).
+- Carte des adhérents attendus : la carte montre toujours le déficit relatif, le classement et le clic
+  les adhérents attendus du projet. Une vue « Adhérents attendus » rendrait les trois cohérents.
+- Permalien du projet (taille, segment, seuil), comme celui de la vue.
+- Zone exacte et analyse de zone demandent chacune leurs isochrones Valhalla : partager le contour de
+  15 min (une requête de moins).
+- `meta.json` et `gyms.json` sont chargés sans paramètre de version (`grid.bin.gz?v=3` en a un) :
+  après un rafraîchissement, un navigateur peut garder l'ancien `meta.json` quelques minutes (constaté
+  en local le 14/10/2026), et le front tourne alors sur ses valeurs de repli. Ajouter la date de
+  génération à l'URL.
 - Interpolation de la carte renormalisée : −11 % d'intensité en bordure de zone habitée,
   792 salles concernées (N9).
 - « Petit bassin » calculé sur la demande pondérée ; dire à l'écran qu'Aref est recalculé quand
@@ -136,6 +142,42 @@ Le reste de l'audit n° 2, sans ordre.
 
 ## Fait
 
+- [x] **e, seconde moitié : le modèle de capture dans l'interface** : fait le 14/10/2026 sur la branche
+  `interface/classement-capture`, un commit par point (pas encore fusionnée ni publiée, voir « En
+  cours »). Vérifié dans le navigateur (ordinateur et mobile), console sans erreur.
+  1. **Meilleurs sites pour un club de X m²** à la place de « Zones sous-équipées » : sites de la vue
+     classés sur les adhérents attendus du modèle de capture (mode national), à au moins 2 km l'un de
+     l'autre, jamais sur un carreau sans habitant ; taille 1 200 / 2 000 / 2 400 m² (défaut 2 000) et
+     segment premium / classique réglables ; la concurrence suit les filtres de la légende. Recherche
+     grossière puis fine (`classerSites`), validée contre le calcul exhaustif : même top 20 dans le
+     même ordre sur la France et cinq régions ; France entière en 1 à 3 s dans le navigateur. Le front
+     redonne le classement de `capture.mjs --classement` (valeurs à 0,02 % près, arrondis de `grid.bin`).
+  2. **Fourchette et robustesse** pour chaque site : 9 variantes (3 jeux de `FAMILLE` × concurrents
+     × 0,5 / 1 / 2) ; robustesse = variantes où le site reste dans le top 20 de la vue. Filtre
+     « adhérents attendus ≥ seuil », 1 600 par défaut.
+  3. **Clic** : même estimation avec fourchette pour le projet réglé. Bouton **Zone exacte** : six
+     isochrones Valhalla de 5 à 30 min, une requête par contour, en file espacée de 1,5 s (partagée avec
+     l'analyse de zone), gardées 180 jours dans le navigateur ; mêmes 430 carreaux et même estimation
+     que `capture.mjs --exacte` sur les isochrones de Hall b en cache.
+  4. **Score /100 et libellés « élevé / très élevé » supprimés** : le clic s'ouvre sur l'estimation en
+     adhérents, sa fourchette et son **rang national** (« mieux que N % des carreaux habités »), tiré
+     de la distribution que `05-capture.mjs` publie dans `meta.json` (6 projets, tous les carreaux
+     habités, ~15 s en CI) ; pas de rang quand la légende retire des salles.
+  5. **Mentions** à côté de chaque estimation et dans la modale : modèle ajusté sur un seul club, pas
+     de second club de validation, loyer, visibilité, parking et population de jour non modélisés,
+     outil de présélection.
+  6. **Audit adapté au nouveau classement** : ses « meilleurs sites » sont désormais ceux du front
+     (projet premium de 2 000 m², France, à 2 km), avec fourchette et robustesse ; les maxima du déficit
+     de zone (l'ancien proxy de « Zones sous-équipées ») ne servent plus qu'à la sensibilité de la
+     carte. Le contrôle « au plus 2 des 30 maxima sur un carreau < 50 hab/km² » est remplacé par trois
+     contrôles du classement : aucun site sur un carreau sans habitant, espacement de 2 km, recherche
+     grossière-fine identique au calcul exhaustif. Stabilité du classement mesurée contre la référence
+     (champ figé dans `reference-capture.bin.gz`). Audit vert 7/7 ; référence refigée (l'ancienne dans
+     `build/audit/_ref-1410-avant-classement`).
+  - Mesures (14/10/2026, projet premium de 2 000 m², France) : n° 1 près d'Aulnay-sous-Bois, 3 122
+    adhérents attendus (fourchette 1 809 – 4 789, robustesse 9/9) ; 18 des 20 premiers en
+    Île-de-France ; robustesse médiane 7/9 ; 2 292 carreaux habités (0,6 %) atteignent 1 600 ; aucun
+    des 30 premiers sur un carreau de moins de 50 habitants.
 - [x] **e, suite : option « pas de salle » dans le modèle de capture** : fait le 14/10/2026 sur la
   branche `modele/capture-non-recours`, fusionnée dans main et poussée le même jour, sans CI : ni les
   couches ni le front ne changent. Audit vert 5/5 sur les couches publiées (CI `ad5db51`) après la

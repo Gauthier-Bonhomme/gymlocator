@@ -10,10 +10,15 @@
 // après tout nouveau téléchargement des sources, AVANT de modifier le code.
 // Les ouvertures du backtest sont figées au premier lancement (audit/ouvertures-figees.json) :
 // le percentile ne doit pas bouger simplement parce que l'offre a été nettoyée.
+// Depuis le 14/10/2026, les « meilleurs sites » de l'audit sont ceux du classement du front (adhérents
+// captés par un projet premium de 2 000 m², sites à au moins 2 km, lib-capture.mjs) ; les maxima du
+// déficit de zone (l'ancien « Zones sous-équipées ») ne servent plus qu'à la sensibilité de la carte.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { toLaea, computeAccess, computeZoneDeficit, densityField, speedKmh, V_MAX, T_ACCESS, T_MAX, SIGMA2 } from './lib-e2sfca.mjs';
 import { RESEAUX } from './reseaux.mjs';
+import { CAPTURE, SEUIL, ESPACEMENT_KM, VARIANTES, TOP_ROBUSTESSE, grilleDe, tablesCapture, concurrences, attractivite,
+  classerSites, champCentral } from './lib-capture.mjs';
 
 const args = new Set(process.argv.slice(2));
 const FIGER = args.has('--figer'), SENSI = args.has('--sensibilite');
@@ -72,7 +77,8 @@ function layers(gymSet) {
   for (let i = 0; i < n; i++) { rel[i] = A[i] / Aref; U[i] = cells[i].dem * Math.max(0, 1 - rel[i]); }
   return { A, Aref, rel, U };
 }
-// Maxima du déficit de zone séparés d'au moins `sep` km (proxy des « zones sous-équipées »)
+// Maxima du déficit de zone séparés d'au moins `sep` km : résumé de la carte pour la sensibilité
+// (l'ancien proxy des « Zones sous-équipées », remplacées par le classement des meilleurs sites)
 function topSites(UZ, k = 20, sep = 20) {
   const idx = Array.from(UZ.keys()).sort((a, b) => UZ[b] - UZ[a]), out = [];
   for (const i of idx) {
@@ -166,7 +172,7 @@ const densite = CLASSES.map(([lo, hi, lbl]) => {
   return { classe: lbl, partDemande: d / totD, couverture: dr / d, partDeficit: u / totU, partNonDesservie: u / d };
 });
 let sansSalle = 0; for (let i = 0; i < n; i++) if (M.A[i] === 0) sansSalle += cells[i].dem;
-const sites30 = topSites(UZ, 30), sites = sites30.slice(0, 20);   // glouton : les 20 premiers = topSites(UZ, 20)
+const sites = topSites(UZ, 20);   // maxima de la carte (sensibilité)
 const VIDE = 50;   // hab/km² : carreau « quasi vide » (champ, forêt, zone d'activité ; audit n° 2, N2)
 const hbE = toLaea(HALLB.lat, HALLB.lon);
 const hb = { pop: 0, dem: 0, brut: 0, pondere: 0 };
@@ -195,13 +201,46 @@ const model = {
   partDemandeSansSalle: sansSalle / totD,
   partDeficitMoinsDe1000: densite.slice(0, 3).reduce((s, c) => s + c.partDeficit, 0),
   densite,
-  top20: sites.map(i => ({ lat: cells[i].lat, lon: cells[i].lon, E: cells[i].E, N: cells[i].N, uz: Math.round(UZ[i]) })),
-  top20IDF: sites.filter(i => inIDF(cells[i])).length,
-  top30Vides: sites30.filter(i => cells[i].ind < VIDE).length,
-  top30Densites: sites30.map(i => Math.round(cells[i].ind)),
+  maximaCarte: sites.map(i => ({ lat: cells[i].lat, lon: cells[i].lon, E: cells[i].E, N: cells[i].N, uz: Math.round(UZ[i]) })),
   hallb: hb,
   temoin,
 };
+// ── 2 bis. Classement des meilleurs sites (« Meilleurs sites » du front) ─────────
+// Projet par défaut du front, France entière : recherche grossière puis fine de classerSites(), et
+// contrôle par le calcul exhaustif (champCentral, chaque carreau habité) qu'elle redonne le même top 20.
+console.log('Classement des meilleurs sites (≈ 20 s)…');
+const Gc = grilleDe(cells), Tc = tablesCapture(Gc, field), Dc = concurrences(Gc, field, gyms);
+const PROJET = { m2: CAPTURE.m2Defaut, segment: CAPTURE.segmentDefaut }, Wc = attractivite(PROJET.m2, PROJET.segment);
+const tous = Array.from({ length: n }, (_, i) => i);
+const cl = classerSites(Tc, Dc, Wc, tous, { n: 30 });
+const [champ] = champCentral(Tc, Dc, [Wc]);
+const ESP2 = ESPACEMENT_KM * ESPACEMENT_KM;
+const exhaustif = [];
+for (const i of tous.slice().sort((a, b) => champ[b] - champ[a] || CX[a] - CX[b] || CY[a] - CY[b])) {
+  if (exhaustif.every(j => (CX[i] - CX[j]) ** 2 + (CY[i] - CY[j]) ** 2 >= ESP2)) exhaustif.push(i);
+  if (exhaustif.length >= 20) break;
+}
+const cl20 = cl.sites.slice(0, 20);
+let espMin = Infinity;
+cl.sites.forEach((a, k) => cl.sites.slice(k + 1).forEach(b => { espMin = Math.min(espMin, Math.hypot(CX[a.i] - CX[b.i], CY[a.i] - CY[b.i])); }));
+const robs = cl20.map(s => s.robustesse).filter(r => r !== null);
+let auSeuil = 0; for (let i = 0; i < n; i++) if (champ[i] >= SEUIL) auSeuil++;
+const classement = {
+  projet: PROJET, seuil: SEUIL, espacementKm: ESPACEMENT_KM, variantes: VARIANTES.length,
+  top20: cl20.map(s => ({ lat: cells[s.i].lat, lon: cells[s.i].lon, E: cells[s.i].E, N: cells[s.i].N, adherents: Math.round(s.adherents),
+    min: Math.round(s.min), max: Math.round(s.max), robustesse: s.robustesse, ind: Math.round(cells[s.i].ind) })),
+  top20IDF: cl20.filter(s => inIDF(cells[s.i])).length,
+  top30Vides: cl.sites.filter(s => cells[s.i].ind < VIDE).length,
+  sansHabitant: cl.sites.filter(s => !(cells[s.i].ind > 0)).length,
+  espacementMinKm: espMin,
+  robustesseMediane: robs.length ? median(robs) : null,
+  robustes: cl20.filter(s => s.robustesse !== null && s.robustesse >= Math.ceil(VARIANTES.length * 2 / 3)).length,
+  sitesAuSeuil: cl.sites.filter(s => s.adherents >= SEUIL).length,
+  carreauxAuSeuil: auSeuil,
+  exhaustifIdentique: exhaustif.length === cl20.length && exhaustif.every((i, k) => i === cl20[k].i),
+  evaluations: cl.evaluations,
+};
+
 // Reproduction : grid.bin publié == calcul local ? (seulement s'il vient des mêmes données)
 let reproduction;
 if (meta.n === n && meta.national.salles === gyms.length) {
@@ -257,20 +296,29 @@ const bt = {
 };
 
 // ── 4. Stabilité par rapport à la référence ─────────────────────────────────────
-const REF_JSON = new URL('reference.json', AUD), REF_UZ = new URL('reference-uz.bin.gz', AUD);
-const ref = existsSync(REF_JSON) ? readJson(REF_JSON) : null;
-let stabilite = null;
-if (ref && existsSync(REF_UZ)) {
-  const raw = gunzipSync(readFileSync(REF_UZ));
-  const m = raw.byteLength / 8, keys = new Int32Array(raw.buffer, raw.byteOffset, m), vals = new Float32Array(raw.buffer, raw.byteOffset + m * 4, m);
-  const refMap = new Map(); for (let k = 0; k < m; k++) refMap.set(keys[k], vals[k]);
+const REF_JSON = new URL('reference.json', AUD), REF_UZ = new URL('reference-uz.bin.gz', AUD), REF_CAP = new URL('reference-capture.bin.gz', AUD);
+// Champ figé (clé de carreau → valeur) : reference-uz.bin.gz, reference-capture.bin.gz
+function lireChamp(url) {
+  const raw = gunzipSync(readFileSync(url)), m = raw.byteLength / 8;
+  const keys = new Int32Array(raw.buffer, raw.byteOffset, m), vals = new Float32Array(raw.buffer, raw.byteOffset + m * 4, m);
+  const map = new Map(); for (let k = 0; k < m; k++) map.set(keys[k], vals[k]);
+  return map;
+}
+function comparer(refMap, cur) {
   const a = [], b = [];
-  for (let i = 0; i < n; i++) { const v = refMap.get(cellKey(i)); if (v !== undefined) { a.push(v); b.push(UZ[i]); } }
-  const A1 = Float64Array.from(a), B1 = Float64Array.from(b);
-  const ta = topShare(A1, 0.01), tb = topShare(B1, 0.01);
+  for (let i = 0; i < n; i++) { const v = refMap.get(cellKey(i)); if (v !== undefined) { a.push(v); b.push(cur[i]); } }
+  const A1 = Float64Array.from(a), B1 = Float64Array.from(b), ta = topShare(A1, 0.01), tb = topShare(B1, 0.01);
   let common = 0; for (const x of ta) if (tb.has(x)) common++;
-  const kept = ref.model.top20.filter(s => sites.some(i => Math.hypot(cells[i].E - s.E, cells[i].N - s.N) <= 10000)).length;
-  stabilite = { carreauxCommuns: a.length, spearman: spearman(A1, B1), top1Conserve: common / ta.size, top20Retrouves: kept };
+  return { carreauxCommuns: a.length, spearman: spearman(A1, B1), top1Conserve: common / ta.size };
+}
+const ref = existsSync(REF_JSON) ? readJson(REF_JSON) : null;
+let stabilite = null, stabiliteClassement = null;
+if (ref && existsSync(REF_UZ)) stabilite = comparer(lireChamp(REF_UZ), UZ);
+// Classement : la référence n'en a que depuis le 14/10/2026 (sinon « – » jusqu'au prochain gel)
+if (ref?.classement && existsSync(REF_CAP)) {
+  const c = comparer(lireChamp(REF_CAP), champ);
+  const retrouves = ref.classement.top20.filter(s => cl20.some(t => Math.hypot(cells[t.i].E - s.E, cells[t.i].N - s.N) <= ESPACEMENT_KM * 1000)).length;
+  stabiliteClassement = { ...c, top20Retrouves: retrouves };
 }
 
 // ── 5. Sensibilité (option) ─────────────────────────────────────────────────────
@@ -343,15 +391,17 @@ if (SENSI) {
 
 // ── 6. Contrôles : l'audit est « vert » si tous passent ─────────────────────────
 const hbOffre = supply.hallb;
-// Au plus 2 sites sur 30 sur un carreau quasi vide : depuis l'action 2, deux maxima plats connus y
-// tombent (n° 10 près de Bonneville, n° 16 près de Condé-sur-l'Escaut), pas des artefacts de vitesse.
-// Les corriger (maximum local, départage par la population) serait caduc avec l'étape 5 (ROADMAP).
-const SITES_VIDES_MAX = 2;
+// Le contrôle « au plus 2 des 30 maxima de la carte sur un carreau < 50 hab/km² » visait l'ancien
+// classement (« Zones sous-équipées ») ; il est remplacé par ceux du nouveau classement. Un site à la
+// lisière d'une ville sur un carreau peu peuplé est légitime ; un carreau sans habitant ne l'est pas.
 const controles = [
   ['Reproduction de grid.bin', reproduction === 'identique à grid.bin', reproduction],
   ['Hall b : 2 400 m², 1 600 adhérents réels, premium', hbOffre?.surface === 2400 && hbOffre.capacite === 1600 && hbOffre.source === 'reel'
     && hbOffre.type === 'premium', hbOffre ? `${hbOffre.surface} m² · ${hbOffre.capacite} places (${hbOffre.source}) · ${hbOffre.type}` : 'absente'],
-  [`Top 30 sites sur un carreau < ${VIDE} hab/km² : au plus ${SITES_VIDES_MAX}`, model.top30Vides <= SITES_VIDES_MAX, `${model.top30Vides}/30`],
+  ['Classement : aucun site sur un carreau sans habitant', classement.sansHabitant === 0, `${classement.sansHabitant}/30`],
+  [`Classement : sites à au moins ${ESPACEMENT_KM} km l'un de l'autre`, classement.espacementMinKm >= ESPACEMENT_KM - 1e-9, `${dec(classement.espacementMinKm)} km au plus près`],
+  ['Classement : recherche grossière-fine = calcul exhaustif', classement.exhaustifIdentique,
+    classement.exhaustifIdentique ? 'même top 20, même ordre' : `${exhaustif.filter((i, k) => cl20[k]?.i === i).length}/20 au même rang`],
   ['Réseaux de franchise au-dessus des seuils (reseaux.mjs)', chains.every(c => c.n >= c.min),
     chains.filter(c => c.n < c.min).map(c => `${c.nom} ${c.n} < ${c.min}`).join(', ') || `${chains.length}/${chains.length}`],
   // Pas de contrôle sur Hall b seule : un point s'écarte de ±30 % d'une vitesse fonction de la densité
@@ -360,7 +410,7 @@ const controles = [
 ].map(([controle, ok, valeur]) => ({ controle, ok, valeur }));
 
 // ── Rapport ─────────────────────────────────────────────────────────────────────
-const report = { date: new Date().toISOString().slice(0, 10), donnees: { carreaux: n, salles: gyms.length }, reproduction, supply, model, backtest: bt, stabilite, sensibilite, controles };
+const report = { date: new Date().toISOString().slice(0, 10), donnees: { carreaux: n, salles: gyms.length }, reproduction, supply, model, classement, backtest: bt, stabilite, stabiliteClassement, sensibilite, controles };
 writeFileSync(new URL('dernier.json', AUD), JSON.stringify(report, null, 1));
 
 const line = (l, v) => console.log(`  ${l.padEnd(46)} ${v}`);
@@ -385,24 +435,33 @@ line('Demande sans aucune salle à ≤ 15 min', pct(model.partDemandeSansSalle))
 console.log('  Densité (hab/km²)  demande  couverture  déficit  demande « non desservie »');
 for (const d of densite) console.log(`  ${d.classe.padEnd(18)} ${pct(d.partDemande).padStart(7)}  ${dec(d.couverture).padStart(10)}  ${pct(d.partDeficit).padStart(7)}  ${pct(d.partNonDesservie, 0).padStart(6)}`);
 line('Déficit dans les carreaux < 1 000 hab/km²', pct(model.partDeficitMoinsDe1000));
-line('Top 20 sites en Île-de-France', `${model.top20IDF}/20`);
-line(`Top 30 sites sur un carreau < ${VIDE} hab/km²`, `${model.top30Vides}/30`);
-console.log('  Top 5 sites : ' + model.top20.slice(0, 5).map(s => `${s.lat.toFixed(3)},${s.lon.toFixed(3)} (${fmt(s.uz)})`).join(' · '));
+console.log('  5 premiers maxima de la carte : ' + model.maximaCarte.slice(0, 5).map(s => `${s.lat.toFixed(3)},${s.lon.toFixed(3)} (${fmt(s.uz)})`).join(' · '));
 line('Hall b : zone 15 min', `${fmt(hb.pop)} hab. · ${fmt(hb.dem)} adhérents potentiels`);
 if (temoin) {
   line('Zones de 15 min / isochrones Valhalla', `médiane ${dec(temoin.mediane)} sur ${temoin.points} points (calage-vitesse.mjs)`);
   if (temoin.hallb) line('Hall b : zone 15 min / isochrone Valhalla', `${dec(temoin.hallb.rapport)} (isochrone : ${fmt(temoin.hallb.iso)} hab.)`);
 }
 line('Hall b : déficit relatif brut / pondéré', `${fmt(hb.brut)} / ${fmt(hb.pondere)} · écart ≈ ${hb.ecartSalles} salle(s)`);
+console.log(`\nClassement des meilleurs sites (projet ${PROJET.segment} de ${fmt(PROJET.m2)} m², France, sites à ≥ ${ESPACEMENT_KM} km ; celui du front depuis le 14/10/2026)`);
+line('Évaluations (recherche grossière puis fine)', `${fmt(classement.evaluations)} sur ${fmt(n)} carreaux · exhaustif ${classement.exhaustifIdentique ? 'identique' : 'DIFFÉRENT'}`);
+console.log('  ' + classement.top20.slice(0, 5).map((s, k) => `${k + 1}. ${s.lat.toFixed(3)},${s.lon.toFixed(3)} ${fmt(s.adherents)} [${fmt(s.min)}–${fmt(s.max)}] ${s.robustesse ?? '–'}/${classement.variantes}`).join(' · '));
+line('Top 20 en Île-de-France', `${classement.top20IDF}/20`);
+line(`Top 30 sur un carreau < ${VIDE} hab/km²`, `${classement.top30Vides}/30`);
+line(`Robustesse du top 20 (sur ${classement.variantes} variantes)`, `médiane ${classement.robustesseMediane ?? '–'} · ${classement.robustes}/20 à au moins ${Math.ceil(classement.variantes * 2 / 3)}`);
+line(`Sites du top 30 à au moins ${fmt(SEUIL)} adhérents`, `${classement.sitesAuSeuil}/30 · ${fmt(classement.carreauxAuSeuil)} carreaux au-dessus`);
 console.log('\nBacktest (percentile médian · part dans le top 20 % ; hasard = 50 · 20 %)');
 for (const [k, lbl] of [['toutes', 'Toutes les ouvertures'], ['avecSalaries', 'Ouvertures avec salariés'], ['chaines', 'Ouvertures de chaînes']]) {
   const b = bt[k]; line(`${lbl} (n = ${fmt(b.n)})`, `pondéré ${dec(b.pondere.median, 1)} · ${pct(b.pondere.top20, 0)}  |  brut ${dec(b.brut.median, 1)} · ${pct(b.brut.top20, 0)}`);
 }
 if (stabilite) {
-  console.log(`\nStabilité de la carte par rapport à la référence du ${ref.date}`);
-  line('Corrélation de rang du déficit de zone', dec(stabilite.spearman, 3));
-  line('Top 1 % des carreaux conservé', pct(stabilite.top1Conserve, 0));
-  line('Top 20 sites retrouvés (à 10 km près)', `${stabilite.top20Retrouves}/20`);
+  console.log(`\nStabilité par rapport à la référence du ${ref.date}`);
+  line('Carte : corrélation de rang du déficit de zone', dec(stabilite.spearman, 3));
+  line('Carte : top 1 % des carreaux conservé', pct(stabilite.top1Conserve, 0));
+  if (stabiliteClassement) {
+    line('Classement : corrélation de rang des adhérents', dec(stabiliteClassement.spearman, 3));
+    line('Classement : top 1 % des carreaux conservé', pct(stabiliteClassement.top1Conserve, 0));
+    line(`Classement : top 20 retrouvé (à ${ESPACEMENT_KM} km près)`, `${stabiliteClassement.top20Retrouves}/20`);
+  } else line('Classement', 'pas dans la référence (figée avant le 14/10/2026) : refiger');
 }
 if (ref) {
   console.log(`\nÉcarts à la référence du ${ref.date}`);
@@ -414,8 +473,11 @@ if (ref) {
     ['Capacité SIRENE sans salarié', r => r.supply.partCapaciteSansSalarie, pct],
     ['Aref', r => r.model.Aref, v => dec(v, 4)], ['Déficit relatif national', r => r.model.deficitNational, fmt],
     ['Déficit < 1 000 hab/km²', r => r.model.partDeficitMoinsDe1000, pct],
-    ['Top 20 sites en Île-de-France', r => r.model.top20IDF, fmt],
-    [`Top 30 sites sur < ${VIDE} hab/km²`, r => r.model.top30Vides, fmt],
+    ['Classement : n° 1 (adhérents)', r => r.classement?.top20[0]?.adherents, fmt],
+    ['Classement : top 20 en Île-de-France', r => r.classement?.top20IDF, fmt],
+    [`Classement : top 30 sur < ${VIDE} hab/km²`, r => r.classement?.top30Vides, fmt],
+    ['Classement : robustesse médiane du top 20', r => r.classement?.robustesseMediane, fmt],
+    [`Carreaux à au moins ${fmt(SEUIL)} adhérents`, r => r.classement?.carreauxAuSeuil, fmt],
     ...RESEAUX.map(({ nom }) => [`Clubs ${nom}`, r => r.supply.chaines?.find(c => c.nom === nom)?.n, fmt]),
     ['Demande sans salle à ≤ 15 min', r => r.model.partDemandeSansSalle, pct],
     ['Zones 15 min / isochrones Valhalla', r => r.model.temoin?.mediane, v => v == null ? '–' : dec(v)],
@@ -431,22 +493,24 @@ if (ref) {
   console.log(`  ${'Indicateur'.padEnd(40)} ${'Actuel'.padStart(12)} ${'Référence'.padStart(12)}`);
   for (const [l, get, f] of TRACK) {
     const a = get(report), b = get(ref);   // b absent : indicateur ajouté après le gel de la référence
-    const changed = b != null && Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b));
-    console.log(`  ${l.padEnd(40)} ${f(a).padStart(12)} ${(b == null ? '–' : f(b)).padStart(12)}${changed ? '  ←' : ''}`);
+    const changed = a != null && b != null && Math.abs(a - b) > 1e-9 * Math.max(1, Math.abs(b));
+    console.log(`  ${l.padEnd(40)} ${(a == null ? '–' : f(a)).padStart(12)} ${(b == null ? '–' : f(b)).padStart(12)}${changed ? '  ←' : ''}`);
   }
 }
 if (sensibilite) {
   console.log('\nSensibilité aux paramètres (par rapport au modèle actuel)');
   if (sensibilite.ignoree) console.log(`  Ignorée : ${sensibilite.ignoree}`);
-  else for (const s of sensibilite) line(s.variante, `rang ${dec(s.spearman, 2)} · top 1 % ${pct(s.top1Conserve, 0)} · top 20 ${s.top20Retrouves}/20`);
+  else for (const s of sensibilite) line(s.variante, `rang ${dec(s.spearman, 2)} · top 1 % ${pct(s.top1Conserve, 0)} · 20 maxima de la carte ${s.top20Retrouves}/20`);
 }
 if (FIGER) {
   const keys = new Int32Array(n), vals = new Float32Array(n);
   for (let i = 0; i < n; i++) { keys[i] = cellKey(i); vals[i] = UZ[i]; }
   const buf = Buffer.concat([Buffer.from(keys.buffer), Buffer.from(vals.buffer)]);
   writeFileSync(REF_UZ, gzipSync(buf, { level: 9 }));
+  const valsC = Float32Array.from(champ);
+  writeFileSync(REF_CAP, gzipSync(Buffer.concat([Buffer.from(keys.buffer), Buffer.from(valsC.buffer)]), { level: 9 }));
   writeFileSync(REF_JSON, JSON.stringify(report, null, 1));
-  console.log('\nRéférence figée : build/audit/reference.json + reference-uz.bin.gz');
+  console.log('\nRéférence figée : build/audit/reference.json + reference-uz.bin.gz + reference-capture.bin.gz');
 } else if (!ref) {
   console.log('\nAucune référence : lancez « node audit.mjs --figer » avant de modifier le code.');
 }

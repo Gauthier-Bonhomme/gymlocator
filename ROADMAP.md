@@ -125,7 +125,8 @@ Le reste de l'audit n° 2, sans ordre.
 ## Fait
 
 - [x] **e, première moitié. Modèle de capture d'un projet** : fait le 14/10/2026 sur la branche
-  `modele/capture-projet` (non fusionnée). `build/lib-capture.mjs` et `build/capture.mjs` (voir
+  `modele/capture-projet`, fusionnée et publiée le même jour (CI `ad5db51`).
+  `build/lib-capture.mjs` et `build/capture.mjs` (voir
   `build/README.md`) ; ni l'interface, ni les couches, ni le classement ne changent.
   - Adhérents attendus = Σ habitants × pénétration × part captée (Huff) sur les carreaux à ≤ 30 min ;
     part captée = W_p f(t) / (W_p f(t) + Σ concurrents W_g f(t_g)), noyau premium de d
@@ -164,8 +165,8 @@ Le reste de l'audit n° 2, sans ordre.
     ou reclassées asso / classique, capacité inchangée, déficit national −5, backtest inchangé,
     carte stable (rang 1,000, 20/20). Audit vert 5/5 sur les couches régénérées ; référence refigée
     sur les sources du 14/10 (l'ancienne dans `build/audit/_ref-1310-apres-c`).
-  - Contre le `grid.bin` publié, encore produit par l'ancien 02, l'audit restera rouge jusqu'à la
-    première CI sur ce code.
+  - Publié (CI `ad5db51`) : l'offre et le `grid.bin` de la CI sont identiques à l'octet à ceux
+    régénérés en local, et l'audit est vert 5/5 contre les couches publiées, sans régénération.
 - [x] **d. Décroissance et pénétration calées sur les adhérents de Hall b** : fait le 13/10/2026.
   La mesure détaillée reste hors du dépôt public (`docs-private/`, non versionné). Paramètres
   **premium** proposés, propres à un club haut de gamme et **non appliqués** : le modèle garde la

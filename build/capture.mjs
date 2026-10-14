@@ -2,28 +2,29 @@
 //
 //   node capture.mjs --lat 43.80749 --lon 4.22952 [--m2 2000] [--segment premium|classique] [--exacte]
 //   node capture.mjs --hallb      test sur Hall b : 2 400 m², premium, sans elle dans la concurrence
+//   node capture.mjs --sites      test sur 12 sites variés (Paris, banlieue, villes, bourgs isolés), mode national
 //
 // Mode national : temps du modèle calé pour le projet et pour les salles existantes. --exacte (et
 // --hallb) : en plus, zone exacte du projet tracée par des isochrones Valhalla de 5 à 30 min (une
 // requête par contour, 5 s de pause, gardées dans data/isochrones/). Les concurrents gardent les
 // temps du modèle.
-// Le résultat est une fourchette : pénétration (p0 de l'étape d ou demande du modèle) × poids des
-// concurrents (× 0,5, 1, 2), pour la taille demandée, 1 200 et 2 000 m².
+// Le résultat est une fourchette : jeux de paramètres équivalents pour Hall b (FAMILLE, non-recours
+// de 200 à 800) × poids des concurrents (× 0,5, 1, 2), pour la taille demandée, 1 200 et 2 000 m².
 // Lit data/cells.json et data/gyms-fused.json (pipeline 01-02) ; n'écrit que dans data/isochrones/.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { toLaea, densityField, speedKmh, T_ACCESS } from './lib-e2sfca.mjs';
-import { CAPTURE, BANDES, grilleDe, voisins, concurrence, capture, poidsSalle } from './lib-capture.mjs';
+import { CAPTURE, FAMILLE, BANDES, CONTOURS, grilleDe, concurrence, capture, poidsSalle, tempsIsochrones, rapportLocal } from './lib-capture.mjs';
 
 const DATA = new URL('../data/', import.meta.url);
 const readJson = u => JSON.parse(readFileSync(u, 'utf8'));
 const arg = (nom, def) => { const k = process.argv.indexOf(`--${nom}`); return k < 0 ? def : process.argv[k + 1]; };
 const HALLB = { lat: 43.80749, lon: 4.22952, siret: '94409256800012', m2: 2400, adherents: 1600 };   // chiffres de l'exploitant
-const TEST = process.argv.includes('--hallb');
+const TEST = process.argv.includes('--hallb'), SITES = process.argv.includes('--sites');
 const EXACTE = TEST || process.argv.includes('--exacte');
 const site = TEST ? { lat: HALLB.lat, lon: HALLB.lon, m2: HALLB.m2, segment: 'premium' }
   : { lat: +arg('lat'), lon: +arg('lon'), m2: +arg('m2', CAPTURE.m2Defaut), segment: arg('segment', CAPTURE.segmentDefaut) };
-if (!Number.isFinite(site.lat) || !Number.isFinite(site.lon) || !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment]) {
-  console.log('usage : node capture.mjs --lat <lat> --lon <lon> [--m2 2000] [--segment premium|classique] [--exacte]  |  --hallb');
+if (!SITES && (!Number.isFinite(site.lat) || !Number.isFinite(site.lon) || !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment])) {
+  console.log('usage : node capture.mjs --lat <lat> --lon <lon> [--m2 2000] [--segment premium|classique] [--exacte]  |  --hallb  |  --sites');
   process.exit(1);
 }
 
@@ -36,14 +37,65 @@ const field = densityField(cells), G = grilleDe(cells);
 const hallb = gyms.find(g => g.siret === HALLB.siret);
 if (TEST && !hallb) { console.log('Hall b absente de data/gyms-fused.json (SIRET changé ?)'); process.exit(1); }
 if (TEST && (hallb.cat !== 'premium' || hallb.surfSrc !== 'reel')) console.log(`!! Hall b : ${hallb.cat}, ${hallb.surfSrc} (attendu : premium, reel) — relancer 02-supply.mjs`);
-const exclure = g => TEST && g === hallb;   // test : la salle ne se fait pas concurrence à elle-même
-const D = concurrence(G, field, gyms, { exclure });
+
+// Concurrence par jeu de paramètres (le noyau change d'un jeu à l'autre), facteur de temps et présence
+// de Hall b (écartée quand on teste son site : une salle ne se fait pas concurrence à elle-même)
+const memo = new Map();
+function concurrenceDe(p, facteur = 1, sansHallb = TEST) {
+  const cle = `${p.t50}|${p.beta}|${facteur}|${sansHallb}`;
+  if (!memo.has(cle)) memo.set(cle, concurrence(G, field, gyms, { p, facteur, exclure: g => sansHallb && g === hallb }));
+  return memo.get(cle);
+}
+// Marché : habitants × P (central), ou demande du modèle (âge, revenu) ramenée au même total national
+const PEN = cells.reduce((s, c) => s + c.dem, 0) / cells.reduce((s, c) => s + c.ind, 0);   // 10 % (01-demand.mjs)
+const MARCHES = { habitants: (c, p) => c.ind * p.pratiqueMax, demande: (c, p) => c.dem / PEN * p.pratiqueMax };
+const KS = [0.5, 1, 2];
+const evaluer = ({ lat, lon, m2, segment, temps = null, facteur = 1, p = CAPTURE, k = 1, marche = MARCHES.habitants, sansHallb = TEST }) =>
+  capture(G, field, concurrenceDe(p, facteur, sansHallb), { lat, lon, m2, segment, temps, marche, k, p });
+// Variantes de la fourchette : FAMILLE × poids des concurrents
+const variantes = FAMILLE.flatMap(p => KS.map(k => ({ p, k, nom: `${p.nom} ×${dec(k, 1).replace(',0', '')}` })));
+
+const parametres = p => `noyau log-logistique t50 = ${dec(p.t50, 1)} min, β = ${dec(p.beta, 1)}, coupure ${CAPTURE.tCoupure} min · pratique maximale ${dec(p.pratiqueMax * 1000, 0)} ‰ · non-recours W_0 = ${fmt(p.nonRecours)}`;
+console.log(`Modèle : ${parametres(CAPTURE)}`);
+console.log(`Attractivité = surface × adhérents/m² : premium ${dec(CAPTURE.adhParM2.premium)}, classique ${dec(CAPTURE.adhParM2.classique, 1)}`);
+console.log(`Fourchette : ${FAMILLE.map(p => `${p.nom} (t50 ${dec(p.t50, 1)}, ${dec(p.pratiqueMax * 1000, 0)} ‰)`).join(', ')}, équivalents pour Hall b · concurrents × ${KS.map(k => dec(k, 1)).join(' / ')}`);
+
+if (SITES) {
+  // ── Test multi-sites : un site isolé ne doit plus sortir en tête par la seule absence de concurrent ──
+  // Projet premium de 2 000 m², mode national. « Avant » : Huff pur de la première moitié de e
+  // (14/10/2026, sans non-recours), pour comparaison.
+  const HUFF_PUR = { nom: 'Huff pur', nonRecours: 0, t50: 7.3, beta: 4, pratiqueMax: 0.114 };
+  const LISTE = [
+    ['Paris centre (Châtelet)', 48.8584, 2.3470, 'Paris'], ['Montreuil', 48.8610, 2.4430, 'banlieue'],
+    ['Site n° 1 de la carte (Bagneux)', 48.79817, 2.28905, 'banlieue'], ['Montpellier', 43.6108, 3.8767, 'grande ville'],
+    ['Grenoble', 45.1885, 5.7245, 'grande ville'], ['Dijon', 47.3220, 5.0415, 'grande ville'], ['Niort', 46.3237, -0.4588, 'ville moyenne'],
+    ['Saint-Dionisy (sans Hall b)', 43.80749, 4.22952, 'périurbain'], ['Guéret', 46.1716, 1.8717, 'petite ville isolée'],
+    ['Mende', 44.5181, 3.5006, 'petite ville isolée'], ['Langeac', 45.0997, 3.4936, 'bourg isolé'],
+    ['Saintes-Maries-de-la-Mer', 43.4522, 4.4286, 'village isolé'],
+  ].map(([nom, lat, lon, type]) => ({ nom, lat, lon, type, m2: CAPTURE.m2Defaut, segment: 'premium', sansHallb: nom.startsWith('Saint-Dionisy') }));
+  const isole = s => s.type.includes('isolé');
+  for (const s of LISTE) {
+    s.avant = evaluer({ ...s, p: HUFF_PUR }); s.central = evaluer({ ...s });
+    s.v = variantes.map(({ p, k }) => evaluer({ ...s, p, k }).adherents);
+  }
+  const rangIsole = val => { const tri = [...LISTE].sort((a, b) => val(b) - val(a)); return tri.findIndex(isole) + 1; };
+  console.log(`\n══ Test sur ${LISTE.length} sites · projet premium ${fmt(CAPTURE.m2Defaut)} m², mode national (temps du modèle) ══`);
+  console.log(`  ${'Site'.padEnd(33)}${'type'.padEnd(21)}${'hab. ≤ 30 min'.padStart(13)}${'avant'.padStart(8)}${'central'.padStart(9)}   fourchette      20–30 min avant → central   sans concurrent avant → central`);
+  for (const s of LISTE) console.log(`  ${s.nom.padEnd(33)}${s.type.padEnd(21)}${fmt(s.central.habitants).padStart(13)}${fmt(s.avant.adherents).padStart(8)}${fmt(s.central.adherents).padStart(9)}   ${`${fmt(Math.min(...s.v))} – ${fmt(Math.max(...s.v))}`.padEnd(16)}`
+    + `${`${pct(s.avant.parBande[3] / s.avant.adherents)} → ${pct(s.central.parBande[3] / s.central.adherents)}`.padStart(17)}${`${pct(s.avant.sansConcurrent / s.avant.adherents)} → ${pct(s.central.sansConcurrent / s.central.adherents)}`.padStart(30)}`);
+  const pire = Math.min(...variantes.map((_, j) => rangIsole(s => s.v[j])));
+  console.log(`  « avant » : Huff pur de la première moitié de e (${parametres(HUFF_PUR)})`);
+  console.log(`\nRang du premier site isolé sur ${LISTE.length} : avant ${rangIsole(s => s.avant.adherents)}, central ${rangIsole(s => s.central.adherents)}, au mieux ${pire} sur les ${variantes.length} variantes de la fourchette`);
+  console.log('Classement central : ' + [...LISTE].sort((a, b) => b.central.adherents - a.central.adherents).map((s, j) => `${j + 1}. ${s.nom.split(' (')[0]}`).join(' · '));
+  process.exit(0);
+}
+
 const [sE, sN] = toLaea(site.lat, site.lon);
+const exclure = g => TEST && g === hallb;
 
 // ── Zone exacte : isochrones Valhalla, un contour par requête ─────────────────────────────────────
 const VALHALLA = process.env.VALHALLA_URL || 'https://valhalla1.openstreetmap.de';
 const UA = { 'Content-Type': 'application/json', 'User-Agent': 'GymLocator (+https://github.com/Gauthier-Bonhomme/gymlocator)' };
-const CONTOURS = [5, 10, 15, 20, 25, 30];
 const pause = ms => new Promise(r => setTimeout(r, ms));
 async function isochrones(lat, lon) {
   const dir = new URL('isochrones/', DATA); mkdirSync(dir, { recursive: true });
@@ -63,50 +115,27 @@ async function isochrones(lat, lon) {
   }
   return I;
 }
-// Centre du carreau dans le polygone (contours extérieurs), comme isoStats() du front
-const pip = (x, y, ring) => { let ins = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [xi, yi] = ring[i], [xj, yj] = ring[j]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) ins = !ins; } return ins; };
-function dansContour(geom, fn) {
-  const rings = (geom.type === 'Polygon' ? [geom.coordinates[0]] : geom.coordinates.map(p => p[0])).map(r => r.map(([lo, la]) => toLaea(la, lo)));
-  let E0 = Infinity, E1 = -Infinity, N0 = Infinity, N1 = -Infinity;
-  for (const r of rings) for (const [E, N] of r) { E0 = Math.min(E0, E); E1 = Math.max(E1, E); N0 = Math.min(N0, N); N1 = Math.max(N1, N); }
-  for (let x = Math.floor(E0 / 1000); x <= Math.floor(E1 / 1000); x++) for (let y = Math.floor(N0 / 1000); y <= Math.floor(N1 / 1000); y++) {
-    const gx = x - G.minCx, gy = y - G.minCy; if (gx < 0 || gy < 0 || gx >= G.cols || gy >= G.rows) continue;
-    const i = G.KIDX[gx + gy * G.cols];
-    if (i >= 0 && rings.some(r => pip(x * 1000 + 500, y * 1000 + 500, r))) fn(i);
-  }
-}
 
 // ── Calculs ───────────────────────────────────────────────────────────────────────────────────────
-const MARCHES = [['p0 11,4 %', c => c.ind * CAPTURE.penetration], ['demande 10 %', c => c.dem]];   // le 1er = central
-const KS = [0.5, 1, 2];
 const TAILLES = [...new Set([site.m2, 1200, 2000])].sort((a, b) => a - b);
-const modes = [{ nom: 'national (temps du modèle)', D, temps: null }];
+const modes = [{ nom: 'national (temps du modèle)', temps: null, facteur: 1 }];
 let zone = null;
 if (EXACTE) {
   console.log(`Isochrones Valhalla (${VALHALLA}) :`);
   const I = await isochrones(site.lat, site.lon);
-  const temps = new Map(), popContour = {};
-  for (const min of CONTOURS) {   // du plus petit au plus grand : un carreau prend sa première bande
-    let pop = 0;
-    dansContour(I.contours[min], i => { pop += cells[i].ind; if (!temps.has(i)) temps.set(i, min - 2.5); });
-    popContour[min] = pop;
-  }
-  // Variante : les concurrents roulent aussi vite que le projet autour du site. Rapport local des
-  // temps Valhalla / modèle depuis le projet (médiane pondérée par la population de la zone exacte).
-  const r = []; voisins(G, field, sE, sN, 90, (i, t) => { if (temps.has(i)) r.push([temps.get(i) / t, cells[i].ind]); });
-  r.sort((a, b) => a[0] - b[0]);
-  let acc = 0, rho = 1; const tot = r.reduce((s, x) => s + x[1], 0);
-  for (const [v, w] of r) { acc += w; if (acc >= tot / 2) { rho = v; break; } }
+  const { temps, popContour } = tempsIsochrones(G, I);
+  // Variante : les concurrents roulent aussi vite que le projet autour du site (rapport local des
+  // temps Valhalla / modèle depuis le projet)
+  const rho = rapportLocal(G, field, sE, sN, temps);
   zone = { date: I.date, popContour, rho, carreaux: temps.size };
-  modes.push({ nom: 'zone exacte (isochrones Valhalla)', D, temps });
-  modes.push({ nom: `zone exacte, concurrents × ${dec(rho)} en temps`, D: concurrence(G, field, gyms, { exclure, facteur: rho }), temps, variante: true });
+  modes.push({ nom: 'zone exacte (isochrones Valhalla)', temps, facteur: 1 });
+  modes.push({ nom: `zone exacte, concurrents × ${dec(rho)} en temps`, temps, facteur: rho, variante: true });
 }
-const evaluer = (mode, m2, marche, k, segment = site.segment) => capture(G, field, mode.D, { lat: site.lat, lon: site.lon, m2, segment, temps: mode.temps, marche, k });
+const ev = (mode, opts = {}) => evaluer({ ...site, temps: mode.temps, facteur: mode.facteur, ...opts });
 
 // ── Rapport ───────────────────────────────────────────────────────────────────────────────────────
 console.log(`\n══ Capture d'un projet · ${dec(site.lat, 5)} ; ${dec(site.lon, 5)} · ${site.segment} · ${fmt(site.m2)} m²${TEST ? ' · test Hall b' : ''} ══`);
-console.log(`Noyau log-logistique t50 = ${dec(CAPTURE.t50, 1)} min, β = ${CAPTURE.beta}, coupure ${CAPTURE.tCoupure} min · pénétration ${dec(CAPTURE.penetration * 1000, 0)} ‰ des habitants`);
-console.log(`Attractivité = surface × adhérents/m² : premium ${dec(CAPTURE.adhParM2.premium)}, classique ${dec(CAPTURE.adhParM2.classique, 1)} → projet ${fmt(evaluer(modes[0], site.m2, MARCHES[0][1], 1).W)}`);
+console.log(`Attractivité du projet : ${fmt(ev(modes[0]).W)}`);
 { // concurrence autour du site : temps du modèle entre le site et chaque salle (densités lissées des deux points)
   const dS = field.at(Math.floor(sE / 1000), Math.floor(sN / 1000)), n = { 15: 0, 30: 0 }, w = { 15: 0, 30: 0 };
   for (const g of gyms) {
@@ -122,21 +151,23 @@ if (zone) {
   console.log(`  rapport local temps Valhalla / temps du modèle : ${dec(zone.rho)} (médiane pondérée, ${zone.carreaux} carreaux)`);
 }
 
-console.log('\nRésultat central (pénétration p0, concurrents × 1)');
-console.log('  Mode                                        adhérents   hab. ≤ 30 min   part captée   ' + BANDES.map((b, k) => `${k ? BANDES[k - 1] : 0}–${b}`).join(' / ') + ' min   sans concurrent');
+console.log('\nRésultat central (W_0 = ' + fmt(CAPTURE.nonRecours) + ', concurrents × 1)');
+console.log('  Mode                                        adhérents   hab. ≤ 30 min   ‰ hab.   part des inscrits   ' + BANDES.map((b, k) => `${k ? BANDES[k - 1] : 0}–${b}`).join(' / ') + ' min   sans concurrent');
 for (const mode of modes) {
-  const r = evaluer(mode, site.m2, MARCHES[0][1], 1);
-  console.log(`  ${mode.nom.padEnd(42)} ${fmt(r.adherents).padStart(9)}   ${fmt(r.habitants).padStart(13)}   ${pct(r.adherents / r.marche, 1).padStart(11)}   `
+  const r = ev(mode);
+  console.log(`  ${mode.nom.padEnd(42)} ${fmt(r.adherents).padStart(9)}   ${fmt(r.habitants).padStart(13)}   ${dec(1000 * r.adherents / r.habitants, 1).padStart(6)}   ${pct(r.adherents / r.inscrits, 1).padStart(17)}   `
     + r.parBande.map(a => pct(a / r.adherents)).join(' / ').padEnd(30) + `   ${pct(r.sansConcurrent / r.adherents, 1)}`);
 }
-if (TEST) console.log(`  Hall b réelle : ${fmt(HALLB.adherents)} adhérents (exploitant). Test en partie circulaire : f, p0 et la densité premium viennent de Hall b.`);
+console.log('  « part des inscrits » : adhérents du projet / inscrits de toutes les salles dans ses carreaux à ≤ 30 min');
+if (TEST) console.log(`  Hall b réelle : ${fmt(HALLB.adherents)} adhérents (exploitant). Test en partie circulaire : f, P, W_0 et la densité premium viennent de Hall b.`);
 const autre = site.segment === 'premium' ? 'classique' : 'premium';
-console.log(`  Même projet en ${autre} (mode national) : ${fmt(evaluer(modes[0], site.m2, MARCHES[0][1], 1, autre).adherents)} adhérents`);
+console.log(`  Même projet en ${autre} (mode national) : ${fmt(ev(modes[0], { segment: autre }).adherents)} adhérents`);
+const dem = ev(modes[0], { marche: MARCHES.demande }).adherents / ev(modes[0]).adherents - 1;
+console.log(`  Marché selon la demande du modèle (âge, revenu) au lieu des habitants : ${dem >= 0 ? '+' : '−'}${pct(Math.abs(dem), 1)} (mode national)`);
 
-console.log('\nSensibilité : adhérents attendus selon la pénétration et le poids des concurrents');
-const entetes = MARCHES.flatMap(([nm]) => KS.map(k => `${nm} ×${dec(k, 1).replace(',0', '')}`));
-console.log(`  ${'Mode · taille'.padEnd(52)}${entetes.map(h => h.padStart(19)).join('')}   fourchette`);
+console.log('\nSensibilité : adhérents attendus selon le jeu de paramètres (FAMILLE) et le poids des concurrents');
+console.log(`  ${'Mode · taille'.padEnd(52)}${variantes.map(v => v.nom.padStart(12)).join('')}   fourchette`);
 for (const mode of modes) for (const m2 of TAILLES) {
-  const v = MARCHES.flatMap(([, marche]) => KS.map(k => evaluer(mode, m2, marche, k).adherents));
-  console.log(`  ${`${mode.nom} · ${fmt(m2)} m²`.padEnd(52)}${v.map(x => fmt(x).padStart(19)).join('')}   ${fmt(Math.min(...v))} – ${fmt(Math.max(...v))}`);
+  const v = variantes.map(({ p, k }) => ev(mode, { m2, p, k }).adherents);
+  console.log(`  ${`${mode.nom} · ${fmt(m2)} m²`.padEnd(52)}${v.map(x => fmt(x).padStart(12)).join('')}   ${fmt(Math.min(...v))} – ${fmt(Math.max(...v))}`);
 }

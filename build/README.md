@@ -186,34 +186,83 @@ d'un OSRM ou d'un Valhalla local) ; le reste du pipeline et le front sont inchan
 
 ## Adhérents attendus d'un projet : `capture.mjs`
 
-Modèle de capture (étape e de `ROADMAP.md`, première moitié), dans `lib-capture.mjs`. Il ne touche
-ni aux couches (`grid.bin`), ni au classement des zones, ni au front.
+Modèle de capture (étape e de `ROADMAP.md`), dans `lib-capture.mjs`. Il ne touche ni aux couches
+(`grid.bin`), ni au classement des zones, ni au front.
 
 ```text
-adhérents = Σ_c  habitants_c × pénétration × part_c                      carreaux c à ≤ 30 min du projet
-part_c    = W_p f(t_pc) / (W_p f(t_pc) + k Σ_g W_g f(t_gc))              salles g à ≤ 30 min de c
+adhérents = Σ_c  habitants_c × P × part_c                                      carreaux c à ≤ 30 min du projet
+part_c    = W_p f(t_pc) / (W_0 + W_p f(t_pc) + k Σ_g W_g f(t_gc))               salles g à ≤ 30 min de c
 ```
 
-- **f** : log-logistique f(t) = 1 / (1 + (t / 7,3)⁴), nulle au-delà de 30 min (paramètres premium
-  de l'étape d), pour le projet comme pour les salles existantes.
+- **W_0, non-recours** : l'attrait de « ne s'inscrire nulle part », dans l'unité des W. Sans lui (Huff
+  pur, jusqu'au 14/10/2026), un village sans salle à 30 min revenait en entier au projet, même à
+  25 min : la queue lointaine était surestimée et un bourg isolé sortait en tête. Sans concurrent, la
+  part captée vaut désormais W_p f / (W_0 + W_p f) et baisse avec la distance.
+- **P, pratique maximale** : part des habitants inscrits quand l'offre est abondante et proche. Le taux
+  de pratique d'un carreau vaut P × S / (W_0 + S), S = Σ W f de toutes les salles accessibles.
+- **f** : log-logistique f(t) = 1 / (1 + (t / t50)^β), nulle au-delà de 30 min, pour le projet comme pour
+  les salles existantes.
 - **W** : attractivité = capacité en adhérents d'une salle de cette taille et de ce segment, soit
   surface × adhérents/m² : premium 0,67 (Hall b, 1 600 adhérents pour 2 400 m²), classique 1,4 (règle
   de l'offre, appliquée à tous les segments non premium). Les adhérents réels priment.
-- **Pénétration** : 114 ‰ des habitants (p0 de l'étape d). Variante : demande du modèle (10 %,
-  modulée par l'âge et le revenu).
-- **k** : poids des concurrents, 1 par défaut ; variantes × 0,5 et × 2. Seul compte le rapport
-  W_p / k : un projet deux fois plus petit équivaut à des concurrents deux fois plus lourds.
+- **k** : poids des concurrents, 1 par défaut ; variantes × 0,5 et × 2.
+- **Marché** : habitants × P ; variante, demande du modèle (âge, revenu) ramenée au même total national.
 - **Temps** : mode national, temps du modèle calé pour tous. Zone exacte (`--exacte`), temps du
   projet lus dans des isochrones Valhalla de 5 à 30 min, au milieu de la bande de 5 min (une requête
   par contour, 5 s de pause, cache dans `data/isochrones/`) ; les concurrents gardent les temps du
   modèle, d'où une variante où ils roulent au rapport local Valhalla / modèle mesuré autour du site.
 
+Paramètres (`FAMILLE` de `lib-capture.mjs`) : trois jeux équivalents pour Hall b, le central et deux
+encadrements.
+
+| Jeu | W_0 | t50 | β | P | Pratique nationale |
+|---|--:|--:|--:|--:|--:|
+| encadrement bas | 200 | 4,6 min | 3,4 | 15,2 % | 9,4 % |
+| **central** | **400** | **5,0 min** | **3,4** | **17,8 %** | **10,0 %** |
+| encadrement haut | 800 | 5,5 min | 3,4 | 21,5 % | 10,8 % |
+
 ```bash
 node capture.mjs --lat 43.80749 --lon 4.22952 --m2 2000 --segment premium   # mode national
 node capture.mjs --lat 43.80749 --lon 4.22952 --exacte                      # + zone exacte (Valhalla)
 npm run capture:hallb                                                       # test : Hall b, 2 400 m², premium
+npm run capture:sites                                                       # test : 12 sites, de Paris aux bourgs isolés
 ```
 
-Le résultat est une **fourchette** : pénétration × poids des concurrents, pour la taille demandée,
-1 200 et 2 000 m². Le test sur Hall b (exclue de la concurrence) est en partie circulaire : f, la
-pénétration et la densité premium viennent de ce club. Il ne valide pas le modèle.
+Le résultat est une **fourchette** : les trois jeux de `FAMILLE` × poids des concurrents, pour la
+taille demandée, 1 200 et 2 000 m². Le test sur Hall b (exclue de la concurrence) est en partie
+circulaire : f, P, W_0 et la densité premium viennent de ce club, et en zone exacte son total est fixé
+par le calage. Il ne valide pas le modèle. Le test `--sites` (projet premium de 2 000 m², mode
+national) compare 12 sites au Huff pur et donne le rang du premier site isolé, pour chaque variante.
+
+### Calage : `calage-capture.mjs`
+
+f, P et W_0 sont ajustés ensemble sur la répartition des adhérents de Hall b par bande de temps
+Valhalla. Cette répartition est **privée** : elle reste hors du dépôt (`data-private/` et
+`docs-private/` sont ignorés) ; seuls les paramètres qui en sortent sont versionnés.
+
+- **Même résolution que le réel** : les adhérents sont localisés par code postal, puis répartis sur
+  les carreaux de leur code postal au prorata des habitants. La prédiction passe par le même lissage
+  (parts d'adresses de la Base Adresse Nationale) avant d'être comparée. Sans ce lissage, le cœur
+  prédit, plus concentré que le cœur lissé, faisait préférer à tort un noyau plus étalé.
+- **Ce qu'un seul club identifie** : sa pénétration au pied du club et la distance où elle est divisée
+  par deux, pas leur partage entre le noyau, la pratique maximale et le non-recours. Sans concurrent,
+  la pénétration au pied vaut P W_p / (W_0 + W_p) et la demi-distance t50 (1 + W_p / W_0)^(1/β) : un
+  non-recours plus fort, une pratique maximale plus haute et un noyau plus étroit se compensent. De
+  W_0 = 0 à 100 000, l'ajustement reste dans la marge de la surdispersion. Même un Huff pur au noyau
+  recalé passe sur Hall b ; il échoue sur les bourgs isolés (`--sites`).
+- **Point central** : le W_0 qui redonne le taux de pratique national de la demande (10 %,
+  `01-demand.mjs`) avec toutes les salles existantes. Encadrement : W_0 divisé et multiplié par 2,
+  chacun recalé. Un point de pratique nationale en plus ou en moins déplacerait W_0 d'environ 100 à 900.
+- Calé avec les concurrents aux temps du modèle, la convention nationale. Avec la variante « vitesse
+  locale » autour de Hall b, la pratique nationale ne descend jamais sous 12 % : ce réglage ne se
+  transpose pas au reste du pays.
+
+```bash
+mkdir -p data/ban
+curl -s -o data/ban/adresses-30.csv.gz https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-30.csv.gz
+curl -s -o data/ban/adresses-34.csv.gz https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-34.csv.gz
+npm run capture:hallb      # isochrones de Hall b dans data/isochrones/ (une fois)
+npm run calage:capture     # ≈ 1 min ; lit data-private/hallb-bandes.json (privé)
+```
+
+Le rapport affiche des chiffres d'adhérents : il ne se copie dans aucun fichier versionné.

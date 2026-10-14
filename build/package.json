@@ -8,7 +8,9 @@
     "audit:figer": "node audit.mjs --figer",
     "audit:sensibilite": "node audit.mjs --sensibilite",
     "capture": "node capture.mjs",
-    "capture:hallb": "node capture.mjs --hallb"
+    "capture:hallb": "node capture.mjs --hallb",
+    "capture:sites": "node capture.mjs --sites",
+    "calage:capture": "node calage-capture.mjs"
   },
   "keywords": [],
   "author": "",

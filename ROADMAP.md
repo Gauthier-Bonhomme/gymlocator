@@ -11,7 +11,13 @@ _Rien pour l'instant._
 ## Prochaines (dans cet ordre)
 
 - [ ] **e. Étape 5, seconde moitié** (verdict absolu) : le modèle de capture existe (première
-  moitié, voir « Fait ») ; reste à s'en servir.
+  moitié, voir « Fait ») ; reste à corriger sa queue lointaine, puis à s'en servir.
+  - **D'abord, option « pas de salle » dans le modèle de Huff**, avant tout verdict ou classement
+    fondé sur la capture : la queue lointaine (20–30 min) est surestimée. Le marché (114 ‰ des
+    habitants) est le même partout, et quand les concurrents sont eux aussi loin, la part captée ne
+    décroît plus avec la distance : des villages à 20–30 min de Hall b, sans salle proche, lui
+    reviennent en majorité. Une alternative « ne pas s'inscrire » au dénominateur ferait baisser la
+    pratique là où toute salle est loin ; à caler.
   - Verdict absolu : adhérents attendus contre l'objectif de 1 600 adhérents ou plus (point mort).
   - Taille de projet réglable (défaut 2 000 m²) et segment premium / classique dans le front.
   - Revenu pondéré.
@@ -47,11 +53,6 @@ Le reste de l'audit n° 2, sans ordre.
 
 ### Modèle de capture (étape e)
 
-- Option « pas de salle » dans le Huff : le marché (114 ‰ des habitants) est le même partout, et
-  quand les concurrents sont eux aussi loin, la part captée ne décroît plus avec la distance. Autour
-  de Hall b, des villages à 20–30 min, sans salle proche, lui reviennent à plus de 50 % ; 28 % des
-  adhérents prédits viennent de 20 à 30 min (temps du modèle). Une alternative « ne pas s'inscrire »
-  au dénominateur ferait baisser la pratique là où toute salle est loin ; à caler.
 - Zone exacte : le projet a ses temps Valhalla, les concurrents ceux du modèle. Autour de Hall b,
   les temps Valhalla valent 0,82 fois ceux du modèle ; appliquer ce rapport aux concurrents fait
   passer Hall b de 2 098 à 1 282 adhérents prédits. Des temps routés pour les concurrents (matrice
@@ -148,7 +149,7 @@ Le reste de l'audit n° 2, sans ordre.
     Hall b en classique (attractivité 3 360 au lieu de 1 600) : 2 986 en mode national.
   - Ailleurs (premium 2 000 m², mode national, central) : centre de Paris 740, Dijon 898,
     Montpellier 1 002, Grenoble 1 028, Mende 820, Guéret 1 076, site n° 1 de la carte (Bagneux)
-    1 678. Guéret, comme Hall b, tire 30 % de ses adhérents de 20–30 min (voir « Plus tard » :
+    1 678. Guéret, comme Hall b, tire 30 % de ses adhérents de 20–30 min (voir la suite de e :
     option « pas de salle »).
 - [x] **grid.bin reproductible** : fait le 14/10/2026 (même branche). L'audit était rouge sur sa
   reproduction (écart max 3) alors que les sources ne changeaient pas : l'API Data ES exporte les

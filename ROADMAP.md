@@ -189,17 +189,9 @@ Le reste de l'audit n° 2, sans ordre.
   - Hall b classée premium dans l'offre (segment de l'exploitant, table `REELLES`) : premium
     136 → 137 clubs, capacité et couches inchangées ; 04 exige une enseigne pour ses « chaînes »
     (n = 506, inchangé).
-  - **Test sur Hall b** (2 400 m², premium, sans elle dans la concurrence), pour 1 600 adhérents
-    réels : 2 010 en mode national, 2 098 en zone exacte, 1 282 en zone exacte si les concurrents
-    roulent au rapport local Valhalla / modèle (0,82). Le modèle ne retrouve pas 1 600 au centre,
-    mais 1 600 est dans la fourchette. Ce test est **en partie circulaire** : le noyau, la
-    pénétration et la densité premium viennent tous de Hall b ; il ne valide pas le modèle.
-  - **Sensibilité** au site de Hall b (pénétration 114 ‰ ou demande du modèle à 10 % ; concurrents
-    × 0,5 à × 2) : projet premium de 2 000 m², 1 000 à 2 660 adhérents en mode national (central
-    1 805), 1 000 à 2 840 en zone exacte (1 869), 560 à 1 820 avec la vitesse locale (1 120) ;
-    1 200 m², 690 à 2 010 (1 303) ; 2 400 m², 1 130 à 2 910 (2 010). Le poids des concurrents pèse
-    le plus (facteur 2,3 entre × 0,5 et × 2) ; la demande du modèle au lieu de 114 ‰ retire 13 %.
-    Hall b en classique (attractivité 3 360 au lieu de 1 600) : 2 986 en mode national.
+  - **Test sur Hall b et sensibilité à son site** : comparés aux adhérents réels, résultats détaillés
+    dans `docs-private/`. Ce test est **en partie circulaire** : le noyau, la pénétration et la
+    densité premium viennent tous de Hall b ; il ne valide pas le modèle.
   - Ailleurs (premium 2 000 m², mode national, central) : centre de Paris 740, Dijon 898,
     Montpellier 1 002, Grenoble 1 028, Mende 820, Guéret 1 076, site n° 1 de la carte (Bagneux)
     1 678. Guéret, comme Hall b, tire 30 % de ses adhérents de 20–30 min (voir la suite de e :
@@ -280,6 +272,5 @@ Le reste de l'audit n° 2, sans ordre.
   `build/02-supply.mjs`, référence d'audit refigée). Fait et publié le 13/10/2026 (CI `9bf37a6`),
   vérifié sur la démo en ligne : « 2 400 m² · réelle (exploitant) », « 1 600 · réels ».
   Effet mesuré par l'audit (sources du 25/09) : la zone de Hall b passe de 83 % à 115 % de la
-  couverture nationale (« au niveau de la moyenne nationale ou au-dessus ») ; ses 1 600 adhérents
-  valent 42 % des 3 815 adhérents potentiels que le modèle place à 15 min, ce que c et d doivent
-  éclairer.
+  couverture nationale (« au niveau de la moyenne nationale ou au-dessus »). Comparaison avec les
+  adhérents réels : résultats détaillés dans `docs-private/`.

@@ -1,5 +1,7 @@
 # Feuille de route
 
+**Aucun résultat comparant le modèle aux adhérents réels de Hall b dans le dépôt : tout va dans docs-private/.**
+
 Référence : **audit n° 2** du 25/09/2026, mené sur le commit `ba51947` (constats N1 à N9,
 actions 1 à 8). Chaque étape se mesure avec `npm run audit` contre la référence figée, puis la
 référence est refigée (`npm run audit:figer`, voir `build/README.md`).
@@ -63,8 +65,8 @@ Le reste de l'audit n° 2, sans ordre.
 - Non-recours W_0 : un point de pratique nationale en plus ou en moins le déplacerait d'environ 100
   à 900. Un deuxième club, d'une autre taille ou dans une autre concurrence, le départagerait.
 - Zone exacte : le projet a ses temps Valhalla, les concurrents ceux du modèle. Autour de Hall b,
-  les temps Valhalla valent 0,82 fois ceux du modèle ; appliquer ce rapport aux concurrents fait
-  passer Hall b de 1 539 à 1 208 adhérents prédits. Des temps routés pour les concurrents (matrice
+  les temps Valhalla valent 0,82 fois ceux du modèle ; appliquer ce rapport aux concurrents réduit
+  nettement la capture prédite. Des temps routés pour les concurrents (matrice
   d'un OSRM ou d'un Valhalla local) lèveraient cette asymétrie. Calé avec ce rapport, le modèle
   donnerait plus de 12 % de pratique nationale : le calage garde les temps du modèle.
 - Attractivité : deux densités seulement (premium 0,67 adh/m², venue de Hall b ; 1,4 pour tous les

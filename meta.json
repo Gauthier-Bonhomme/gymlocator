@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-13",
+ "generated": "2026-10-14",
  "n": 374511,
  "cols": 1075,
  "rows": 1106,
@@ -19,7 +19,7 @@
   "pop": 62592659,
   "demande": 6259468,
   "capacite": 7108562,
-  "deficit": 2178816,
+  "deficit": 2178811,
   "salles": 10556
  },
  "modele": {

@@ -212,6 +212,18 @@ console.log(`SIRENE métropole retenus : ${gyms.length} (sans géoloc : ${noGeo}
 // non reproductible).
 const dataes = JSON.parse(readFileSync(new URL('../data/dataes.json', import.meta.url), 'utf8'))
   .sort((a, b) => a.equip_numero < b.equip_numero ? -1 : a.equip_numero > b.equip_numero ? 1 : 0);
+// Garde-fou de la CI : export Data ES complet, sinon arrêt immédiat, avant tout calcul et toute
+// écriture. Le 14/10/2026, l'API du ministère ne renvoyait que 183 enregistrements sur les 334 380
+// annoncés, dont 15 salles de musculation : l'offre tombait à 6 861 salles, et seul le seuil de
+// L'Appart Fitness (89 < 90 clubs) avait arrêté la CI avant qu'elle ne publie des couches tronquées.
+const DATAES_MIN = 5000;   // équipements « Salle de musculation/cardiotraining » exportés (≈ 7 991 en temps normal)
+if (dataes.length < DATAES_MIN) {
+  console.log(`!! ÉCHEC : data/dataes.json ne contient que ${dataes.length} équipements « Salle de musculation/cardiotraining » `
+    + `(moins de ${DATAES_MIN.toLocaleString('fr-FR')} ; environ 7 991 en temps normal). Export Data ES tronqué côté source : `
+    + `rien n'est calculé ni écrit. Relancer quand l'API annonce de nouveau son volume habituel `
+    + `(https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/records?limit=0).`);
+  process.exit(1);
+}
 const instRows = new Map();
 for (const e of dataes) {
   // inst_numero = equip_numero sans son préfixe « E001 » (vérifié sur l'API) — repli pour les exports anciens

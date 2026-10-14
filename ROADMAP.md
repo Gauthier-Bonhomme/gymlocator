@@ -8,9 +8,20 @@ référence est refigée (`npm run audit:figer`, voir `build/README.md`).
 
 ## En cours
 
-- [ ] **Publier la seconde moitié de e** (voir « Fait ») : branche `interface/classement-capture`, à
-  fusionner, puis lancer la CI à la main : `05-capture.mjs` y publie le bloc `capture` de `meta.json`
-  (paramètres et rang national). D'ici là, le front tourne sur ses valeurs de repli, sans rang national.
+- [ ] **Publier les couches de la seconde moitié de e** (voir « Fait ») : la branche
+  `interface/classement-capture` est fusionnée dans main et poussée (14/10/2026, `fead042`), mais la
+  publication des couches attend un Data ES complet. La CI (`05-capture.mjs`) doit publier le bloc
+  `capture` de `meta.json` (paramètres et rang national) ; d'ici là, le front en ligne tourne sur ses
+  valeurs de repli, sans rang national (vérifié le 14/10 : classement, clic, zone exacte, console).
+  - Data ES tronqué côté ministère le 14/10/2026 : l'API ne renvoyait que 183 enregistrements sur les
+    334 380 annoncés, dont 15 salles de musculation (≈ 7 991 en temps normal). La CI relancée ce
+    jour-là a échoué (une première fois sur Overpass) sans rien publier.
+  - `02-supply.mjs` échoue désormais explicitement, avant tout calcul et toute écriture, sous 5 000
+    équipements Data ES ; jusqu'ici, seul le seuil d'un réseau (L'Appart Fitness, 89 < 90) l'avait
+    arrêté.
+  - Relancer la CI seulement quand Data ES annonce de nouveau au moins 300 000 enregistrements
+    (`https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/data-es/records?limit=0`),
+    puis vérifier : audit vert 7/7 contre les couches publiées, démo (rang national compris, mobile).
 
 ## Prochaines (dans cet ordre)
 
@@ -143,8 +154,9 @@ Le reste de l'audit n° 2, sans ordre.
 ## Fait
 
 - [x] **e, seconde moitié : le modèle de capture dans l'interface** : fait le 14/10/2026 sur la branche
-  `interface/classement-capture`, un commit par point (pas encore fusionnée ni publiée, voir « En
-  cours »). Vérifié dans le navigateur (ordinateur et mobile), console sans erreur.
+  `interface/classement-capture`, un commit par point, fusionnée dans main et poussée le même jour
+  (couches pas encore publiées, voir « En cours »). Vérifié dans le navigateur (ordinateur et
+  mobile), console sans erreur.
   1. **Meilleurs sites pour un club de X m²** à la place de « Zones sous-équipées » : sites de la vue
      classés sur les adhérents attendus du modèle de capture (mode national), à au moins 2 km l'un de
      l'autre, jamais sur un carreau sans habitant ; taille 1 200 / 2 000 / 2 400 m² (défaut 2 000) et

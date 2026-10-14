@@ -10,12 +10,11 @@ _Rien pour l'instant._
 
 ## Prochaines (dans cet ordre)
 
-- [ ] **e. Étape 5** (Huff, verdict absolu) : taille de projet réglable (défaut 2 000 m², objectif
-  1 600 adhérents ou plus), segment haut de gamme, revenu pondéré.
-  - Classer Hall b en premium : sans enseigne reconnue, `02-supply.mjs` la range en « classic »
-    (catégorie par défaut des indépendants).
-  - Tester sur la zone exacte de Hall b (isochrone Valhalla), pas sur la zone estimée du modèle,
-    29 % trop petite autour de Hall b (voir c).
+- [ ] **e. Étape 5, seconde moitié** (verdict absolu) : le modèle de capture existe (première
+  moitié, voir « Fait ») ; reste à s'en servir.
+  - Verdict absolu : adhérents attendus contre l'objectif de 1 600 adhérents ou plus (point mort).
+  - Taille de projet réglable (défaut 2 000 m²) et segment premium / classique dans le front.
+  - Revenu pondéré.
   - Rappel : avec un seul club, la validation est circulaire. Les paramètres premium de d viennent
     de Hall b ; les retrouver sur Hall b ne prouve rien. Il faut d'autres salles (« Calibrer aussi
     sur une ou deux autres salles », dans « Plus tard »).
@@ -45,6 +44,22 @@ Le reste de l'audit n° 2, sans ordre.
   juste autour de la limite des 15 min mais 10 à 25 % plus lent que Valhalla au-delà de 8 km ;
   recaler l'accès (`accesMin`) et la vitesse ensemble.
 - Facteurs de site absents : visibilité, stationnement, loyer, zone commerciale.
+
+### Modèle de capture (étape e)
+
+- Option « pas de salle » dans le Huff : le marché (114 ‰ des habitants) est le même partout, et
+  quand les concurrents sont eux aussi loin, la part captée ne décroît plus avec la distance. Autour
+  de Hall b, des villages à 20–30 min, sans salle proche, lui reviennent à plus de 50 % ; 28 % des
+  adhérents prédits viennent de 20 à 30 min (temps du modèle). Une alternative « ne pas s'inscrire »
+  au dénominateur ferait baisser la pratique là où toute salle est loin ; à caler.
+- Zone exacte : le projet a ses temps Valhalla, les concurrents ceux du modèle. Autour de Hall b,
+  les temps Valhalla valent 0,82 fois ceux du modèle ; appliquer ce rapport aux concurrents fait
+  passer Hall b de 2 098 à 1 282 adhérents prédits. Des temps routés pour les concurrents (matrice
+  d'un OSRM ou d'un Valhalla local) lèveraient cette asymétrie.
+- Attractivité : deux densités seulement (premium 0,67 adh/m², venue de Hall b ; 1,4 pour tous les
+  autres). Les low-cost tiennent sans doute plus d'adhérents au m² ; à caler sur d'autres clubs.
+- Suivre dans l'audit les adhérents attendus de Hall b (`capture.mjs --hallb`), pour mesurer la
+  seconde moitié de e.
 
 ### Offre
 
@@ -99,9 +114,57 @@ Le reste de l'audit n° 2, sans ordre.
 - Valeurs réelles ignorées par deux filtres : la variante « adhérents/m² par type de salle »
   d'`audit:sensibilite` recalcule Hall b depuis sa surface, et « surface connue » de
   `04-backtest.mjs` ne retient que `dataes`.
+- `02-supply.mjs` dépend encore de l'ordre de l'export SIRENE (premier de deux doublons gardé…).
+  Cet export n'a pas bougé (fichiers identiques au 25/09, au 13/10 et au 14/10), mais le trier par
+  SIRET déplacerait aujourd'hui 57 clubs : fixer d'abord des règles de départage explicites.
+- Audit : avec le même nombre de salles, une offre locale différente de l'offre publiée s'affiche
+  « 03 et cet outil ne calculent plus la même chose ». Comparer d'abord à `gyms.json` pour dire
+  « sources différentes » plutôt que « code divergent ».
 
 ## Fait
 
+- [x] **e, première moitié. Modèle de capture d'un projet** : fait le 14/10/2026 sur la branche
+  `modele/capture-projet` (non fusionnée). `build/lib-capture.mjs` et `build/capture.mjs` (voir
+  `build/README.md`) ; ni l'interface, ni les couches, ni le classement ne changent.
+  - Adhérents attendus = Σ habitants × pénétration × part captée (Huff) sur les carreaux à ≤ 30 min ;
+    part captée = W_p f(t) / (W_p f(t) + Σ concurrents W_g f(t_g)), noyau premium de d
+    (log-logistique, t50 = 7,3 min, β = 4, coupure 30 min) pour tous ; pénétration 114 ‰ des
+    habitants ; attractivité W = surface × adhérents/m² du segment (premium 0,67, classique 1,4).
+  - Temps : modèle calé en mode national ; isochrones Valhalla de 5 à 30 min pour le projet en mode
+    « zone exacte » (populations du 14/10 : 33 321 habitants à 15 min, 222 658 à 30 min).
+  - Hall b classée premium dans l'offre (segment de l'exploitant, table `REELLES`) : premium
+    136 → 137 clubs, capacité et couches inchangées ; 04 exige une enseigne pour ses « chaînes »
+    (n = 506, inchangé).
+  - **Test sur Hall b** (2 400 m², premium, sans elle dans la concurrence), pour 1 600 adhérents
+    réels : 2 010 en mode national, 2 098 en zone exacte, 1 282 en zone exacte si les concurrents
+    roulent au rapport local Valhalla / modèle (0,82). Le modèle ne retrouve pas 1 600 au centre,
+    mais 1 600 est dans la fourchette. Ce test est **en partie circulaire** : le noyau, la
+    pénétration et la densité premium viennent tous de Hall b ; il ne valide pas le modèle.
+  - **Sensibilité** au site de Hall b (pénétration 114 ‰ ou demande du modèle à 10 % ; concurrents
+    × 0,5 à × 2) : projet premium de 2 000 m², 1 000 à 2 660 adhérents en mode national (central
+    1 805), 1 000 à 2 840 en zone exacte (1 869), 560 à 1 820 avec la vitesse locale (1 120) ;
+    1 200 m², 690 à 2 010 (1 303) ; 2 400 m², 1 130 à 2 910 (2 010). Le poids des concurrents pèse
+    le plus (facteur 2,3 entre × 0,5 et × 2) ; la demande du modèle au lieu de 114 ‰ retire 13 %.
+    Hall b en classique (attractivité 3 360 au lieu de 1 600) : 2 986 en mode national.
+  - Ailleurs (premium 2 000 m², mode national, central) : centre de Paris 740, Dijon 898,
+    Montpellier 1 002, Grenoble 1 028, Mende 820, Guéret 1 076, site n° 1 de la carte (Bagneux)
+    1 678. Guéret, comme Hall b, tire 30 % de ses adhérents de 20–30 min (voir « Plus tard » :
+    option « pas de salle »).
+- [x] **grid.bin reproductible** : fait le 14/10/2026 (même branche). L'audit était rouge sur sa
+  reproduction (écart max 3) alors que les sources ne changeaient pas : l'API Data ES exporte les
+  mêmes lignes dans un ordre variable (1 100 sur 7 991 déplacées entre le 13 et le 14/10), et 02
+  prenait la position, le propriétaire et le nom d'une installation à sa première ligne. Deux
+  téléchargements identiques donnaient 5 à 8 installations différentes.
+  - Vérifié : 03 recalcule à l'octet près le `grid.bin` de la CI (`9b20d32`) à partir de l'offre
+    qu'elle a publiée (Node 24 sous Windows contre Node 20 sous Linux) ; Filosofi et SIRENE
+    retéléchargés sont identiques à l'octet, OSM ne diffère que d'un nœud déplacé de 0,5 m.
+  - Correctif : Data ES trié par numéro d'équipement. L'export du 13/10, celui du 14/10 et trois
+    mélanges aléatoires donnent la même offre. Effet : 15 installations déplacées de quelques mètres
+    ou reclassées asso / classique, capacité inchangée, déficit national −5, backtest inchangé,
+    carte stable (rang 1,000, 20/20). Audit vert 5/5 sur les couches régénérées ; référence refigée
+    sur les sources du 14/10 (l'ancienne dans `build/audit/_ref-1310-apres-c`).
+  - Contre le `grid.bin` publié, encore produit par l'ancien 02, l'audit restera rouge jusqu'à la
+    première CI sur ce code.
 - [x] **d. Décroissance et pénétration calées sur les adhérents de Hall b** : fait le 13/10/2026.
   La mesure détaillée reste hors du dépôt public (`docs-private/`, non versionné). Paramètres
   **premium** proposés, propres à un club haut de gamme et **non appliqués** : le modèle garde la

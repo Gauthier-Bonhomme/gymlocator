@@ -44,6 +44,7 @@ node 01-demand.mjs     # demande par carreau (pénétration par âge ancrée 10 
 node 02-supply.mjs     # offre fusionnée SIRENE ∪ Data ES ∪ OSM → ../gyms.json
 node 03-e2sfca.mjs     # E2SFCA national → ../grid.bin + ../meta.json
 node 04-backtest.mjs   # validation ouvertures ≥ 2023 → complète ../meta.json
+node 05-capture.mjs    # paramètres du modèle de capture (lib-capture.mjs) → bloc capture de ../meta.json
 ```
 
 Chaque script affiche des contrôles (population totale ≈ 63 M, etc.). 02 échoue si un grand
@@ -186,8 +187,9 @@ d'un OSRM ou d'un Valhalla local) ; le reste du pipeline et le front sont inchan
 
 ## Adhérents attendus d'un projet : `capture.mjs`
 
-Modèle de capture (étape e de `ROADMAP.md`), dans `lib-capture.mjs`. Il ne touche ni aux couches
-(`grid.bin`), ni au classement des zones, ni au front.
+Modèle de capture (étape e de `ROADMAP.md`), dans `lib-capture.mjs`. Il ne touche pas aux couches
+(`grid.bin`) ; il classe les « Meilleurs sites » du front, qui reprend le même calcul avec les
+paramètres publiés par `05-capture.mjs` dans `meta.json` (bloc `capture`).
 
 ```text
 adhérents = Σ_c  habitants_c × P × part_c                                      carreaux c à ≤ 30 min du projet
@@ -226,7 +228,28 @@ node capture.mjs --lat 43.80749 --lon 4.22952 --m2 2000 --segment premium   # mo
 node capture.mjs --lat 43.80749 --lon 4.22952 --exacte                      # + zone exacte (Valhalla)
 npm run capture:hallb                                                       # test : Hall b, 2 400 m², premium
 npm run capture:sites                                                       # test : 12 sites, de Paris aux bourgs isolés
+node capture.mjs --classement --m2 2000 --segment premium --n 20            # meilleurs sites de France
+node capture.mjs --classement --cadre 43.2,3.2,44.4,4.9                     # … ou d'un cadre lat,lon,lat,lon
 ```
+
+**Classement des sites** (`--classement`, panneau « Meilleurs sites » du front) : adhérents captés en
+mode national par un projet placé au centre de chaque carreau habité, deux sites retenus à au moins
+2 km l'un de l'autre (`ESPACEMENT_KM`), jamais sur un carreau sans habitant. Chaque site est évalué
+seul : c'est une alternative aux autres, pas un réseau. Le calcul exhaustif (374 511 carreaux, chacun
+sur ~350 voisins à 30 min) prendrait 15 à 30 s ; la recherche est grossière puis fine (`RECHERCHE`) :
+
+1. un représentant par bloc de 4 × 4 km de la grille absolue (le carreau éligible le plus peuplé), ce
+   qui rend le résultat indépendant du cadrage ;
+2. tous les carreaux éligibles à ±3 km des 300 meilleurs représentants (sous 300 représentants, tout
+   est évalué) ;
+3. sélection gloutonne espacée de 2 km.
+
+Validée le 14/10/2026 contre le calcul exhaustif : même top 20 dans le même ordre sur la France,
+l'Île-de-France, la Bretagne, le Massif central, le Gard-Hérault et Lyon. Le noyau et la vitesse sont
+lus dans des tables interpolées (`tablesCapture`), à moins de 2·10⁻⁵ près du calcul exact de
+`capture()`. Le front calcule sur `grid.bin` (habitants arrondis à l'unité) et `gyms.json` (surfaces
+arrondies) : même top 20, valeurs à 0,02 % près. France entière : ~1 s en Node, quelques secondes
+dans un navigateur.
 
 Le résultat est une **fourchette** : les trois jeux de `FAMILLE` × poids des concurrents, pour la
 taille demandée, 1 200 et 2 000 m². Le test sur Hall b (exclue de la concurrence) est en partie

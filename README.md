@@ -34,14 +34,16 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
 - **Clic sur la carte** → estimation instantanée de la zone de chalandise ≤ 15 min : population,
   demande, couverture, déficit relatif et écart à la moyenne nationale en équivalent salles
   (« petit bassin » ≠ « au niveau de la moyenne »).
-- **Zones sous-équipées** → repérage glouton des N zones où le déficit relatif cumulé sur 15 min
-  (pondéré par le temps de trajet, avec le même noyau que la couverture) est le plus grand, parmi
-  les carreaux habités — une présélection à vérifier, pas une recommandation d'emplacement.
+- **Meilleurs sites pour un club de X m²** → classement des sites de la vue sur les **adhérents
+  attendus** d'un club dont on choisit la taille (1 200, 2 000 ou 2 400 m²) et le segment (premium ou
+  classique) : modèle de capture (Huff avec option « pas de salle ») sur les habitants à ≤ 30 min, face
+  aux salles existantes ; sites espacés d'au moins 2 km, jamais sur un carreau sans habitant — une
+  présélection à vérifier, pas une recommandation d'emplacement.
 - **Analyse exacte** → isochrone détaillée sur les mêmes couches et les mêmes unités que
   l'estimation (pas de mélange pondéré/brut).
 - **Cases à cocher par type de salle** (chaînes, indépendants, équipements publics…) →
   le score E2SFCA national est **recalculé côté client** sur le sous-ensemble (~2,5 s),
-  échelle de couleur et référence comprises.
+  échelle de couleur et référence comprises ; la concurrence des meilleurs sites suit le même filtre.
 - **Permalien** `#lat,lon,zoom,vue` pour partager une analyse.
 - **Modale « Méthode »** : mode d'emploi complet et limites du modèle, en 6 sections.
 
@@ -67,7 +69,7 @@ gymlocator.html          Application complète (une page, Leaflet, zéro dépend
 grid.bin / grid.bin.gz   Couches précalculées par carreau (Float32, ordre ligne/colonne EPSG:3035)
 gyms.json                Offre fusionnée (position, surface, type, enseigne)
 meta.json                Constantes du modèle + backtest — source unique lue par le front
-build/                   Pipeline Node (01-demand → 02-supply → 03-e2sfca → 04-backtest)
+build/                   Pipeline Node (01-demand → 02-supply → 03-e2sfca → 04-backtest → 05-capture)
 pipeline/                Héritage v3 : graphe routier OSRM France (~15 Go, non versionné),
                          conservé pour un futur raffinement temps de trajet — voir pipeline/README.md
 gymlocator-v1.html       Première version (score gravitaire bi-critères), archivée
@@ -79,7 +81,7 @@ gymlocator-v1.html       Première version (score gravitaire bi-critères), arch
 cd build
 npm install
 # télécharger les sources ouvertes (INSEE Filosofi, Data ES, SIRENE, OpenStreetMap) — voir build/README.md
-node 01-demand.mjs && node 02-supply.mjs && node 03-e2sfca.mjs && node 04-backtest.mjs
+node 01-demand.mjs && node 02-supply.mjs && node 03-e2sfca.mjs && node 04-backtest.mjs && node 05-capture.mjs
 ```
 
 ~2 minutes hors téléchargements. Chaque script vérifie des invariants (population totale ≈ 63 M,

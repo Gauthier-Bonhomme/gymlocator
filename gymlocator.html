@@ -108,15 +108,29 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 #legclose:hover{color:var(--txt)}
 #legopen{position:absolute;bottom:22px;right:14px;z-index:800;display:none;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 13px;font-size:11px;font-weight:600;cursor:pointer;box-shadow:0 3px 12px rgba(76,110,245,.45)}
 #legopen:hover{background:#5d7cf7}
-#bestpanel{position:absolute;top:14px;left:14px;background:#151922f2;border:1px solid var(--border);border-radius:10px;padding:12px 14px;z-index:850;display:none;min-width:214px;backdrop-filter:blur(8px)}
+/* à droite des boutons de zoom de Leaflet ; au-dessus du compteur de salles (#gcnt) */
+#bestpanel{position:absolute;top:14px;left:56px;background:#151922f2;border:1px solid var(--border);border-radius:10px;padding:12px 14px;z-index:950;display:none;width:290px;max-height:calc(100% - 28px);overflow:auto;backdrop-filter:blur(8px)}
 .bp-h{font-size:9px;color:var(--txt3);font-weight:700;text-transform:uppercase;letter-spacing:.09em;margin-bottom:9px}
 .bp-row{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--txt);margin-bottom:9px}
+.bp-l{width:52px;flex-shrink:0;font-size:11px;color:var(--txt2)}
+.bp-seg{display:inline-flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+.bp-opt{border:none;background:var(--panel2);color:var(--txt2);font-family:inherit;font-size:11px;font-weight:600;padding:6px 9px;cursor:pointer;font-variant-numeric:tabular-nums}
+.bp-opt+.bp-opt{border-left:1px solid var(--border2)}
+.bp-opt:hover{color:var(--txt)}
+.bp-opt.on{background:var(--accent);color:#fff}
 .bp-step{width:27px;height:27px;border:1px solid var(--border2);background:var(--panel2);color:var(--txt);border-radius:6px;font-size:17px;line-height:1;cursor:pointer;flex-shrink:0}
 .bp-step:hover{border-color:var(--accent);color:var(--accent2)}
 .bp-n{font-size:16px;font-weight:700;min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
-.bp-sub{font-size:10px;color:var(--txt3);line-height:1.5;margin-bottom:10px}
+.bp-sub{font-size:10px;color:var(--txt3);line-height:1.5;margin-top:10px}
 .bp-btns{display:flex;gap:6px}
 .bp-btns .iso-btn{margin-top:0}
+#bp-list:not(:empty){margin-top:10px;border-bottom:1px solid var(--border)}
+.bp-item{display:flex;align-items:center;gap:8px;padding:6px 3px;border-top:1px solid var(--border);font-size:11.5px;cursor:pointer}
+.bp-item:hover{background:#1d2331}
+.bp-rk{width:19px;height:19px;flex-shrink:0;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.bp-v{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bp-d{margin-left:auto;font-size:10px;color:var(--txt3);text-align:right;font-variant-numeric:tabular-nums}
+.bp-vide{font-size:11px;color:var(--txt2);line-height:1.5;padding:7px 3px;border-top:1px solid var(--border)}
 /* Mobile : header sur deux rangées, panneaux compacts */
 @media (max-width:680px){
   #hdr{flex-wrap:wrap;height:auto;padding:7px 10px;row-gap:6px}
@@ -127,7 +141,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
   #leg{min-width:0;max-width:62vw;max-height:46vh;overflow:auto;padding:14px 12px 12px;bottom:12px;right:10px}
   .lrow{font-size:11px}.lrow input{width:16px;height:16px}.lsrc{font-size:8px}
   #gcnt{bottom:12px;left:10px;max-width:40vw;white-space:normal;font-size:10px}
-  #bestpanel{top:auto;bottom:12px;left:10px;right:10px;min-width:0}
+  #bestpanel{top:auto;bottom:12px;left:10px;right:10px;width:auto;max-height:58vh}
   #legopen{bottom:12px;right:10px}
   .gp{min-width:180px}
   .iso-btn{padding:9px 8px}
@@ -145,7 +159,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
   <div id="togs">
     <button class="tbtn on" id="t-view" onclick="glView()">Vue : Déficit 15 min</button>
     <button class="tbtn on" id="t-gyms" onclick="glTog('gyms')">Salles</button>
-    <button class="tbtn" id="t-best" onclick="glBest()">Zones sous-équipées</button>
+    <button class="tbtn" id="t-best" onclick="glBest()">Meilleurs sites</button>
     <button class="tbtn" id="t-info" onclick="glInfo()">Méthode</button>
   </div>
 </div>
@@ -171,12 +185,15 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
     <div class="lsrc" id="leg-src"></div>
   </div>
   <button id="legopen" onclick="glLeg(true)">Légende &amp; filtres</button>
-  <!-- Zones sous-équipées : repérage glouton de N zones -->
+  <!-- Meilleurs sites : classement sur les adhérents attendus d'un projet (modèle de capture) -->
   <div id="bestpanel">
-    <div class="bp-h">Zones les plus sous-équipées</div>
-    <div class="bp-row"><span>Repérer</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>zone(s)</span></div>
-    <div class="bp-sub">Repère les points où l'<b>écart à la couverture moyenne nationale</b>, cumulé sur la zone 15 min voiture et pondéré par le trajet, est le plus grand — le même indicateur que la carte et l'analyse de zone. Chaque zone retenue est supposée équipée avant la suivante. Calcul sur la grille nationale, dans la vue affichée. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
-    <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Repérer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
+    <div class="bp-h">Meilleurs sites pour un club de <span id="bp-titre">2 000 m²</span></div>
+    <div class="bp-row"><span class="bp-l">Taille</span><span class="bp-seg" id="bp-tailles"></span></div>
+    <div class="bp-row"><span class="bp-l">Segment</span><span class="bp-seg" id="bp-segments"></span></div>
+    <div class="bp-row"><span class="bp-l">Afficher</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>sites</span></div>
+    <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Classer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
+    <div id="bp-list"></div>
+    <div class="bp-sub">Classés sur les <b>adhérents attendus</b> du club : habitants à ≤ 30 min, concurrence des salles existantes et part de non-inscrits (modèle de capture, temps de trajet du modèle). Sites de la vue affichée, à au moins 2 km l'un de l'autre, jamais sur un carreau sans habitant. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
   </div>
 
   <!-- Méthode & mode d'emploi -->
@@ -188,6 +205,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Ce que fait l'outil</h3>
       <p>GymLocator répond à une question : <b>où l'offre de salles est-elle la plus faible par rapport aux pratiquants potentiels, comparée à la moyenne nationale ?</b> Ce n'est ni un annuaire, ni un prédicteur de rentabilité : c'est un <b>filtre de marché</b>, conçu pour présélectionner des zones avant l'étude d'un emplacement précis.</p>
+      <p>Il estime aussi les <b>adhérents attendus d'un projet</b> (un club de la taille et du segment choisis) et classe sur ce chiffre les <b>meilleurs sites</b> de la vue affichée.</p>
 
       <h3>Le modèle, en trois couches</h3>
       <p><b>1 · La demande.</b> La France est découpée en <b id="m-cells">–</b> carreaux de 1 km (INSEE Filosofi 2021 : habitants, âges, niveau de vie). On applique un taux de pratique de 10 % (moyenne nationale), <b>modulé par l'âge</b> — ≈ 22 % chez les 18-24 ans, ≈ 4 % chez les 65-79 ans — et légèrement par le revenu (± 15 %). Chaque carreau porte ainsi un nombre d'<b>adhérents potentiels</b>.</p>
@@ -202,10 +220,17 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       <h3>Lire le déficit relatif</h3>
       <p>Le déficit relatif compte les adhérents potentiels qu'il faudrait équiper pour ramener une zone à la <b>couverture moyenne nationale</b>. Ce n'est pas une demande insatisfaite en absolu : par construction, les déficits des zones sous-équipées égalent les excédents des zones sur-équipées, et la carte resterait identique si toutes les salles de France doublaient ou si la moitié fermait. Dans la zone de 15 min, chaque adhérent potentiel compte avec le poids de trajet de la couverture (½ à <span id="m-t50">7</span> min, ¼ à <span id="m-t25">10</span> min) : un déficit proche pèse plus qu'un déficit en limite de zone. L'écart « ≈ N salles » est un équivalent pour rejoindre cette moyenne, pas une place garantie : l'outil ne dit pas si un marché est saturé.</p>
 
+      <h3>Adhérents attendus d'un projet</h3>
+      <p>« Meilleurs sites » répond à une autre question : <b>combien d'adhérents un club de taille et de segment donnés attirerait-il à cet endroit ?</b> C'est un modèle de capture (Huff) : chaque habitant à ≤ <span class="m-tcut">30</span> min choisit entre le projet, les salles existantes et l'option de ne s'inscrire nulle part. Chaque salle pèse son attractivité, sa capacité en adhérents (surface × <span id="m-adh-p">0,67</span> adhérent/m² en premium, × <span id="m-adh-c">1,4</span> en classique ; adhérents réels quand ils sont connus), atténuée par le temps de trajet.</p>
+      <div class="f">Part captée = W f(t) / (W₀ + W f(t) + Σ salles existantes W<sub>g</sub> f(t<sub>g</sub>))<br>
+      Adhérents attendus = Σ habitants à ≤ <span class="m-tcut">30</span> min × pratique maximale (<span id="m-pmax">17,8</span> %) × part captée<br>
+      f(t) = 1 / (1 + (t / <span id="m-t50c">5,0</span> min)<sup><span id="m-beta">3,4</span></sup>), nulle au-delà de <span class="m-tcut">30</span> min · non-recours W₀ = <span id="m-w0">400</span></div>
+      <p>Le noyau f, la pratique maximale et le non-recours W₀ sont calés ensemble sur la répartition des adhérents d'un club réel par temps de trajet et sur le taux de pratique national (10 %). Le classement utilise les temps de trajet du modèle (mode national) ; deux sites retenus sont à au moins <span id="m-esp">2</span> km l'un de l'autre, jamais sur un carreau sans habitant. La concurrence prise en compte est celle de la légende (types de salles cochés, salles non retirées).</p>
+
       <h3>Comment l'utiliser</h3>
       <ol>
-        <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon le <b>déficit relatif cumulé dans sa zone de chalandise</b>, pondéré par le temps de trajet — c'est le même chiffre que le clic, l'analyse de zone et le repérage des zones sous-équipées. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = au-dessus de la moyenne).</li>
-        <li><b>Exploration &amp; zones sous-équipées.</b> Recherchez une ville ou zoomez ; dès le zoom 10 les salles s'affichent, colorées par type. « Zones sous-équipées » repère le <b>nombre de zones de votre choix</b> là où le <b>déficit relatif cumulé sur 15 min est maximal</b> (l'indicateur de la carte), chaque zone retenue étant supposée équipée d'une salle de 1 200 m² avant la suivante. Le calcul se fait sur la grille nationale de 1 km : pour une même zone, les résultats sont stables quel que soit le cadrage. C'est une présélection, pas une recommandation d'emplacement.</li>
+        <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon le <b>déficit relatif cumulé dans sa zone de chalandise</b>, pondéré par le temps de trajet — c'est le même chiffre que le clic et l'analyse de zone. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = au-dessus de la moyenne).</li>
+        <li><b>Exploration &amp; meilleurs sites.</b> Recherchez une ville ou zoomez ; dès le zoom 10 les salles s'affichent, colorées par type. « Meilleurs sites » classe les sites de la vue affichée sur les <b>adhérents attendus</b> d'un club dont vous choisissez la taille (1 200, 2 000 ou 2 400 m²) et le segment (premium ou classique). Chaque site est évalué seul, comme une alternative aux autres. Le calcul se fait sur la grille nationale de 1 km : pour une même zone, les résultats ne dépendent pas du cadrage. C'est une présélection, pas une recommandation d'emplacement.</li>
         <li><b>Filtrage de la concurrence.</b> Dans la légende (fermable via le ×, réouvrable par le bouton « Légende &amp; filtres »), décochez les <b>types</b> de salles non concurrents de votre projet, ou retirez une <b>salle précise</b> via son popup (« Retirer cette salle du calcul »). Le modèle est <b>recalculé en direct</b> sur toute la France.</li>
         <li><b>Analyse d'un point.</b> Un clic donne l'estimation de la zone accessible en 15 min : demande, couverture, déficit relatif, écart à la moyenne nationale. « Analyser la zone » trace le périmètre, détaille la concurrence par segment, et tente en arrière-plan le <b>tracé routier exact</b> (service tiers).</li>
         <li><b>Le terrain.</b> L'outil s'arrête là, volontairement : foncier, loyer, visibilité, parking ne sont pas dans les données. Présélectionnez 3-4 zones ici, départagez-les sur place.</li>
@@ -316,7 +341,13 @@ let NEW_GYM_ABS=1585;              // demande absorbée par une salle de 1 200 m
 let NEW_GYM_M2=1200;               // surface de la salle de référence (meta.modele.newGymM2)
 let catActive={lowcost:true,premium:true,classic:true,niche:true,asso:true};
 let excluded=new Set();            // ids de salles retirées individuellement du calcul
-let bestN=5;                       // nombre de salles à placer (« Zones sous-équipées »)
+let bestN=5;                       // nombre de sites affichés (« Meilleurs sites »)
+// Modèle de capture : build/lib-capture.mjs → meta.capture (écrit par build/05-capture.mjs). Valeurs de
+// repli tant que le meta.json servi ne porte pas ce bloc, ÉCRASÉES au chargement.
+let CAP={famille:[{nom:'W0 200',nonRecours:200,t50:4.6,beta:3.4,pratiqueMax:0.152},{nom:'W0 400',nonRecours:400,t50:5.0,beta:3.4,pratiqueMax:0.178},{nom:'W0 800',nonRecours:800,t50:5.5,beta:3.4,pratiqueMax:0.215}],
+  central:1,tCoupure:30,adhParM2:{premium:1600/2400,classique:1.4},surfMax:6000,tailles:[1200,2000,2400],m2Defaut:2000,segmentDefaut:'premium',
+  espacementKm:2,recherche:{bloc:4,meilleurs:300,rayon:3}};
+let projet={m2:2000,segment:'premium'};   // projet évalué (panneau « Meilleurs sites »)
 let recomputing=false,recomputeQueued=false;
 const gymActive=g=>catActive[g.cat]&&!excluded.has(g.id);
 let map,hLayer,gymLayer,clkLayer,isoLayer,hiLayer,bestLayer,gymRenderer=null;
@@ -535,7 +566,7 @@ async function recomputeLayer(){
       NEW_GYM_ABS=Math.round(((META.modele&&META.modele.newGymM2)||1200)*MEMBERS_PER_M2/Math.max(AREF,0.05));
     }
     setBar(false);
-    clkLayer.clearLayers();isoLayer.clearLayers();hiLayer.clearLayers();bestLayer.clearLayers();isoPoint=null;
+    clkLayer.clearLayers();isoLayer.clearLayers();hiLayer.clearLayers();clearBest();capInvalider();isoPoint=null;
     hLayer.redraw();drawGyms();
     const exclCats=Object.keys(catActive).filter(k=>!catActive[k]).map(k=>CAT[k].lbl);
     const nEx=excluded.size;
@@ -548,6 +579,8 @@ async function recomputeLayer(){
   }finally{
     recomputing=false;
     if(recomputeQueued){recomputeQueued=false;recomputeLayer();}
+    // Panneau ouvert : reclasser avec la nouvelle concurrence
+    else if(document.getElementById('bestpanel').style.display==='block')placeBest();
   }
 }
 window.glCat=function(cat,checked){
@@ -806,8 +839,126 @@ window.glHiGyms=function(){
   }
 };
 
-// ── Zones sous-équipées : repérage glouton de N zones ──────────────────────────
-// Ouvre/ferme le panneau ; à l'ouverture, lance un placement avec le N courant.
+// ── Meilleurs sites : adhérents attendus d'un projet (modèle de capture) ───────
+// Même calcul que build/lib-capture.mjs (tablesCapture, captureCarreau, classerSites) : temps du
+// modèle, noyau log-logistique coupé à CAP.tCoupure, part captée W f / (W₀ + W f + Σ W_g f).
+let capT=null,capD=null,capBusy=false,capQueued=false,CLAT=null,CLON=null,bestMarkers=[];
+const capCaches=new Map();   // attractivité du projet → {grossier, fin} pour l'offre active
+const capW=()=>Math.min(CAP.surfMax,projet.m2)*CAP.adhParM2[projet.segment];
+// Salle existante : ses adhérents réels s'ils sont connus, sinon sa surface au taux de son segment
+const poidsSalle=g=>g.surfSrc==='reel'?g.cap:Math.min(CAP.surfMax,g.surf)*(g.cat==='premium'?CAP.adhParM2.premium:CAP.adhParM2.classique);
+function capInvalider(){capD=null;capCaches.clear();}
+// Tables interpolées (vitesse, noyau) et voisins d'un centre de carreau, comme tablesCapture()
+function capTables(){
+  if(capT)return capT;
+  const pal=META.modele&&META.modele.vitesse&&META.modele.vitesse.paliers;
+  const dMin=pal?pal[0][0]:0,dMax=pal?pal[pal.length-1][0]:8000,vMax=pal?Math.max(...pal.map(q=>q[1])):62;
+  const minParKm=new Float64Array(dMax+2);for(let d=0;d<=dMax+1;d++)minParKm[d]=60/speedKmh(d);
+  const p=CAP.famille[CAP.central],tc=CAP.tCoupure,noyau=new Float64Array(tc*100+2);
+  for(let k=0;k<noyau.length;k++)noyau[k]=1/(1+Math.pow(Math.min(tc,k/100)/p.t50,p.beta));
+  const R=Math.ceil((tc-T_ACCESS)/60*vMax),dxy=[],km=[];
+  for(let dx=-R;dx<=R;dx++)for(let dy=-R;dy<=R;dy++){const d=Math.hypot(dx,dy);if(T_ACCESS+d/vMax*60<=tc){dxy.push(dx,dy);km.push(d);}}
+  return capT={p,dMin,dMax,vMax,minParKm,noyau,dxy:Int32Array.from(dxy),km:Float64Array.from(km)};
+}
+function capMin(T,dm){if(dm>=T.dMax)return T.minParKm[T.dMax];if(dm<=T.dMin)return T.minParKm[0];const i=dm|0;return T.minParKm[i]+(T.minParKm[i+1]-T.minParKm[i])*(dm-i);}
+function capF(T,t){const u=t*100,k=u|0;return T.noyau[k]+(T.noyau[k+1]-T.noyau[k])*(u-k);}
+// Concurrence vue de chaque carreau : Σ salles actives W_g f(t), depuis la position exacte de la salle
+function capConcurrence(){
+  if(capD)return capD;
+  const T=capTables(),tc=CAP.tCoupure,tA=T_ACCESS,cols=META.cols,rows=META.rows,D=new Float64Array(META.n);
+  const R=Math.ceil((tc-tA)/60*T.vMax)+1;
+  for(const g of GYMS){
+    if(!gymActive(g))continue;const w=poidsSalle(g);if(!(w>0))continue;
+    const q=laeaForward(g.lat,g.lon),cx=Math.floor((q[0]-META.E0)/1000),cy=Math.floor((q[1]-META.N0)/1000),gD=densAt(cx,cy);
+    for(let dx=-R;dx<=R;dx++)for(let dy=-R;dy<=R;dy++){
+      const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=cols||y>=rows)continue;
+      const k=KIDX[x+y*cols];if(k<0)continue;
+      const t=tA+Math.hypot(META.E0+(x+.5)*1000-q[0],META.N0+(y+.5)*1000-q[1])/1000*capMin(T,(DENS[k]+gD)/2);
+      if(t<=tc)D[k]+=w*capF(T,t);
+    }
+  }
+  return capD=D;
+}
+// Adhérents captés par un projet d'attractivité W au centre du carreau s → [adhérents, habitants à ≤ 30 min]
+function capCarreau(D,W,s){
+  const T=capTables(),dxy=T.dxy,km=T.km,mk=T.minParKm,dMin=T.dMin,dMax=T.dMax,noy=T.noyau;
+  const tc=CAP.tCoupure,tA=T_ACCESS,P=T.p.pratiqueMax,W0=T.p.nonRecours,K=KIDX,DN=DENS,I=IND,cols=META.cols,rows=META.rows;
+  const x0=CXA[s],y0=CYA[s],dS=DN[s];let a=0,hab=0;
+  for(let o=0;o<km.length;o++){
+    const x=x0+dxy[2*o],y=y0+dxy[2*o+1];if(x<0||y<0||x>=cols||y>=rows)continue;
+    const j=K[x+y*cols];if(j<0)continue;
+    const dm=(DN[j]+dS)/2;let m;
+    if(dm>=dMax)m=mk[dMax];else if(dm<=dMin)m=mk[0];else{const i=dm|0;m=mk[i]+(mk[i+1]-mk[i])*(dm-i);}
+    const t=tA+km[o]*m;if(t>tc)continue;
+    const u=t*100,k=u|0,Wf=W*(noy[k]+(noy[k+1]-noy[k])*(u-k));
+    a+=I[j]*P*Wf/(W0+Wf+D[j]);hab+=I[j];
+  }
+  return [a,hab];
+}
+// Carreaux habités dont le centre est dans la vue affichée (bornée à la France)
+function capEligibles(){
+  const b=map.getBounds();
+  const s=Math.max(b.getSouth(),41),n=Math.min(b.getNorth(),51.5),w=Math.max(b.getWest(),-5.5),e=Math.min(b.getEast(),10);
+  if(n<=s||e<=w)return null;
+  const c=[[s,w],[s,e],[n,w],[n,e]].map(q=>laeaForward(q[0],q[1]));
+  const x0=Math.max(0,Math.floor((Math.min(...c.map(q=>q[0]))-META.E0)/1000)-1),x1=Math.min(META.cols-1,Math.floor((Math.max(...c.map(q=>q[0]))-META.E0)/1000)+1);
+  const y0=Math.max(0,Math.floor((Math.min(...c.map(q=>q[1]))-META.N0)/1000)-1),y1=Math.min(META.rows-1,Math.floor((Math.max(...c.map(q=>q[1]))-META.N0)/1000)+1);
+  if(!CLAT){CLAT=new Float32Array(META.n).fill(NaN);CLON=new Float32Array(META.n).fill(NaN);}
+  const out=[];
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    const k=KIDX[x+y*META.cols];if(k<0)continue;
+    if(isNaN(CLAT[k])){const ll=laeaInverse(META.E0+(x+.5)*1000,META.N0+(y+.5)*1000);CLAT[k]=ll[0];CLON[k]=ll[1];}
+    if(CLAT[k]>=s&&CLAT[k]<=n&&CLON[k]>=w&&CLON[k]<=e)out.push(k);
+  }
+  return out;
+}
+// Classement, même recherche que classerSites() de build/lib-capture.mjs : représentant le plus peuplé
+// de chaque bloc de la grille absolue, puis tous les carreaux éligibles autour des meilleurs
+// représentants, puis sélection gloutonne espacée d'au moins CAP.espacementKm.
+async function capClasser(elig,n){
+  const W=capW(),D=capConcurrence(),Rc=CAP.recherche,bloc=Rc.bloc,cols=META.cols,rows=META.rows;
+  let C=capCaches.get(W);if(!C){C={grossier:new Map(),fin:new Map()};capCaches.set(W,C);}
+  const rep=new Map();
+  for(const s of elig){const cle=Math.floor(CXA[s]/bloc)*100000+Math.floor(CYA[s]/bloc),r=rep.get(cle);
+    if(r===undefined||IND[s]>IND[r]||(IND[s]===IND[r]&&(CXA[s]<CXA[r]||(CXA[s]===CXA[r]&&CYA[s]<CYA[r]))))rep.set(cle,s);}
+  const reps=[...rep.values()];let t0=performance.now();
+  const pause=async f=>{if(performance.now()-t0>60){setBar(true,`Adhérents attendus… ${Math.round(f*100)} %`);await sleep(0);t0=performance.now();}};
+  for(let i=0;i<reps.length;i++){const s=reps[i];if(!C.grossier.has(s))C.grossier.set(s,capCarreau(D,W,s)[0]);await pause(i/reps.length*.7);}
+  reps.sort((a,b)=>C.grossier.get(b)-C.grossier.get(a)||CXA[a]-CXA[b]||CYA[a]-CYA[b]);
+  const ok=new Uint8Array(META.n);for(const s of elig)ok[s]=1;
+  const fins=[];
+  for(const s of reps.slice(0,Rc.meilleurs))for(let dx=-Rc.rayon;dx<=Rc.rayon;dx++)for(let dy=-Rc.rayon;dy<=Rc.rayon;dy++){
+    const x=CXA[s]+dx,y=CYA[s]+dy;if(x<0||y<0||x>=cols||y>=rows)continue;
+    const j=KIDX[x+y*cols];if(j>=0&&ok[j]===1){ok[j]=2;fins.push(j);}
+  }
+  for(let i=0;i<fins.length;i++){const j=fins[i];if(!C.fin.has(j))C.fin.set(j,capCarreau(D,W,j));await pause(.7+i/fins.length*.3);}
+  fins.sort((a,b)=>C.fin.get(b)[0]-C.fin.get(a)[0]||CXA[a]-CXA[b]||CYA[a]-CYA[b]);
+  const e2=CAP.espacementKm*CAP.espacementKm,sites=[];
+  for(const i of fins){if(sites.every(j=>(CXA[i]-CXA[j])**2+(CYA[i]-CYA[j])**2>=e2))sites.push(i);if(sites.length>=n)break;}
+  return sites.map(k=>({k,adherents:C.fin.get(k)[0],habitants:C.fin.get(k)[1]}));
+}
+const fmtAdh=v=>(Math.round(v/10)*10).toLocaleString('fr');
+const projetLbl=()=>`club ${projet.segment} de ${projet.m2.toLocaleString('fr')} m²`;
+function capSitePopup(st,rank,ll){
+  return `<div class="gp">
+    <div class="gp-name">Site n° ${rank}</div>
+    <div class="gp-sub">${projetLbl()} · classé sur les adhérents attendus</div>
+    <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(st.adherents)}</span></div>
+    <div class="kv"><span class="k">Habitants à ≤ ${CAP.tCoupure} min</span><span class="v">~${Math.round(st.habitants).toLocaleString('fr')}</span></div>
+    <div class="gp-note">Modèle de capture, temps de trajet du modèle. Chaque site est évalué seul, comme une alternative aux autres. Présélection à vérifier sur le terrain.</div>
+    <button class="iso-btn" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
+  </div>`;
+}
+function projetSync(){
+  document.getElementById('bp-titre').textContent=`${projet.m2.toLocaleString('fr')} m²`;
+  document.getElementById('bp-tailles').innerHTML=CAP.tailles.map(m=>`<button class="bp-opt${m===projet.m2?' on':''}" onclick="glProjet(${m},null)">${m.toLocaleString('fr')}</button>`).join('');
+  document.getElementById('bp-segments').innerHTML=['premium','classique'].map(s=>`<button class="bp-opt${s===projet.segment?' on':''}" onclick="glProjet(null,'${s}')">${s==='premium'?'Premium':'Classique'}</button>`).join('');
+}
+window.glProjet=function(m2,segment){
+  if(m2)projet.m2=m2;if(segment)projet.segment=segment;projetSync();
+  if(document.getElementById('bestpanel').style.display==='block')placeBest();
+};
+// Ouvre/ferme le panneau ; à l'ouverture, classe les sites de la vue
 window.glBest=function(){
   if(!META)return;
   const panel=document.getElementById('bestpanel');
@@ -820,107 +971,36 @@ window.glBest=function(){
   if(show)placeBest(); else clearBest();
 };
 window.glBestN=function(d){
-  bestN=Math.max(1,Math.min(12,bestN+d));
+  bestN=Math.max(1,Math.min(20,bestN+d));
   document.getElementById('bp-n').textContent=bestN;
   placeBest();
 };
-window.clearBest=function(){bestLayer.clearLayers();};
-// Placement glouton sur la TRAME NATIONALE FIXE de 1 km (indépendante de l'écran :
-// mêmes résultats pour une même région, quel que soit le cadrage exact).
-//  1) Présélection : maximum de la couche uz à ±1 carreau sur une trame ancrée sur 3,
-//     dans la zone affichée → meilleurs germes, départage déterministe.
-//  2) Candidats : les germes affinés à ±1 carreau, avec chalandise complète
-//     (poids temps de trajet, comme le modèle) ; seuls les carreaux habités en sont.
-//  3) Glouton : à chaque étape, l'emplacement au plus grand déficit de zone PONDÉRÉ
-//     (le chiffre de la carte et de l'analyse de zone). La salle de référence placée
-//     ajoute sa capacité à la couverture (E2SFCA) : les suivantes s'espacent d'elles-
-//     mêmes (plusieurs salles dans une même grande ville si le déficit le justifie).
-window.placeBest=function(){
+window.clearBest=function(){bestLayer.clearLayers();bestMarkers=[];document.getElementById('bp-list').innerHTML='';};
+// Ouvre la popup d'un site sans changer le cadrage (le classement porte sur la vue affichée)
+window.glBestGo=function(i){const m=bestMarkers[i];if(!m)return;if(!map.getBounds().contains(m.getLatLng()))map.panTo(m.getLatLng());m.openPopup();};
+window.placeBest=async function(){
   if(!META||recomputing)return;
-  bestLayer.clearLayers();clkLayer.clearLayers();
-  const b=map.getBounds();
-  const s=Math.max(b.getSouth(),41),n=Math.min(b.getNorth(),51.5),w=Math.max(b.getWest(),-5.5),e=Math.min(b.getEast(),10);
-  if(n<=s||e<=w){notif('Vue hors de France','err');return;}
-  setBar(true,'Recherche des zones les plus sous-équipées…');
-  setTimeout(()=>{
-    // Bornes de la vue en coordonnées grille (via les 4 coins projetés)
-    const corners=[[s,w],[s,e],[n,w],[n,e]].map(c=>laeaForward(c[0],c[1]));
-    const x0=Math.max(0,Math.floor((Math.min(...corners.map(c=>c[0]))-META.E0)/1000));
-    const x1=Math.min(META.cols-1,Math.floor((Math.max(...corners.map(c=>c[0]))-META.E0)/1000));
-    const y0=Math.max(0,Math.floor((Math.min(...corners.map(c=>c[1]))-META.N0)/1000));
-    const y1=Math.min(META.rows-1,Math.floor((Math.max(...corners.map(c=>c[1]))-META.N0)/1000));
-    const newCap=Math.round(((META.modele&&META.modele.newGymM2)||1200)*MEMBERS_PER_M2);
-    // 1) Présélection sur trame absolue (x,y multiples de 3) : proxy = déficit de zone
-    //    (la couche uz EST la métrique du classement → présélection déjà alignée)
-    const seeds=[];
-    for(let x=x0+(3-x0%3)%3;x<=x1;x+=3)for(let y=y0+(3-y0%3)%3;y<=y1;y+=3){
-      let pr=0;
-      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
-        const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=META.cols||yy>=META.rows)continue;
-        const k=cellK(xx,yy);if(k!==undefined){const v=uzAt(k);if(v>pr)pr=v;}
-      }
-      if(pr>30)seeds.push({x,y,pr});
-    }
-    seeds.sort((a,b)=>b.pr-a.pr||a.x-b.x||a.y-b.y);
-    seeds.length=Math.min(seeds.length,320);
-    // 2) Candidats affinés (germe ±1 carreau) avec chalandise complète
-    const seen=new Set(),cands=[];
-    for(const sd of seeds)for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
-      const x=sd.x+dx,y=sd.y+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
-      const key=x+y*META.cols;if(seen.has(key))continue;seen.add(key);
-      const gk=cellK(x,y);if(gk===undefined)continue;   // carreau sans habitant : pas un emplacement
-      const gDens=DENS[gk];
-      const ks=[],ws=[];let sumDW=0,sumDW2=0;
-      for(let ddx=-13;ddx<=13;ddx++)for(let ddy=-13;ddy<=13;ddy++){
-        const xx=x+ddx,yy=y+ddy;if(xx<0||yy<0||xx>=META.cols||yy>=META.rows)continue;
-        const k=cellK(xx,yy);if(k===undefined)continue;
-        const d=Math.hypot((xx-x),(yy-y));
-        const t=T_ACCESS+d/speedKmh((DENS[k]+gDens)/2)*60;if(t>T_MAX)continue;
-        const wt=Math.exp(-t*t/SIGMA2);ks.push(k);ws.push(wt);sumDW+=DEM[k]*wt;sumDW2+=DEM[k]*wt*wt;
-      }
-      if(sumDW>=1)cands.push({x,y,ks,ws,sumDW,wbar:sumDW2/sumDW});
-    }
-    // 3) Glouton sur le déficit de zone pondéré, avec absorption par les salles placées
-    const aeff=new Map();
-    const getA=k=>{let v=aeff.get(k);if(v===undefined){v=relAt(k)*AREF;aeff.set(k,v);}return v;};
-    const picks=[];
-    for(let step=0;step<bestN;step++){
-      let best=null,bestZone=0,bestDem=0;
-      for(const c of cands){
-        if(picks.some(p=>Math.hypot(p.x-c.x,p.y-c.y)<2))continue;   // pas deux salles sur le même carreau
-        // Classement = déficit de la zone 15 min pondéré par le trajet (au premier pas,
-        // c'est la couche uz), après absorption par les salles déjà placées.
-        let wsum=0,dem=0;const ks=c.ks,ws=c.ws;
-        for(let i=0;i<ks.length;i++){const k=ks[i];wsum+=ws[i]*DEM[k]*Math.max(0,1-getA(k)/AREF);dem+=DEM[k];}
-        const better=wsum>bestZone+1e-6
-          ||(wsum>bestZone-1e-6&&best&&(c.x<best.x||(c.x===best.x&&c.y<best.y)));
-        if(better){bestZone=wsum;bestDem=dem;best=c;}
-      }
-      if(!best||bestZone<NEW_GYM_ABS*best.wbar*0.1)break;
-      const R=newCap/best.sumDW;
-      for(let i=0;i<best.ks.length;i++){const k=best.ks[i];aeff.set(k,getA(k)+R*best.ws[i]);}
-      picks.push({x:best.x,y:best.y,zone:bestZone,dem:bestDem,wbar:best.wbar});
-    }
-    setBar(false);bestLayer.clearLayers();
-    if(!picks.length){notif('Aucune zone nettement sous la moyenne nationale dans cette vue','warn');return;}
-    picks.forEach((c,i)=>{
-      const rank=i+1;
-      const ll=laeaInverse(META.E0+(c.x+.5)*1000,META.N0+(c.y+.5)*1000);
-      const vd=verdict(c.zone,c.dem,c.wbar);
-      const ico=L.divIcon({className:'',html:`<div class="bestm">${rank}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
-      L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(`<div class="gp">
-        <div class="gp-name">Zone n° ${rank}</div>
-        <div class="gp-sub">Classée par déficit relatif · 15 min voiture</div>
-        <div class="kv"><span class="k">Déficit relatif à ≤ 15 min <small>(pondéré trajet)</small></span><span class="v">~${Math.round(c.zone).toLocaleString('fr')} <small>adhérents</small></span></div>
-        <div class="kv"><span class="k">Adhérents potentiels à ≤ 15 min</span><span class="v">~${Math.round(c.dem).toLocaleString('fr')}</span></div>
-        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
-        <div class="gp-note">« Déficit relatif » est le même indicateur que l'analyse de zone et que la carte « Déficit 15 min » : un écart à la couverture moyenne nationale. Les zones mieux classées sont supposées déjà équipées. Présélection à vérifier sur le terrain (foncier, loyer, visibilité non modélisés).</div>
-        <button class="iso-btn" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
-      </div>`);
+  if(capBusy){capQueued=true;return;}
+  capBusy=true;
+  try{
+    clearBest();clkLayer.clearLayers();
+    const elig=capEligibles();
+    if(!elig){notif('Vue hors de France','err');return;}
+    if(!elig.length){notif('Aucun carreau habité dans cette vue','warn');return;}
+    setBar(true,'Adhérents attendus…');await sleep(30);
+    const sites=await capClasser(elig,bestN);
+    sites.forEach((st,i)=>{
+      const ll=laeaInverse(META.E0+(CXA[st.k]+.5)*1000,META.N0+(CYA[st.k]+.5)*1000);
+      const ico=L.divIcon({className:'',html:`<div class="bestm">${i+1}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
+      bestMarkers.push(L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(capSitePopup(st,i+1,ll),{maxWidth:290}));
     });
-    const full=picks.filter(p=>p.zone>=NEW_GYM_ABS*p.wbar).length;   // même seuil que verdict() : écart ≥ 1 salle
-    notif(`${picks.length}/${bestN} zone${picks.length>1?'s':''} repérée${picks.length>1?'s':''}${full?` · ${full} à au moins une salle d'écart`:''}`,'ok');
-  },30);
+    document.getElementById('bp-list').innerHTML=sites.map((st,i)=>`<div class="bp-item" onclick="glBestGo(${i})"><span class="bp-rk">${i+1}</span><span class="bp-v">≈ ${fmtAdh(st.adherents)} adhérents</span><span class="bp-d">${Math.round(st.habitants/1000).toLocaleString('fr')} k hab. à ≤ ${CAP.tCoupure} min</span></div>`).join('')
+      ||'<div class="bp-vide">Aucun site dans cette vue.</div>';
+    notif(`${sites.length} site${sites.length>1?'s':''} classé${sites.length>1?'s':''} · ${projetLbl()}`,'ok');
+  }finally{
+    setBar(false);capBusy=false;
+    if(capQueued){capQueued=false;placeBest();}
+  }
 };
 
 // ── Bascule de vue / salles / méthode ──────────────────────────────────────────
@@ -1079,6 +1159,17 @@ async function loadData(){
     if(META.colorLogUZ)COLORZ={min:META.colorLogUZ.min,max:META.colorLogUZ.max};
     NEW_GYM_M2=M.newGymM2||1200;
     NEW_GYM_ABS=Math.round(NEW_GYM_M2*MEMBERS_PER_M2/AREF);
+    if(META.capture)CAP=Object.assign({},CAP,META.capture);
+    projet={m2:CAP.m2Defaut,segment:CAP.segmentDefaut};projetSync();
+    {const pc=CAP.famille[CAP.central],dc=(v,d)=>v.toFixed(d).replace('.',',');
+     document.querySelectorAll('.m-tcut').forEach(el=>el.textContent=CAP.tCoupure);
+     document.getElementById('m-adh-p').textContent=dc(CAP.adhParM2.premium,2);
+     document.getElementById('m-adh-c').textContent=dc(CAP.adhParM2.classique,1);
+     document.getElementById('m-pmax').textContent=dc(pc.pratiqueMax*100,1);
+     document.getElementById('m-t50c').textContent=dc(pc.t50,1);
+     document.getElementById('m-beta').textContent=dc(pc.beta,1);
+     document.getElementById('m-w0').textContent=pc.nonRecours.toLocaleString('fr');
+     document.getElementById('m-esp').textContent=CAP.espacementKm;}
     // chiffres réels injectés dans la modale Méthode
     document.getElementById('m-date').textContent=META.generated;
     document.getElementById('m-aref').textContent=META.Aref.toFixed(2).replace('.',',');

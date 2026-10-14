@@ -30,7 +30,7 @@
 // P et W_0. Le point central est celui qui redonne le taux de pratique national de la demande (10 %,
 // 01-demand.mjs) avec toutes les salles existantes ; les deux autres encadrent ce choix.
 // Le calage vient d'un seul club : retrouver ses adhérents ne valide pas le modèle (voir ROADMAP.md).
-import { toLaea, speedKmh, V_MAX, T_ACCESS } from './lib-e2sfca.mjs';
+import { toLaea, speedKmh, V_MAX, T_ACCESS, VITESSE } from './lib-e2sfca.mjs';
 
 // Jeux de paramètres équivalents pour Hall b (calage-capture.mjs, 14/10/2026), du non-recours le plus
 // faible au plus fort ; t50 en minutes, W_0 en adhérents, P en part des habitants.
@@ -45,7 +45,7 @@ export const CAPTURE = {
   adhParM2: { premium: 1600 / 2400, classique: 1.4 },
   m2Defaut: 2000, segmentDefaut: 'premium',
 };
-const SURF_MAX = 6000;           // m² : plafond de 02-supply.mjs
+export const SURF_MAX = 6000;    // m² : plafond de 02-supply.mjs
 
 // p : jeu de paramètres (CAPTURE par défaut, ou un membre de FAMILLE)
 export const noyau = (t, p = CAPTURE) => t > CAPTURE.tCoupure ? 0 : 1 / (1 + (t / p.t50) ** p.beta);
@@ -150,4 +150,88 @@ export function capture(G, field, D, { lat, lon, m2 = CAPTURE.m2Defaut, segment 
   if (temps) for (const [i, t] of temps) visite(i, t);
   else { const [E, N] = toLaea(lat, lon); voisins(G, field, E, N, CAPTURE.tCoupure, visite); }
   return r;
+}
+
+// ── Classement des sites (« Meilleurs sites » du front, capture.mjs --classement) ─────────────────
+export const TAILLES = [1200, 2000, 2400];   // m² proposés dans le front ; défaut CAPTURE.m2Defaut
+export const ESPACEMENT_KM = 2;              // deux sites classés sont à au moins 2 km l'un de l'autre
+
+// Le classement évalue des dizaines de milliers de sites, chacun sur ~350 carreaux : la vitesse
+// (Math.log10) et le noyau (Math.pow) y sont lus dans des tables interpolées linéairement, à moins de
+// 2e-5 près du calcul exact de capture(). Le front (gymlocator.html) reprend les mêmes tables.
+const PAS_NOYAU = 100;   // pas de la table du noyau : 0,01 min
+export function tablesCapture(G, field, p = CAPTURE) {
+  const dMin = VITESSE.paliers[0][0], dMax = VITESSE.paliers[VITESSE.paliers.length - 1][0];
+  const minParKm = new Float64Array(dMax + 2);   // minutes par km à vol d'oiseau, densité lissée entière
+  for (let d = 0; d <= dMax + 1; d++) minParKm[d] = 60 / speedKmh(d);
+  const tableNoyau = Float64Array.from({ length: CAPTURE.tCoupure * PAS_NOYAU + 2 }, (_, k) => noyau(Math.min(CAPTURE.tCoupure, k / PAS_NOYAU), p));
+  // Voisins d'un centre de carreau jusqu'à la portée maximale en 30 min (distances en km)
+  const R = Math.ceil((CAPTURE.tCoupure - T_ACCESS) / 60 * V_MAX), dxy = [], km = [];
+  for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) {
+    const d = Math.hypot(dx, dy);
+    if (T_ACCESS + d / V_MAX * 60 <= CAPTURE.tCoupure) { dxy.push(dx, dy); km.push(d); }
+  }
+  const n = G.cells.length, CX = new Int32Array(n), CY = new Int32Array(n);
+  G.cells.forEach((c, i) => { CX[i] = c.E / 1000 - G.minCx; CY[i] = c.N / 1000 - G.minCy; });
+  return { G, p, dens: field.dens, ind: Float64Array.from(G.cells, c => c.ind), CX, CY,
+    dxy: Int32Array.from(dxy), km: Float64Array.from(km), dMin, dMax, minParKm, tableNoyau };
+}
+
+// Adhérents captés par un projet d'attractivité W placé au centre du carreau s (mode national, temps
+// du modèle), avec la concurrence D = concurrence() du jeu T.p. Retourne [adhérents, habitants à ≤ 30 min].
+export function captureCarreau(T, D, W, s) {
+  const { G: { KIDX, cols, rows }, p, dens, ind, CX, CY, dxy, km, dMin, dMax, minParKm, tableNoyau } = T;
+  const tCut = CAPTURE.tCoupure, P = p.pratiqueMax, W0 = p.nonRecours;
+  const x0 = CX[s], y0 = CY[s], dS = dens[s];
+  let a = 0, hab = 0;
+  for (let o = 0; o < km.length; o++) {
+    const x = x0 + dxy[2 * o], y = y0 + dxy[2 * o + 1];
+    if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+    const j = KIDX[x + y * cols]; if (j < 0) continue;
+    const dm = (dens[j] + dS) / 2;
+    let mpk;
+    if (dm >= dMax) mpk = minParKm[dMax]; else if (dm <= dMin) mpk = minParKm[0];
+    else { const i = dm | 0; mpk = minParKm[i] + (minParKm[i + 1] - minParKm[i]) * (dm - i); }
+    const t = T_ACCESS + km[o] * mpk; if (t > tCut) continue;
+    const u = t * PAS_NOYAU, k = u | 0, f = tableNoyau[k] + (tableNoyau[k + 1] - tableNoyau[k]) * (u - k), Wf = W * f;
+    a += ind[j] * P * Wf / (W0 + Wf + D[j]);
+    hab += ind[j];
+  }
+  return [a, hab];
+}
+
+// Classement des sites d'un ensemble de carreaux habités (le front : ceux de la vue affichée ; ici,
+// toute la France ou un cadre) sur les adhérents captés au centre du carreau, deux sites à au moins
+// ESPACEMENT_KM l'un de l'autre. Recherche grossière puis fine, validée contre le calcul exhaustif le
+// 14/10/2026 (même top 20 dans le même ordre, sur la France et cinq régions) :
+//  1. un représentant par bloc de 4 × 4 km de la grille absolue (le résultat ne dépend donc pas du
+//     cadrage) : son carreau éligible le plus peuplé ;
+//  2. tous les carreaux éligibles à ±3 km des 300 meilleurs représentants (un bloc entier est à ±3 km
+//     de son représentant : sous 300 représentants, le calcul est exhaustif) ;
+//  3. sélection gloutonne par valeur décroissante, en écartant les carreaux trop proches d'un site retenu.
+export const RECHERCHE = { bloc: 4, meilleurs: 300, rayon: 3 };
+export function classerSites(T, D, W, eligibles, { n = 20, espacement = ESPACEMENT_KM } = {}) {
+  const { G: { KIDX, cols, rows }, ind, CX, CY } = T, { bloc, meilleurs, rayon } = RECHERCHE;
+  const ordre = (a, b, v) => v.get(b) - v.get(a) || CX[a] - CX[b] || CY[a] - CY[b];
+  const rep = new Map();
+  for (const s of eligibles) {
+    const cle = Math.floor(CX[s] / bloc) * 100000 + Math.floor(CY[s] / bloc), r = rep.get(cle);
+    if (r === undefined || ind[s] > ind[r] || (ind[s] === ind[r] && (CX[s] < CX[r] || (CX[s] === CX[r] && CY[s] < CY[r])))) rep.set(cle, s);
+  }
+  const grossier = new Map();
+  for (const s of rep.values()) grossier.set(s, captureCarreau(T, D, W, s)[0]);
+  const eligible = new Uint8Array(T.ind.length); for (const s of eligibles) eligible[s] = 1;
+  const fin = new Map();   // carreau → [adhérents, habitants]
+  for (const s of [...grossier.keys()].sort((a, b) => ordre(a, b, grossier)).slice(0, meilleurs))
+    for (let dx = -rayon; dx <= rayon; dx++) for (let dy = -rayon; dy <= rayon; dy++) {
+      const x = CX[s] + dx, y = CY[s] + dy; if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+      const j = KIDX[x + y * cols];
+      if (j >= 0 && eligible[j] && !fin.has(j)) fin.set(j, captureCarreau(T, D, W, j));
+    }
+  const val = new Map([...fin].map(([i, r]) => [i, r[0]])), sites = [];
+  for (const i of [...fin.keys()].sort((a, b) => ordre(a, b, val))) {
+    if (sites.every(j => (CX[i] - CX[j]) ** 2 + (CY[i] - CY[j]) ** 2 >= espacement * espacement)) sites.push(i);
+    if (sites.length >= n) break;
+  }
+  return { sites: sites.map(i => ({ i, adherents: fin.get(i)[0], habitants: fin.get(i)[1] })), evaluations: grossier.size + fin.size };
 }

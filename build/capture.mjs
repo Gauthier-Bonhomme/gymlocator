@@ -3,6 +3,8 @@
 //   node capture.mjs --lat 43.80749 --lon 4.22952 [--m2 2000] [--segment premium|classique] [--exacte]
 //   node capture.mjs --hallb      test sur Hall b : 2 400 m², premium, sans elle dans la concurrence
 //   node capture.mjs --sites      test sur 12 sites variés (Paris, banlieue, villes, bourgs isolés), mode national
+//   node capture.mjs --classement [--m2 2000] [--segment premium] [--n 20] [--cadre lat1,lon1,lat2,lon2]
+//                                 meilleurs sites de la France (ou du cadre) : le classement du front
 //
 // Mode national : temps du modèle calé pour le projet et pour les salles existantes. --exacte (et
 // --hallb) : en plus, zone exacte du projet tracée par des isochrones Valhalla de 5 à 30 min (une
@@ -13,18 +15,21 @@
 // Lit data/cells.json et data/gyms-fused.json (pipeline 01-02) ; n'écrit que dans data/isochrones/.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { toLaea, densityField, speedKmh, T_ACCESS } from './lib-e2sfca.mjs';
-import { CAPTURE, FAMILLE, BANDES, CONTOURS, grilleDe, concurrence, capture, poidsSalle, tempsIsochrones, rapportLocal } from './lib-capture.mjs';
+import { CAPTURE, FAMILLE, BANDES, CONTOURS, grilleDe, concurrence, capture, poidsSalle, tempsIsochrones, rapportLocal,
+  attractivite, tablesCapture, classerSites } from './lib-capture.mjs';
 
 const DATA = new URL('../data/', import.meta.url);
 const readJson = u => JSON.parse(readFileSync(u, 'utf8'));
 const arg = (nom, def) => { const k = process.argv.indexOf(`--${nom}`); return k < 0 ? def : process.argv[k + 1]; };
 const HALLB = { lat: 43.80749, lon: 4.22952, siret: '94409256800012', m2: 2400, adherents: 1600 };   // chiffres de l'exploitant
-const TEST = process.argv.includes('--hallb'), SITES = process.argv.includes('--sites');
+const TEST = process.argv.includes('--hallb'), SITES = process.argv.includes('--sites'), CLASSEMENT = process.argv.includes('--classement');
 const EXACTE = TEST || process.argv.includes('--exacte');
 const site = TEST ? { lat: HALLB.lat, lon: HALLB.lon, m2: HALLB.m2, segment: 'premium' }
   : { lat: +arg('lat'), lon: +arg('lon'), m2: +arg('m2', CAPTURE.m2Defaut), segment: arg('segment', CAPTURE.segmentDefaut) };
-if (!SITES && (!Number.isFinite(site.lat) || !Number.isFinite(site.lon) || !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment])) {
-  console.log('usage : node capture.mjs --lat <lat> --lon <lon> [--m2 2000] [--segment premium|classique] [--exacte]  |  --hallb  |  --sites');
+if (!SITES && (CLASSEMENT ? !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment]
+  : !Number.isFinite(site.lat) || !Number.isFinite(site.lon) || !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment])) {
+  console.log('usage : node capture.mjs --lat <lat> --lon <lon> [--m2 2000] [--segment premium|classique] [--exacte]  |  --hallb  |  --sites'
+    + '  |  --classement [--m2 2000] [--segment premium|classique] [--n 20] [--cadre lat1,lon1,lat2,lon2]');
   process.exit(1);
 }
 
@@ -57,6 +62,20 @@ const variantes = FAMILLE.flatMap(p => KS.map(k => ({ p, k, nom: `${p.nom} ×${d
 
 const parametres = p => `noyau log-logistique t50 = ${dec(p.t50, 1)} min, β = ${dec(p.beta, 1)}, coupure ${CAPTURE.tCoupure} min · pratique maximale ${dec(p.pratiqueMax * 1000, 0)} ‰ · non-recours W_0 = ${fmt(p.nonRecours)}`;
 console.log(`Modèle : ${parametres(CAPTURE)}`);
+
+if (CLASSEMENT) {
+  // ── Meilleurs sites : le classement du front (panneau « Meilleurs sites »), sur la France ou un cadre ──
+  const n = +arg('n', 20), cadre = arg('cadre', null)?.split(',').map(Number);
+  const dans = c => !cadre || (c.lat >= Math.min(cadre[0], cadre[2]) && c.lat <= Math.max(cadre[0], cadre[2]) && c.lon >= Math.min(cadre[1], cadre[3]) && c.lon <= Math.max(cadre[1], cadre[3]));
+  const eligibles = []; cells.forEach((c, i) => { if (dans(c)) eligibles.push(i); });
+  const t0 = Date.now(), T = tablesCapture(G, field), W = attractivite(site.m2, site.segment);
+  const r = classerSites(T, concurrenceDe(CAPTURE, 1, false), W, eligibles, { n });
+  console.log(`\n══ Meilleurs sites · club ${site.segment} de ${fmt(site.m2)} m² (attractivité ${fmt(W)}) · ${cadre ? `cadre ${cadre.join(', ')}` : 'France'} · mode national ══`);
+  console.log(`${fmt(eligibles.length)} carreaux habités éligibles · ${fmt(r.evaluations)} évaluations · ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  r.sites.forEach((s, k) => { const c = cells[s.i];
+    console.log(`  ${String(k + 1).padStart(2)}. ${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}   ${fmt(s.adherents).padStart(6)} adhérents   ${fmt(s.habitants).padStart(9)} hab. à ≤ ${CAPTURE.tCoupure} min   carreau ${fmt(c.ind)} hab.`); });
+  process.exit(0);
+}
 console.log(`Attractivité = surface × adhérents/m² : premium ${dec(CAPTURE.adhParM2.premium)}, classique ${dec(CAPTURE.adhParM2.classique, 1)}`);
 console.log(`Fourchette : ${FAMILLE.map(p => `${p.nom} (t50 ${dec(p.t50, 1)}, ${dec(p.pratiqueMax * 1000, 0)} ‰)`).join(', ')}, équivalents pour Hall b · concurrents × ${KS.map(k => dec(k, 1)).join(' / ')}`);
 

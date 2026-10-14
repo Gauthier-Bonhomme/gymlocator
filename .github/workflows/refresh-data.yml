@@ -44,6 +44,7 @@ jobs:
           node 02-supply.mjs
           node 03-e2sfca.mjs
           node 04-backtest.mjs
+          node 05-capture.mjs
 
       - name: Committer si les couches ont changé
         run: |

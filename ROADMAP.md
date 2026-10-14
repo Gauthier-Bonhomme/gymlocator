@@ -10,18 +10,16 @@ _Rien pour l'instant._
 
 ## Prochaines (dans cet ordre)
 
-- [ ] **e. Étape 5, seconde moitié** (verdict absolu) : le modèle de capture existe (première
-  moitié, voir « Fait ») ; reste à corriger sa queue lointaine, puis à s'en servir.
-  - **D'abord, option « pas de salle » dans le modèle de Huff**, avant tout verdict ou classement
-    fondé sur la capture : la queue lointaine (20–30 min) est surestimée. Le marché (114 ‰ des
-    habitants) est le même partout, et quand les concurrents sont eux aussi loin, la part captée ne
-    décroît plus avec la distance : des villages à 20–30 min de Hall b, sans salle proche, lui
-    reviennent en majorité. Une alternative « ne pas s'inscrire » au dénominateur ferait baisser la
-    pratique là où toute salle est loin ; à caler.
-  - Verdict absolu : adhérents attendus contre l'objectif de 1 600 adhérents ou plus (point mort).
+- [ ] **e. Étape 5, seconde moitié** (verdict absolu) : le modèle de capture a son option « pas de
+  salle » (voir « Fait ») ; reste à s'en servir.
+  - Verdict absolu : adhérents attendus contre l'objectif de 1 600 adhérents ou plus (point mort),
+    avec la fourchette de `FAMILLE`. En ville elle reste large (Paris centre : 461 à 2 475 pour un
+    projet premium de 2 000 m²) : la pratique maximale et le poids des concurrents ne sont pas
+    identifiés par un club périurbain peu concurrencé. À la campagne, voir la réserve sur la pratique
+    implicite (« Plus tard », modèle de capture).
   - Taille de projet réglable (défaut 2 000 m²) et segment premium / classique dans le front.
   - Revenu pondéré.
-  - Rappel : avec un seul club, la validation est circulaire. Les paramètres premium de d viennent
+  - Rappel : avec un seul club, la validation est circulaire. Les paramètres de d et de e viennent
     de Hall b ; les retrouver sur Hall b ne prouve rien. Il faut d'autres salles (« Calibrer aussi
     sur une ou deux autres salles », dans « Plus tard »).
 
@@ -53,14 +51,26 @@ Le reste de l'audit n° 2, sans ordre.
 
 ### Modèle de capture (étape e)
 
+- Pratique implicite très contrastée selon la densité : avec les paramètres centraux, P S / (W_0 + S)
+  vaut 0,9 % des habitants sous 50 hab/km² (6,2 M d'habitants), 3,4 % de 50 à 200, 10 % de 200 à 1 000,
+  15 % de 1 000 à 4 000 et 16 % au-delà. Les salles existantes ne recevraient que 17 % de leur capacité
+  sous 50 hab/km² (210 salles), 46 % de 50 à 200, contre 116 % au-delà de 4 000. Le noyau, calé sur un
+  club périurbain, est sans doute trop court pour la campagne, ou le non-recours devrait dépendre du
+  territoire. À confronter à la pratique par taille de commune (enquêtes INJEP, fédérations) : ce
+  second ancrage fixerait aussi W_0, que seul le taux national (10 %) fixe aujourd'hui. Un projet
+  isolé garde une capture élevée par habitant (29 à 42 ‰ des habitants à 30 min à Guéret, Mende et
+  Langeac) : il est limité par sa population, pas écrasé.
+- Non-recours W_0 : un point de pratique nationale en plus ou en moins le déplacerait d'environ 100
+  à 900. Un deuxième club, d'une autre taille ou dans une autre concurrence, le départagerait.
 - Zone exacte : le projet a ses temps Valhalla, les concurrents ceux du modèle. Autour de Hall b,
   les temps Valhalla valent 0,82 fois ceux du modèle ; appliquer ce rapport aux concurrents fait
-  passer Hall b de 2 098 à 1 282 adhérents prédits. Des temps routés pour les concurrents (matrice
-  d'un OSRM ou d'un Valhalla local) lèveraient cette asymétrie.
+  passer Hall b de 1 539 à 1 208 adhérents prédits. Des temps routés pour les concurrents (matrice
+  d'un OSRM ou d'un Valhalla local) lèveraient cette asymétrie. Calé avec ce rapport, le modèle
+  donnerait plus de 12 % de pratique nationale : le calage garde les temps du modèle.
 - Attractivité : deux densités seulement (premium 0,67 adh/m², venue de Hall b ; 1,4 pour tous les
   autres). Les low-cost tiennent sans doute plus d'adhérents au m² ; à caler sur d'autres clubs.
-- Suivre dans l'audit les adhérents attendus de Hall b (`capture.mjs --hallb`), pour mesurer la
-  seconde moitié de e.
+- Suivre dans l'audit les adhérents attendus de Hall b (`capture.mjs --hallb`) et le test sur 12 sites
+  (`capture.mjs --sites`), pour mesurer la seconde moitié de e.
 
 ### Offre
 
@@ -124,6 +134,48 @@ Le reste de l'audit n° 2, sans ordre.
 
 ## Fait
 
+- [x] **e, suite : option « pas de salle » dans le modèle de capture** : fait le 14/10/2026 sur la
+  branche `modele/capture-non-recours` (à fusionner). `build/lib-capture.mjs`, `build/capture.mjs`
+  (nouveau test `--sites`) et nouvel outil `build/calage-capture.mjs` (voir `build/README.md`) ; ni
+  l'interface, ni les couches, ni le classement ne changent (audit vert 5/5, identique à la référence).
+  - Part captée = W_p f / (W_0 + W_p f + k Σ W_g f) : le non-recours W_0 (« ne s'inscrire nulle part »)
+    fait baisser la part captée avec la distance, même sans concurrent. Le marché devient la pratique
+    maximale P des habitants ; le taux de pratique d'un carreau vaut P S / (W_0 + S), S = Σ W f.
+  - Noyau, P et W_0 recalés ensemble sur la répartition des adhérents de Hall b par bande de temps
+    Valhalla (chiffres privés, hors du dépôt). La prédiction est lissée par code postal comme le réel
+    (Base Adresse Nationale) : sans ce lissage, la comparaison favorisait à tort un noyau plus étalé.
+    Le cœur et la queue de 20–30 min, nettement surestimée par le Huff pur, collent désormais dans la
+    marge de la surdispersion.
+  - **Identifiable avec un seul club** : la pénétration de Hall b au pied du club et la distance où
+    elle est divisée par deux, pas leur partage entre noyau, P et W_0, qui se compensent. De W_0 = 0 à
+    100 000, l'ajustement reste dans la marge de la surdispersion, et même un Huff pur au noyau recalé
+    passe sur Hall b. W_0 est donc fixé hors de Hall b, par le taux de pratique national de la demande
+    (10 %) avec toutes les salles existantes : **W_0 = 400, t50 = 5,0 min, β = 3,4, P = 17,8 %**.
+    Encadrement (`FAMILLE`) : W_0 = 200 (t50 4,6 min, P 15,2 %) et 800 (5,5 min, 21,5 %), soit 9,4 et
+    10,8 % de pratique nationale.
+  - **Test sur Hall b** (2 400 m², premium, sans elle dans la concurrence), pour 1 600 adhérents
+    réels : 1 323 en mode national (2 010 avec le Huff pur), 1 539 en zone exacte (2 098), 1 208 si les
+    concurrents roulent au rapport local Valhalla / modèle (1 282). Test **circulaire** : f, P, W_0 et
+    la densité premium viennent de Hall b, et en zone exacte son total est fixé par le calage. En mode
+    national, la zone du modèle autour de Hall b est trop petite (−29 % d'habitants, voir c). Hall b en
+    classique : 2 186.
+  - **Sensibilité** au site de Hall b (3 jeux de `FAMILLE` × concurrents × 0,5, 1 et 2) : 2 400 m²,
+    1 013 à 1 640 adhérents en mode national, 1 138 à 1 924 en zone exacte, 791 à 1 584 avec la vitesse
+    locale ; 2 000 m², 887 à 1 455 (central 1 157) en mode national et 995 à 1 705 (1 347) en zone
+    exacte ; 1 200 m², 581 à 1 020 (780). Les trois jeux donnent le même chiffre à Hall b, à 3 % près ;
+    le poids des concurrents pèse le plus (−22 à +19 %). Marché selon la demande du modèle (âge,
+    revenu) : inchangé à Hall b.
+  - **Test sur 12 sites** (projet premium de 2 000 m², mode national, `npm run capture:sites`),
+    central (Huff pur) : Paris centre 1 069 (706), Montreuil 1 909 (1 254), site n° 1 de la carte à
+    Bagneux 2 361 (1 675), Montpellier 1 395 (1 004), Grenoble 1 432 (1 012), Dijon 1 270 (908), Niort
+    1 371 (1 077), Saint-Dionisy sans Hall b 1 157 (1 805), Guéret 832 (1 084), Mende 700 (820), Langeac
+    467 (1 261), Saintes-Maries-de-la-Mer 251 (301). Le premier site isolé passe du 3ᵉ rang (Langeac,
+    41 % de ses adhérents à 20–30 min) au 9ᵉ (Guéret, 2 %), et reste au mieux 8ᵉ sur les 9 variantes de
+    la fourchette. Avec le marché selon la demande (âge, revenu), les sites isolés baissent encore (−2
+    à −17 %). Le Huff pur au noyau recalé, lui, remet Langeac 4ᵉ et Guéret 5ᵉ : c'est bien le
+    non-recours qui corrige.
+  - Limites : fourchette large en ville (Paris centre 461 à 2 475, site n° 1 1 175 à 4 327) ; pratique
+    implicite très contrastée selon la densité (voir « Plus tard », modèle de capture).
 - [x] **e, première moitié. Modèle de capture d'un projet** : fait le 14/10/2026 sur la branche
   `modele/capture-projet`, fusionnée et publiée le même jour (CI `ad5db51`).
   `build/lib-capture.mjs` et `build/capture.mjs` (voir

@@ -203,7 +203,13 @@ for (const r of [...sirene, ...sireneAutres.map(r => ({ ...r, autreNaf: true }))
 console.log(`SIRENE métropole retenus : ${gyms.length} (sans géoloc : ${noGeo}), dont autres NAF : ${autres.retenus} sur ${sireneAutres.length} lignes filtrées par nom (${autres.enseigne} d'enseigne)`);
 
 // ── Data ES : une installation = un regroupement d'équipements ──────────────────
-const dataes = JSON.parse(readFileSync(new URL('../data/dataes.json', import.meta.url), 'utf8'));
+// Trié par numéro d'équipement : l'API exporte les mêmes lignes dans un ordre qui change d'un
+// téléchargement à l'autre (1 100 lignes déplacées sur 7 991 entre le 13 et le 14/10/2026), et la
+// position, le propriétaire et le nom d'une installation sont pris à sa première ligne retenue.
+// Sans tri, deux téléchargements identiques donnaient 5 à 8 installations différentes (grid.bin
+// non reproductible).
+const dataes = JSON.parse(readFileSync(new URL('../data/dataes.json', import.meta.url), 'utf8'))
+  .sort((a, b) => a.equip_numero < b.equip_numero ? -1 : a.equip_numero > b.equip_numero ? 1 : 0);
 const instRows = new Map();
 for (const e of dataes) {
   // inst_numero = equip_numero sans son préfixe « E001 » (vérifié sur l'API) — repli pour les exports anciens

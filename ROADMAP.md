@@ -135,47 +135,45 @@ Le reste de l'audit n° 2, sans ordre.
 ## Fait
 
 - [x] **e, suite : option « pas de salle » dans le modèle de capture** : fait le 14/10/2026 sur la
-  branche `modele/capture-non-recours` (à fusionner). `build/lib-capture.mjs`, `build/capture.mjs`
-  (nouveau test `--sites`) et nouvel outil `build/calage-capture.mjs` (voir `build/README.md`) ; ni
-  l'interface, ni les couches, ni le classement ne changent (audit vert 5/5, identique à la référence).
-  - Part captée = W_p f / (W_0 + W_p f + k Σ W_g f) : le non-recours W_0 (« ne s'inscrire nulle part »)
-    fait baisser la part captée avec la distance, même sans concurrent. Le marché devient la pratique
+  branche `modele/capture-non-recours`, fusionnée dans main et poussée le même jour, sans CI : ni les
+  couches ni le front ne changent. Audit vert 5/5 sur les couches publiées (CI `ad5db51`) après la
+  fusion. `build/lib-capture.mjs`, `build/capture.mjs` (nouveau test `--sites`) et nouvel outil
+  `build/calage-capture.mjs` (voir `build/README.md`) ; le classement des zones ne change pas.
+  - **Option « pas de salle »** : part captée = W_p f / (W_0 + W_p f + k Σ W_g f). Le non-recours W_0
+    (« ne s'inscrire nulle part ») fait baisser la part captée avec la distance, même sans concurrent :
+    un village sans salle à 30 min ne revient plus en entier au projet. Le marché devient la pratique
     maximale P des habitants ; le taux de pratique d'un carreau vaut P S / (W_0 + S), S = Σ W f.
-  - Noyau, P et W_0 recalés ensemble sur la répartition des adhérents de Hall b par bande de temps
-    Valhalla (chiffres privés, hors du dépôt). La prédiction est lissée par code postal comme le réel
-    (Base Adresse Nationale) : sans ce lissage, la comparaison favorisait à tort un noyau plus étalé.
-    Le cœur et la queue de 20–30 min, nettement surestimée par le Huff pur, collent désormais dans la
-    marge de la surdispersion.
-  - **Identifiable avec un seul club** : la pénétration de Hall b au pied du club et la distance où
-    elle est divisée par deux, pas leur partage entre noyau, P et W_0, qui se compensent. De W_0 = 0 à
-    100 000, l'ajustement reste dans la marge de la surdispersion, et même un Huff pur au noyau recalé
-    passe sur Hall b. W_0 est donc fixé hors de Hall b, par le taux de pratique national de la demande
-    (10 %) avec toutes les salles existantes : **W_0 = 400, t50 = 5,0 min, β = 3,4, P = 17,8 %**.
-    Encadrement (`FAMILLE`) : W_0 = 200 (t50 4,6 min, P 15,2 %) et 800 (5,5 min, 21,5 %), soit 9,4 et
-    10,8 % de pratique nationale.
-  - **Test sur Hall b** (2 400 m², premium, sans elle dans la concurrence), pour 1 600 adhérents
-    réels : 1 323 en mode national (2 010 avec le Huff pur), 1 539 en zone exacte (2 098), 1 208 si les
-    concurrents roulent au rapport local Valhalla / modèle (1 282). Test **circulaire** : f, P, W_0 et
-    la densité premium viennent de Hall b, et en zone exacte son total est fixé par le calage. En mode
-    national, la zone du modèle autour de Hall b est trop petite (−29 % d'habitants, voir c). Hall b en
-    classique : 2 186.
-  - **Sensibilité** au site de Hall b (3 jeux de `FAMILLE` × concurrents × 0,5, 1 et 2) : 2 400 m²,
-    1 013 à 1 640 adhérents en mode national, 1 138 à 1 924 en zone exacte, 791 à 1 584 avec la vitesse
-    locale ; 2 000 m², 887 à 1 455 (central 1 157) en mode national et 995 à 1 705 (1 347) en zone
-    exacte ; 1 200 m², 581 à 1 020 (780). Les trois jeux donnent le même chiffre à Hall b, à 3 % près ;
-    le poids des concurrents pèse le plus (−22 à +19 %). Marché selon la demande du modèle (âge,
-    revenu) : inchangé à Hall b.
-  - **Test sur 12 sites** (projet premium de 2 000 m², mode national, `npm run capture:sites`),
-    central (Huff pur) : Paris centre 1 069 (706), Montreuil 1 909 (1 254), site n° 1 de la carte à
-    Bagneux 2 361 (1 675), Montpellier 1 395 (1 004), Grenoble 1 432 (1 012), Dijon 1 270 (908), Niort
-    1 371 (1 077), Saint-Dionisy sans Hall b 1 157 (1 805), Guéret 832 (1 084), Mende 700 (820), Langeac
-    467 (1 261), Saintes-Maries-de-la-Mer 251 (301). Le premier site isolé passe du 3ᵉ rang (Langeac,
-    41 % de ses adhérents à 20–30 min) au 9ᵉ (Guéret, 2 %), et reste au mieux 8ᵉ sur les 9 variantes de
-    la fourchette. Avec le marché selon la demande (âge, revenu), les sites isolés baissent encore (−2
-    à −17 %). Le Huff pur au noyau recalé, lui, remet Langeac 4ᵉ et Guéret 5ᵉ : c'est bien le
-    non-recours qui corrige.
-  - Limites : fourchette large en ville (Paris centre 461 à 2 475, site n° 1 1 175 à 4 327) ; pratique
-    implicite très contrastée selon la densité (voir « Plus tard », modèle de capture).
+  - **Calage** : noyau, P et W_0 ajustés ensemble sur la répartition des adhérents de Hall b par bande
+    de temps Valhalla (mesure privée, hors du dépôt). La prédiction est lissée par code postal comme le
+    réel (Base Adresse Nationale) : sans ce lissage, la comparaison favorisait à tort un noyau plus
+    étalé. Le cœur et la queue de 20–30 min, nettement surestimée par le Huff pur, collent désormais
+    dans la marge de la surdispersion.
+  - **Identifiable avec un seul club** : la pénétration de Hall b au pied du club et la distance où elle
+    est divisée par deux, pas leur partage entre noyau, P et W_0, qui se compensent. Même un Huff pur au
+    noyau recalé passe sur Hall b. W_0 est donc fixé hors de Hall b, par le taux de pratique national de
+    la demande (10 %) avec toutes les salles existantes.
+  - **Paramètres retenus** (`FAMILLE`, `lib-capture.mjs`) : central **W_0 = 400, t50 = 5,0 min, β = 3,4,
+    P = 17,8 %** (pratique nationale 10,0 %). Encadrement, équivalent pour Hall b : W_0 = 200 (t50 4,6
+    min, P 15,2 %, pratique nationale 9,4 %) et W_0 = 800 (5,5 min, 21,5 %, 10,8 %). Coupure 30 min et
+    attractivité inchangées (premium 0,67, classique 1,4 adh/m²). La fourchette de `capture.mjs` croise
+    ces trois jeux avec le poids des concurrents (× 0,5, 1 et 2).
+  - **Tests** (chiffres hors du dépôt, dans `docs-private/`) : sur Hall b, le test reste circulaire
+    (noyau, P, W_0 et densité premium en viennent, et en zone exacte son total est fixé par le calage) ;
+    les trois jeux y donnent le même résultat et le poids des concurrents pèse le plus. Sur 12 sites
+    (`npm run capture:sites`, projet premium de 2 000 m²), le premier site isolé passe du 3ᵉ au 9ᵉ rang,
+    et reste au mieux 8ᵉ sur les 9 variantes de la fourchette : Langeac passe du 3ᵉ au 11ᵉ rang, Guéret du
+    5ᵉ au 9ᵉ. Le Huff pur au noyau recalé remet Langeac 4ᵉ : c'est bien le non-recours qui corrige.
+  - **Réserves** :
+    - pratique implicite très contrastée selon la densité (0,9 % des habitants sous 50 hab/km², 16 %
+      au-delà de 4 000) et salles rurales existantes prédites très en dessous de leur capacité : le noyau
+      est sans doute trop court pour la campagne (voir « Plus tard ») ;
+    - fourchette très large en ville : la pratique maximale et le poids des concurrents ne sont pas
+      identifiés par un club périurbain peu concurrencé ;
+    - W_0 ne tient qu'au taux de pratique national : un point de plus ou de moins le déplacerait
+      d'environ 100 à 900 ;
+    - calage fait avec les concurrents aux temps du modèle : à la vitesse locale relevée autour de
+      Hall b, la pratique nationale ne descendrait jamais sous 12 % ;
+    - un seul club : la validation reste circulaire.
 - [x] **e, première moitié. Modèle de capture d'un projet** : fait le 14/10/2026 sur la branche
   `modele/capture-projet`, fusionnée et publiée le même jour (CI `ad5db51`).
   `build/lib-capture.mjs` et `build/capture.mjs` (voir

@@ -13,3 +13,7 @@ build/node_modules/
 
 # Outil de mesure : référence et rapports liés à data/ (local)
 build/audit/
+
+# Documents et données privés (adhérents, mesures internes) : le dépôt est public
+docs-private/
+data-private/

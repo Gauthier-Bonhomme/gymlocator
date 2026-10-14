@@ -259,6 +259,14 @@ lus dans des tables interpolées (`tablesCapture`), à moins de 2·10⁻⁵ prè
 arrondies) : même top 20, valeurs à 0,02 % près. France entière : ~1 s en Node, quelques secondes
 dans un navigateur.
 
+Le front estime aussi un point cliqué (mode national, depuis le point exact, comme `capture()`) et sa
+**zone exacte** : isochrones Valhalla de 5 à 30 min, une requête par contour, comme `--exacte`
+(mêmes paramètres `denoise` 0,5 et `generalize` 60, carreau au milieu de sa bande de 5 min,
+concurrents aux temps du modèle). Les requêtes passent par une file espacée de 1,5 s, partagée avec
+l'analyse de zone, et les contours restent 180 jours dans le `localStorage` du navigateur. Vérifié le
+14/10/2026 sur les isochrones de Hall b en cache : mêmes 430 carreaux et même estimation que
+`capture.mjs --exacte`, à 0,1 % près.
+
 Le résultat est une **fourchette** : les trois jeux de `FAMILLE` × poids des concurrents, pour la
 taille demandée, 1 200 et 2 000 m². Le test sur Hall b (exclue de la concurrence) est en partie
 circulaire : f, P, W_0 et la densité premium viennent de ce club, et en zone exacte son total est fixé

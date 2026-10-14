@@ -31,9 +31,13 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
 
 ## Utiliser l'application
 
-- **Clic sur la carte** → estimation instantanée de la zone de chalandise ≤ 15 min : population,
-  demande, couverture, déficit relatif et écart à la moyenne nationale en équivalent salles
-  (« petit bassin » ≠ « au niveau de la moyenne »).
+- **Clic sur la carte** → adhérents attendus du projet réglé dans « Meilleurs sites » s'il était
+  ouvert là (estimation centrale et fourchette, comme le classement), puis estimation instantanée de
+  la zone de chalandise ≤ 15 min : population, demande, couverture, déficit relatif et écart à la
+  moyenne nationale en équivalent salles (« petit bassin » ≠ « au niveau de la moyenne »).
+- **Zone exacte** (clic ou site classé) → six isochrones routières Valhalla de 5 à 30 min, une
+  requête par contour, en file avec 1,5 s entre deux requêtes et gardées en cache dans le navigateur ;
+  l'estimation est recalculée avec les vrais temps de trajet du projet (concurrents aux temps du modèle).
 - **Meilleurs sites pour un club de X m²** → classement des sites de la vue sur les **adhérents
   attendus** d'un club dont on choisit la taille (1 200, 2 000 ou 2 400 m²) et le segment (premium ou
   classique) : modèle de capture (Huff avec option « pas de salle ») sur les habitants à ≤ 30 min, face

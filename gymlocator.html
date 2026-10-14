@@ -50,6 +50,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 .gp-score span{font-size:12px;font-weight:600}
 .gp-verdict{font-size:12px;font-weight:700;margin-top:8px}
 .gp-note{font-size:10px;color:var(--txt3);margin-top:5px;line-height:1.5}
+.gp-sep{font-size:9px;color:var(--txt3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 3px;padding-top:8px;border-top:1px solid var(--border2)}
 .iso-btn{margin-top:9px;width:100%;padding:7px 8px;font-size:11px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;letter-spacing:.01em}
 .iso-btn:hover{background:#5d7cf7}
 .iso-btn + .iso-btn{margin-top:5px}
@@ -234,6 +235,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       f(t) = 1 / (1 + (t / <span id="m-t50c">5,0</span> min)<sup><span id="m-beta">3,4</span></sup>), nulle au-delà de <span class="m-tcut">30</span> min · non-recours W₀ = <span id="m-w0">400</span></div>
       <p>Le noyau f, la pratique maximale et le non-recours W₀ sont calés ensemble sur la répartition des adhérents d'un club réel par temps de trajet et sur le taux de pratique national (10 %). Le classement utilise les temps de trajet du modèle (mode national) ; deux sites retenus sont à au moins <span id="m-esp">2</span> km l'un de l'autre, jamais sur un carreau sans habitant. La concurrence prise en compte est celle de la légende (types de salles cochés, salles non retirées).</p>
       <p><b>Fourchette et robustesse.</b> Un seul club ne départage pas les paramètres : trois jeux équivalents pour ce club (non-recours W₀ = <span id="m-w0s">200, 400, 800</span>, chacun avec son noyau et sa pratique maximale) sont croisés avec le poids des concurrents (× <span id="m-ks">0,5, 1, 2</span>). Les <span id="m-nvar">9</span> variantes donnent la <b>fourchette</b> ; l'estimation centrale est le jeu du milieu, concurrents × 1. La <b>robustesse</b> d'un site est le nombre de variantes où il reste parmi les <span id="m-top">20</span> meilleurs sites de la vue. Le seuil (<span id="m-seuil">1 600</span> adhérents attendus par défaut) ne garde que les sites dont l'estimation centrale l'atteint.</p>
+      <p><b>Un point, une zone exacte.</b> Un clic sur la carte donne la même estimation, avec sa fourchette, pour le projet réglé dans « Meilleurs sites ». Le bouton « Zone exacte » demande six isochrones routières Valhalla (5 à 30 min, une requête par contour, à la file) et recalcule l'estimation avec les vrais temps de trajet du projet ; les concurrents gardent les temps du modèle. Les contours sont gardés en cache dans le navigateur.</p>
 
       <h3>Comment l'utiliser</h3>
       <ol>
@@ -660,18 +662,25 @@ function initClick(){
     const s=sZone(smp[3]),p=Math.round(s*100);
     const col='rgb('+rgb(s).join(',')+')';
     const vd=verdict(z.u,z.dem,z.wbar);
+    // Projet du panneau « Meilleurs sites » placé au point : même estimation que le classement
+    const pr=capResume(capPoint(lat,lng));
     L.circleMarker([lat,lng],{radius:8,color:'white',fillColor:col,fillOpacity:1,weight:2.5})
      .addTo(clkLayer).bindPopup(`<div class="gp">
        <div class="gp-score"><b style="color:${col}">${p}<span style="font-size:13px;color:var(--txt3);font-weight:400">/100</span></b><span style="color:${col}">${slbl(p)}</span></div>
-       <div class="gp-sub">Zone accessible en ≤ 15 min · estimation</div>
+       <div class="gp-sep">Projet : ${projetLbl()} · temps du modèle</div>
+       <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(pr.adherents)}</span></div>
+       <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(pr)} <small>(${nVar()} variantes)</small></span></div>
+       ${seuilKv(pr)}
+       <button class="iso-btn" onclick="glExacte(${lat},${lng})">Zone exacte · isochrones Valhalla</button>
+       <div class="gp-sep">Zone accessible en ≤ 15 min · déficit relatif</div>
        <div class="kv"><span class="k">Habitants</span><span class="v">~${Math.round(z.pop).toLocaleString('fr')}</span></div>
        <div class="kv"><span class="k">Adhérents potentiels</span><span class="v">~${Math.round(z.dem).toLocaleString('fr')}</span></div>
        <div class="kv"><span class="k">Couverture</span><span class="v">${Math.round(z.cov*100)} % <small>du niveau national</small></span></div>
        <div class="kv"><span class="k">Déficit relatif <small>(pondéré trajet)</small></span><span class="v">~${Math.round(z.u).toLocaleString('fr')} <small>adhérents</small></span></div>
        <div class="gp-verdict" style="color:${vd.c}">${vd.t}</div>
        <div class="gp-note">Déficit relatif : écart à la couverture moyenne nationale, pas une demande insatisfaite en absolu ; un adhérent compte d'autant moins qu'il est loin (poids ½ à ${tPoids(.5)} min, ¼ à ${tPoids(.25)} min). Chiffres estimés (périmètre modélisé) ; « Analyser la zone » détaille la concurrence.</div>
-       <button class="iso-btn" onclick="glIso(${lat},${lng})">Analyser la zone · 15 min voiture</button>
-     </div>`,{offset:[0,-6],maxWidth:290}).openPopup();
+       <button class="iso-btn sec" onclick="glIso(${lat},${lng})">Analyser la zone · 15 min voiture</button>
+     </div>`,{offset:[0,-6],maxWidth:300}).openPopup();
   });
 }
 
@@ -680,17 +689,8 @@ function initClick(){
 // le périmètre MODÉLISÉ est donc le résultat principal (instantané), et le tracé
 // routier exact n'est qu'une amélioration opportuniste, silencieuse si elle échoue.
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-async function isoFetchQuick(q){
-  const url=ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q));
-  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),8000);
-  try{
-    const r=await fetch(url,{signal:ctl.signal});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const fc=await r.json();
-    if(!fc.features||!fc.features.length)throw new Error('réponse vide');
-    return fc;
-  }finally{clearTimeout(to);}
-}
+// Même file que la zone exacte (valhallaFetch) : requêtes espacées, 8 s au plus une fois partie
+function isoFetchQuick(q){return valhallaFetch(q,8000);}
 function gjToLatLngs(geom){
   const rings=geom.type==='Polygon'?geom.coordinates:geom.coordinates.flat();
   return rings.map(r=>r.map(c=>[c[1],c[0]]));
@@ -963,11 +963,126 @@ async function capClasser(elig,n,seuil){
   const classes=selection(i=>C.fin.get(i)[ic],Math.max(n,top)).map(decrit);
   return {sites:classes.filter(s=>s.adherents>=seuil).slice(0,n),meilleur:classes[0]||null};
 }
+// Ajoute au tableau out (variantes puis habitants) un carreau k atteint en t minutes par le projet
+function capAjoute(out,Ds,W,k,t){
+  const T=capTables(),fam=CAP.famille,ks=CAP.ks,nk=ks.length,h=IND[k];
+  for(let ip=0;ip<fam.length;ip++){
+    const p=fam[ip],Wf=W*capF(T.noyaux[ip],t),num=h*p.pratiqueMax*Wf,d0=p.nonRecours+Wf,D=Ds[ip][k];
+    for(let kk=0;kk<nk;kk++)out[ip*nk+kk]+=num/(d0+ks[kk]*D);
+  }
+  out[nVar()]+=h;
+}
+// Projet au point exact (lat, lon), mode national : temps du modèle depuis le point, comme capture()
+function capPoint(lat,lon){
+  const Ds=capConcurrence(),W=capW(),T=capTables(),tc=CAP.tCoupure,q=laeaForward(lat,lon),out=new Float64Array(nVar()+1);
+  const cx=Math.floor((q[0]-META.E0)/1000),cy=Math.floor((q[1]-META.N0)/1000),gD=densAt(cx,cy),R=Math.ceil((tc-T_ACCESS)/60*T.vMax)+1;
+  for(let dx=-R;dx<=R;dx++)for(let dy=-R;dy<=R;dy++){
+    const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=META.cols||y>=META.rows)continue;
+    const k=KIDX[x+y*META.cols];if(k<0)continue;
+    const t=T_ACCESS+Math.hypot(META.E0+(x+.5)*1000-q[0],META.N0+(y+.5)*1000-q[1])/1000*capMin(T,(DENS[k]+gD)/2);
+    if(t<=tc)capAjoute(out,Ds,W,k,t);
+  }
+  return out;
+}
+const capResume=out=>{const nv=nVar(),vals=Array.from(out.subarray(0,nv));
+  return {adherents:out[iCentrale()],min:Math.min(...vals),max:Math.max(...vals),variantes:vals,habitants:out[nv]};};
+
+// ── Zone exacte : temps du projet lus dans des isochrones Valhalla (comme capture.mjs --exacte) ──
+// Un contour par requête, de 5 à 30 min (demandés ensemble, les contours intermédiaires sortent 5 à
+// 7 % plus peuplés) ; un carreau prend le milieu de la première bande de 5 min qui le contient. Les
+// concurrents gardent les temps du modèle. Cadence limitée : requêtes Valhalla en file, espacées d'au
+// moins ISO_GAP ms (l'analyse de zone passe par la même file). Contours gardés en mémoire et dans le
+// navigateur (localStorage, ISO_JOURS jours) : une même zone ne se redemande pas.
+const ISO_CONTOURS=[5,10,15,20,25,30],ISO_GAP=1500,ISO_JOURS=180,ISO_CLE='gl-iso1:';
+const isoMem=new Map();let isoFile=Promise.resolve(),isoProchaine=0,exacteBusy=false;
+async function valhallaFetch(q,ms){
+  const tour=isoFile.then(async()=>{const w=isoProchaine-Date.now();if(w>0)await sleep(w);isoProchaine=Date.now()+ISO_GAP;});
+  isoFile=tour.catch(()=>{});await tour;
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms);
+  try{
+    const r=await fetch(ISO_URL+'?json='+encodeURIComponent(JSON.stringify(q)),{signal:ctl.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const fc=await r.json();
+    if(!fc.features||!fc.features.length)throw new Error('réponse vide');
+    return fc;
+  }finally{clearTimeout(to);}
+}
+function isoLire(cle){
+  if(isoMem.has(cle))return isoMem.get(cle);
+  let v=null;
+  try{v=JSON.parse(localStorage.getItem(ISO_CLE+cle)||'null');}catch(e){}
+  if(!v||!v.contours||Date.now()-v.t>ISO_JOURS*864e5)v={t:Date.now(),contours:{}};
+  isoMem.set(cle,v);return v;
+}
+function isoEcrire(cle,v){
+  isoMem.set(cle,v);const txt=JSON.stringify(v);
+  try{localStorage.setItem(ISO_CLE+cle,txt);}catch(e){
+    // quota atteint ou stockage refusé : on vide les contours gardés et on réessaie une fois
+    try{for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&k.startsWith(ISO_CLE))localStorage.removeItem(k);}
+      localStorage.setItem(ISO_CLE+cle,txt);}catch(e2){}
+  }
+}
+// Temps du projet par carreau (Map k → minutes) et habitants par contour, comme tempsIsochrones()
+function capTempsIsochrones(contours){
+  const temps=new Map(),pop={};
+  for(const min of ISO_CONTOURS){
+    const rings=outerRings(contours[min]).map(r=>r.map(c=>laeaForward(c[1],c[0])));
+    let E0=1e12,E1=-1e12,N0=1e12,N1=-1e12;
+    for(const r of rings)for(const q of r){if(q[0]<E0)E0=q[0];if(q[0]>E1)E1=q[0];if(q[1]<N0)N0=q[1];if(q[1]>N1)N1=q[1];}
+    const x0=Math.max(0,Math.floor((E0-META.E0)/1000)),x1=Math.min(META.cols-1,Math.floor((E1-META.E0)/1000));
+    const y0=Math.max(0,Math.floor((N0-META.N0)/1000)),y1=Math.min(META.rows-1,Math.floor((N1-META.N0)/1000));
+    let n=0;
+    for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
+      const k=KIDX[x+y*META.cols];if(k<0)continue;
+      const cE=META.E0+(x+.5)*1000,cN=META.N0+(y+.5)*1000;
+      if(!rings.some(r=>pip(cE,cN,r)))continue;
+      n+=IND[k];if(!temps.has(k))temps.set(k,min-2.5);
+    }
+    pop[min]=n;
+  }
+  return {temps,pop};
+}
+window.glExacte=async function(lat,lon){
+  if(!META||exacteBusy)return;
+  exacteBusy=true;lat=+lat;lon=+lon;
+  const cle=`${lat.toFixed(5)},${lon.toFixed(5)}`,I=isoLire(cle),manque=ISO_CONTOURS.filter(m=>!I.contours[m]);
+  try{
+    for(let i=0;i<manque.length;i++){
+      setBar(true,`Zone exacte : isochrone ${manque[i]} min (${i+1}/${manque.length})…`);
+      const fc=await valhallaFetch({locations:[{lat,lon}],costing:'auto',contours:[{time:manque[i]}],polygons:true,denoise:.5,generalize:60},20000);
+      I.contours[manque[i]]=fc.features[0].geometry;isoEcrire(cle,I);
+    }
+  }catch(e){
+    setBar(false);exacteBusy=false;
+    notif(`Valhalla indisponible (${e.name==='AbortError'?'délai dépassé':e.message}) : zone exacte non obtenue, réessayez plus tard`,'err');
+    return;
+  }
+  setBar(false);exacteBusy=false;
+  const z=capTempsIsochrones(I.contours),Ds=capConcurrence(),W=capW(),out=new Float64Array(nVar()+1);
+  for(const [k,t] of z.temps)capAjoute(out,Ds,W,k,t);
+  const zx=capResume(out),nat=capResume(capPoint(lat,lon)),nv=nVar();
+  isoLayer.clearLayers();hiLayer.clearLayers();
+  for(const [m,dash,op] of [[30,'5,4',.04],[15,null,.08]])
+    L.polygon(gjToLatLngs(I.contours[m]),{color:'#6e8bff',weight:2,dashArray:dash,fillColor:'#6e8bff',fillOpacity:op})
+      .addTo(isoLayer).bindTooltip(`${m} min en voiture (Valhalla)`,{sticky:true});
+  L.popup({offset:[0,-4],maxWidth:300}).setLatLng([lat,lon]).setContent(`<div class="gp">
+    <div class="gp-name">Zone exacte</div>
+    <div class="gp-sub">${projetLbl()} · isochrones Valhalla</div>
+    <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(zx.adherents)}</span></div>
+    <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(zx)} <small>(${nv} variantes)</small></span></div>
+    <div class="kv"><span class="k">Mode national <small>(temps du modèle)</small></span><span class="v">≈ ${fmtAdh(nat.adherents)}</span></div>
+    ${seuilKv(zx)}
+    <div class="kv"><span class="k">Habitants à ≤ 15 / 30 min</span><span class="v">~${Math.round(z.pop[15]).toLocaleString('fr')} / ~${Math.round(z.pop[30]).toLocaleString('fr')}</span></div>
+    <div class="gp-note">Temps du projet lus dans six isochrones Valhalla (5 à 30 min, une requête par contour ; chaque carreau prend le milieu de sa bande de 5 min). Les concurrents gardent les temps du modèle. Contours gardés en cache dans ce navigateur.</div>
+  </div>`).openOn(map);
+};
 const fmtAdh=v=>(Math.round(v/10)*10).toLocaleString('fr');
 const fourchette=st=>`${fmtAdh(st.min)} – ${fmtAdh(st.max)}`;
+// Seuil du panneau atteint par combien de variantes (rien si le filtre est à 0)
+const seuilKv=st=>projet.seuil>0?`<div class="kv"><span class="k">Seuil de ${projet.seuil.toLocaleString('fr')}</span><span class="v">atteint dans ${st.variantes.filter(v=>v>=projet.seuil).length}/${nVar()} <small>variantes</small></span></div>`:'';
 const projetLbl=()=>`club ${projet.segment} de ${projet.m2.toLocaleString('fr')} m²`;
 function capSitePopup(st,rank,ll){
-  const nv=nVar(),atteint=st.variantes.filter(v=>v>=projet.seuil).length;
+  const nv=nVar();
   const rob=st.robustesse===null?`non mesurée <small>(moins de ${CAP.topRobustesse} sites dans la vue)</small>`
     :`${st.robustesse}/${nv} <small>variantes dans le top ${CAP.topRobustesse} de la vue</small>`;
   return `<div class="gp">
@@ -976,10 +1091,11 @@ function capSitePopup(st,rank,ll){
     <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(st.adherents)}</span></div>
     <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(st)} <small>(${nv} variantes)</small></span></div>
     <div class="kv"><span class="k">Robustesse</span><span class="v">${rob}</span></div>
-    ${projet.seuil>0?`<div class="kv"><span class="k">Seuil de ${projet.seuil.toLocaleString('fr')}</span><span class="v">atteint dans ${atteint}/${nv} <small>variantes</small></span></div>`:''}
+    ${seuilKv(st)}
     <div class="kv"><span class="k">Habitants à ≤ ${CAP.tCoupure} min</span><span class="v">~${Math.round(st.habitants).toLocaleString('fr')}</span></div>
     <div class="gp-note">Modèle de capture, temps de trajet du modèle. Fourchette : ${CAP.famille.length} jeux de paramètres équivalents (non-recours W₀ = ${CAP.famille.map(p=>p.nonRecours).join(', ')}) × poids des concurrents × ${CAP.ks.map(k=>String(k).replace('.',',')).join(' / ')}. Chaque site est évalué seul, comme une alternative aux autres. Présélection à vérifier sur le terrain.</div>
-    <button class="iso-btn" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
+    <button class="iso-btn" onclick="glExacte(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Zone exacte · isochrones Valhalla</button>
+    <button class="iso-btn sec" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
   </div>`;
 }
 function projetSync(){

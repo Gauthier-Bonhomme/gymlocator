@@ -130,6 +130,12 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 .bp-rk{width:19px;height:19px;flex-shrink:0;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .bp-v{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bp-d{margin-left:auto;font-size:10px;color:var(--txt3);text-align:right;font-variant-numeric:tabular-nums}
+.bp-f{font-size:10.5px;color:var(--txt2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bp-cols{display:flex;gap:8px;padding:0 3px 5px 30px;font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em}
+.bp-cols span:last-child{margin-left:auto}
+.bp-in{width:66px;height:27px;border:1px solid var(--border2);background:var(--panel2);color:var(--txt);border-radius:6px;font-family:inherit;font-size:13px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.bp-in::-webkit-inner-spin-button,.bp-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.bp-in:focus{outline:none;border-color:var(--accent)}
 .bp-vide{font-size:11px;color:var(--txt2);line-height:1.5;padding:7px 3px;border-top:1px solid var(--border)}
 /* Mobile : header sur deux rangées, panneaux compacts */
 @media (max-width:680px){
@@ -190,10 +196,11 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
     <div class="bp-h">Meilleurs sites pour un club de <span id="bp-titre">2 000 m²</span></div>
     <div class="bp-row"><span class="bp-l">Taille</span><span class="bp-seg" id="bp-tailles"></span></div>
     <div class="bp-row"><span class="bp-l">Segment</span><span class="bp-seg" id="bp-segments"></span></div>
+    <div class="bp-row"><span class="bp-l">Au moins</span><button class="bp-step" onclick="glSeuil(-100)">−</button><input id="bp-seuil" class="bp-in" type="number" min="0" step="100" value="1600" onchange="glSeuil(0)" aria-label="Adhérents attendus au minimum"><button class="bp-step" onclick="glSeuil(100)">+</button><span>adhérents</span></div>
     <div class="bp-row"><span class="bp-l">Afficher</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>sites</span></div>
     <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Classer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
     <div id="bp-list"></div>
-    <div class="bp-sub">Classés sur les <b>adhérents attendus</b> du club : habitants à ≤ 30 min, concurrence des salles existantes et part de non-inscrits (modèle de capture, temps de trajet du modèle). Sites de la vue affichée, à au moins 2 km l'un de l'autre, jamais sur un carreau sans habitant. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
+    <div class="bp-sub">Classés sur les <b>adhérents attendus</b> du club : habitants à ≤ 30 min, concurrence des salles existantes et part de non-inscrits (modèle de capture, temps de trajet du modèle). Sites de la vue affichée, à au moins 2 km l'un de l'autre, jamais sur un carreau sans habitant ; seuls ceux dont l'estimation centrale atteint le seuil sont gardés. <b>Fourchette</b> : 9 variantes (3 jeux de paramètres × poids des concurrents) ; <b>robustesse</b> : nombre de variantes où le site reste dans les 20 meilleurs de la vue. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
   </div>
 
   <!-- Méthode & mode d'emploi -->
@@ -226,6 +233,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       Adhérents attendus = Σ habitants à ≤ <span class="m-tcut">30</span> min × pratique maximale (<span id="m-pmax">17,8</span> %) × part captée<br>
       f(t) = 1 / (1 + (t / <span id="m-t50c">5,0</span> min)<sup><span id="m-beta">3,4</span></sup>), nulle au-delà de <span class="m-tcut">30</span> min · non-recours W₀ = <span id="m-w0">400</span></div>
       <p>Le noyau f, la pratique maximale et le non-recours W₀ sont calés ensemble sur la répartition des adhérents d'un club réel par temps de trajet et sur le taux de pratique national (10 %). Le classement utilise les temps de trajet du modèle (mode national) ; deux sites retenus sont à au moins <span id="m-esp">2</span> km l'un de l'autre, jamais sur un carreau sans habitant. La concurrence prise en compte est celle de la légende (types de salles cochés, salles non retirées).</p>
+      <p><b>Fourchette et robustesse.</b> Un seul club ne départage pas les paramètres : trois jeux équivalents pour ce club (non-recours W₀ = <span id="m-w0s">200, 400, 800</span>, chacun avec son noyau et sa pratique maximale) sont croisés avec le poids des concurrents (× <span id="m-ks">0,5, 1, 2</span>). Les <span id="m-nvar">9</span> variantes donnent la <b>fourchette</b> ; l'estimation centrale est le jeu du milieu, concurrents × 1. La <b>robustesse</b> d'un site est le nombre de variantes où il reste parmi les <span id="m-top">20</span> meilleurs sites de la vue. Le seuil (<span id="m-seuil">1 600</span> adhérents attendus par défaut) ne garde que les sites dont l'estimation centrale l'atteint.</p>
 
       <h3>Comment l'utiliser</h3>
       <ol>
@@ -345,9 +353,9 @@ let bestN=5;                       // nombre de sites affichés (« Meilleurs si
 // Modèle de capture : build/lib-capture.mjs → meta.capture (écrit par build/05-capture.mjs). Valeurs de
 // repli tant que le meta.json servi ne porte pas ce bloc, ÉCRASÉES au chargement.
 let CAP={famille:[{nom:'W0 200',nonRecours:200,t50:4.6,beta:3.4,pratiqueMax:0.152},{nom:'W0 400',nonRecours:400,t50:5.0,beta:3.4,pratiqueMax:0.178},{nom:'W0 800',nonRecours:800,t50:5.5,beta:3.4,pratiqueMax:0.215}],
-  central:1,tCoupure:30,adhParM2:{premium:1600/2400,classique:1.4},surfMax:6000,tailles:[1200,2000,2400],m2Defaut:2000,segmentDefaut:'premium',
-  espacementKm:2,recherche:{bloc:4,meilleurs:300,rayon:3}};
-let projet={m2:2000,segment:'premium'};   // projet évalué (panneau « Meilleurs sites »)
+  central:1,ks:[0.5,1,2],seuil:1600,topRobustesse:20,tCoupure:30,adhParM2:{premium:1600/2400,classique:1.4},surfMax:6000,
+  tailles:[1200,2000,2400],m2Defaut:2000,segmentDefaut:'premium',espacementKm:2,recherche:{bloc:4,meilleurs:300,rayon:3}};
+let projet={m2:2000,segment:'premium',seuil:1600};   // projet évalué et filtre (panneau « Meilleurs sites »)
 let recomputing=false,recomputeQueued=false;
 const gymActive=g=>catActive[g.cat]&&!excluded.has(g.id);
 let map,hLayer,gymLayer,clkLayer,isoLayer,hiLayer,bestLayer,gymRenderer=null;
@@ -841,32 +849,36 @@ window.glHiGyms=function(){
 
 // ── Meilleurs sites : adhérents attendus d'un projet (modèle de capture) ───────
 // Même calcul que build/lib-capture.mjs (tablesCapture, captureCarreau, classerSites) : temps du
-// modèle, noyau log-logistique coupé à CAP.tCoupure, part captée W f / (W₀ + W f + Σ W_g f).
+// modèle, noyau log-logistique coupé à CAP.tCoupure, part captée W f / (W₀ + W f + k Σ W_g f).
+// Variantes (fourchette) : jeux de CAP.famille × poids des concurrents CAP.ks ; centrale : jeu
+// CAP.central, concurrents × 1.
 let capT=null,capD=null,capBusy=false,capQueued=false,CLAT=null,CLON=null,bestMarkers=[];
 const capCaches=new Map();   // attractivité du projet → {grossier, fin} pour l'offre active
 const capW=()=>Math.min(CAP.surfMax,projet.m2)*CAP.adhParM2[projet.segment];
+const nVar=()=>CAP.famille.length*CAP.ks.length;
+const iCentrale=()=>CAP.central*CAP.ks.length+CAP.ks.indexOf(1);
 // Salle existante : ses adhérents réels s'ils sont connus, sinon sa surface au taux de son segment
 const poidsSalle=g=>g.surfSrc==='reel'?g.cap:Math.min(CAP.surfMax,g.surf)*(g.cat==='premium'?CAP.adhParM2.premium:CAP.adhParM2.classique);
 function capInvalider(){capD=null;capCaches.clear();}
-// Tables interpolées (vitesse, noyau) et voisins d'un centre de carreau, comme tablesCapture()
+// Tables interpolées (vitesse, noyau de chaque jeu) et voisins d'un centre de carreau, comme tablesCapture()
 function capTables(){
   if(capT)return capT;
   const pal=META.modele&&META.modele.vitesse&&META.modele.vitesse.paliers;
   const dMin=pal?pal[0][0]:0,dMax=pal?pal[pal.length-1][0]:8000,vMax=pal?Math.max(...pal.map(q=>q[1])):62;
   const minParKm=new Float64Array(dMax+2);for(let d=0;d<=dMax+1;d++)minParKm[d]=60/speedKmh(d);
-  const p=CAP.famille[CAP.central],tc=CAP.tCoupure,noyau=new Float64Array(tc*100+2);
-  for(let k=0;k<noyau.length;k++)noyau[k]=1/(1+Math.pow(Math.min(tc,k/100)/p.t50,p.beta));
+  const tc=CAP.tCoupure,noyaux=CAP.famille.map(p=>{const L=new Float64Array(tc*100+2);
+    for(let k=0;k<L.length;k++)L[k]=1/(1+Math.pow(Math.min(tc,k/100)/p.t50,p.beta));return L;});
   const R=Math.ceil((tc-T_ACCESS)/60*vMax),dxy=[],km=[];
   for(let dx=-R;dx<=R;dx++)for(let dy=-R;dy<=R;dy++){const d=Math.hypot(dx,dy);if(T_ACCESS+d/vMax*60<=tc){dxy.push(dx,dy);km.push(d);}}
-  return capT={p,dMin,dMax,vMax,minParKm,noyau,dxy:Int32Array.from(dxy),km:Float64Array.from(km)};
+  return capT={dMin,dMax,vMax,minParKm,noyaux,dxy:Int32Array.from(dxy),km:Float64Array.from(km)};
 }
 function capMin(T,dm){if(dm>=T.dMax)return T.minParKm[T.dMax];if(dm<=T.dMin)return T.minParKm[0];const i=dm|0;return T.minParKm[i]+(T.minParKm[i+1]-T.minParKm[i])*(dm-i);}
-function capF(T,t){const u=t*100,k=u|0;return T.noyau[k]+(T.noyau[k+1]-T.noyau[k])*(u-k);}
-// Concurrence vue de chaque carreau : Σ salles actives W_g f(t), depuis la position exacte de la salle
+function capF(L,t){const u=t*100,k=u|0;return L[k]+(L[k+1]-L[k])*(u-k);}
+// Concurrence vue de chaque carreau, pour chaque jeu : Σ salles actives W_g f(t), depuis la position exacte de la salle
 function capConcurrence(){
   if(capD)return capD;
-  const T=capTables(),tc=CAP.tCoupure,tA=T_ACCESS,cols=META.cols,rows=META.rows,D=new Float64Array(META.n);
-  const R=Math.ceil((tc-tA)/60*T.vMax)+1;
+  const T=capTables(),tc=CAP.tCoupure,tA=T_ACCESS,cols=META.cols,rows=META.rows,nf=CAP.famille.length;
+  const Ds=CAP.famille.map(()=>new Float64Array(META.n)),R=Math.ceil((tc-tA)/60*T.vMax)+1;
   for(const g of GYMS){
     if(!gymActive(g))continue;const w=poidsSalle(g);if(!(w>0))continue;
     const q=laeaForward(g.lat,g.lon),cx=Math.floor((q[0]-META.E0)/1000),cy=Math.floor((q[1]-META.N0)/1000),gD=densAt(cx,cy);
@@ -874,26 +886,33 @@ function capConcurrence(){
       const x=cx+dx,y=cy+dy;if(x<0||y<0||x>=cols||y>=rows)continue;
       const k=KIDX[x+y*cols];if(k<0)continue;
       const t=tA+Math.hypot(META.E0+(x+.5)*1000-q[0],META.N0+(y+.5)*1000-q[1])/1000*capMin(T,(DENS[k]+gD)/2);
-      if(t<=tc)D[k]+=w*capF(T,t);
+      if(t<=tc)for(let ip=0;ip<nf;ip++)Ds[ip][k]+=w*capF(T.noyaux[ip],t);
     }
   }
-  return capD=D;
+  return capD=Ds;
 }
-// Adhérents captés par un projet d'attractivité W au centre du carreau s → [adhérents, habitants à ≤ 30 min]
-function capCarreau(D,W,s){
-  const T=capTables(),dxy=T.dxy,km=T.km,mk=T.minParKm,dMin=T.dMin,dMax=T.dMax,noy=T.noyau;
-  const tc=CAP.tCoupure,tA=T_ACCESS,P=T.p.pratiqueMax,W0=T.p.nonRecours,K=KIDX,DN=DENS,I=IND,cols=META.cols,rows=META.rows;
-  const x0=CXA[s],y0=CYA[s],dS=DN[s];let a=0,hab=0;
+// Adhérents captés par un projet d'attractivité W au centre du carreau s : les variantes puis les
+// habitants à ≤ 30 min. toutes=false : la seule variante centrale (étape grossière du classement).
+function capCarreau(Ds,W,s,toutes){
+  const T=capTables(),dxy=T.dxy,km=T.km,mk=T.minParKm,dMin=T.dMin,dMax=T.dMax,fam=CAP.famille,ks=CAP.ks,nk=ks.length;
+  const tc=CAP.tCoupure,tA=T_ACCESS,K=KIDX,DN=DENS,I=IND,cols=META.cols,rows=META.rows,nv=nVar(),ic=iCentrale();
+  const out=new Float64Array(nv+1),ip0=toutes?0:CAP.central,ip1=toutes?fam.length:CAP.central+1;
+  const x0=CXA[s],y0=CYA[s],dS=DN[s];
   for(let o=0;o<km.length;o++){
     const x=x0+dxy[2*o],y=y0+dxy[2*o+1];if(x<0||y<0||x>=cols||y>=rows)continue;
     const j=K[x+y*cols];if(j<0)continue;
     const dm=(DN[j]+dS)/2;let m;
     if(dm>=dMax)m=mk[dMax];else if(dm<=dMin)m=mk[0];else{const i=dm|0;m=mk[i]+(mk[i+1]-mk[i])*(dm-i);}
     const t=tA+km[o]*m;if(t>tc)continue;
-    const u=t*100,k=u|0,Wf=W*(noy[k]+(noy[k+1]-noy[k])*(u-k));
-    a+=I[j]*P*Wf/(W0+Wf+D[j]);hab+=I[j];
+    const u=t*100,k=u|0,fr=u-k,h=I[j];
+    for(let ip=ip0;ip<ip1;ip++){
+      const p=fam[ip],F=T.noyaux[ip],Wf=W*(F[k]+(F[k+1]-F[k])*fr),num=h*p.pratiqueMax*Wf,d0=p.nonRecours+Wf,D=Ds[ip][j];
+      if(toutes)for(let kk=0;kk<nk;kk++)out[ip*nk+kk]+=num/(d0+ks[kk]*D);
+      else out[ic]+=num/(d0+D);
+    }
+    out[nv]+=h;
   }
-  return [a,hab];
+  return out;
 }
 // Carreaux habités dont le centre est dans la vue affichée (bornée à la France)
 function capEligibles(){
@@ -913,39 +932,53 @@ function capEligibles(){
   return out;
 }
 // Classement, même recherche que classerSites() de build/lib-capture.mjs : représentant le plus peuplé
-// de chaque bloc de la grille absolue, puis tous les carreaux éligibles autour des meilleurs
-// représentants, puis sélection gloutonne espacée d'au moins CAP.espacementKm.
-async function capClasser(elig,n){
-  const W=capW(),D=capConcurrence(),Rc=CAP.recherche,bloc=Rc.bloc,cols=META.cols,rows=META.rows;
+// de chaque bloc de la grille absolue (variante centrale), puis tous les carreaux éligibles autour des
+// meilleurs représentants (toutes les variantes), puis sélection gloutonne espacée d'au moins
+// CAP.espacementKm. Robustesse : variantes où le site atteint la valeur du CAP.topRobustesse-ième site
+// du classement de cette variante (null sous ce nombre de sites dans la vue).
+async function capClasser(elig,n,seuil){
+  const W=capW(),Ds=capConcurrence(),Rc=CAP.recherche,bloc=Rc.bloc,cols=META.cols,rows=META.rows,nv=nVar(),ic=iCentrale(),top=CAP.topRobustesse;
   let C=capCaches.get(W);if(!C){C={grossier:new Map(),fin:new Map()};capCaches.set(W,C);}
   const rep=new Map();
   for(const s of elig){const cle=Math.floor(CXA[s]/bloc)*100000+Math.floor(CYA[s]/bloc),r=rep.get(cle);
     if(r===undefined||IND[s]>IND[r]||(IND[s]===IND[r]&&(CXA[s]<CXA[r]||(CXA[s]===CXA[r]&&CYA[s]<CYA[r]))))rep.set(cle,s);}
   const reps=[...rep.values()];let t0=performance.now();
   const pause=async f=>{if(performance.now()-t0>60){setBar(true,`Adhérents attendus… ${Math.round(f*100)} %`);await sleep(0);t0=performance.now();}};
-  for(let i=0;i<reps.length;i++){const s=reps[i];if(!C.grossier.has(s))C.grossier.set(s,capCarreau(D,W,s)[0]);await pause(i/reps.length*.7);}
-  reps.sort((a,b)=>C.grossier.get(b)-C.grossier.get(a)||CXA[a]-CXA[b]||CYA[a]-CYA[b]);
+  for(let i=0;i<reps.length;i++){const s=reps[i];if(!C.grossier.has(s))C.grossier.set(s,capCarreau(Ds,W,s,false)[ic]);await pause(i/reps.length*.6);}
+  const tri=(ids,v)=>ids.sort((a,b)=>v(b)-v(a)||CXA[a]-CXA[b]||CYA[a]-CYA[b]);
+  tri(reps,i=>C.grossier.get(i));
   const ok=new Uint8Array(META.n);for(const s of elig)ok[s]=1;
   const fins=[];
   for(const s of reps.slice(0,Rc.meilleurs))for(let dx=-Rc.rayon;dx<=Rc.rayon;dx++)for(let dy=-Rc.rayon;dy<=Rc.rayon;dy++){
     const x=CXA[s]+dx,y=CYA[s]+dy;if(x<0||y<0||x>=cols||y>=rows)continue;
     const j=KIDX[x+y*cols];if(j>=0&&ok[j]===1){ok[j]=2;fins.push(j);}
   }
-  for(let i=0;i<fins.length;i++){const j=fins[i];if(!C.fin.has(j))C.fin.set(j,capCarreau(D,W,j));await pause(.7+i/fins.length*.3);}
-  fins.sort((a,b)=>C.fin.get(b)[0]-C.fin.get(a)[0]||CXA[a]-CXA[b]||CYA[a]-CYA[b]);
-  const e2=CAP.espacementKm*CAP.espacementKm,sites=[];
-  for(const i of fins){if(sites.every(j=>(CXA[i]-CXA[j])**2+(CYA[i]-CYA[j])**2>=e2))sites.push(i);if(sites.length>=n)break;}
-  return sites.map(k=>({k,adherents:C.fin.get(k)[0],habitants:C.fin.get(k)[1]}));
+  for(let i=0;i<fins.length;i++){const j=fins[i];if(!C.fin.has(j))C.fin.set(j,capCarreau(Ds,W,j,true));await pause(.6+i/fins.length*.4);}
+  const e2=CAP.espacementKm*CAP.espacementKm;
+  const selection=(v,nMax)=>{const sites=[];for(const i of tri(fins.slice(),v)){if(sites.every(j=>(CXA[i]-CXA[j])**2+(CYA[i]-CYA[j])**2>=e2))sites.push(i);if(sites.length>=nMax)break;}return sites;};
+  const seuils=[];for(let v=0;v<nv;v++){const t=selection(i=>C.fin.get(i)[v],top);seuils.push(t.length<top?null:C.fin.get(t[t.length-1])[v]);}
+  const decrit=k=>{const r=C.fin.get(k),vals=Array.from(r.subarray(0,nv));
+    return {k,adherents:r[ic],min:Math.min(...vals),max:Math.max(...vals),variantes:vals,habitants:r[nv],
+      robustesse:seuils.includes(null)?null:vals.filter((x,v)=>x>=seuils[v]).length};};
+  const classes=selection(i=>C.fin.get(i)[ic],Math.max(n,top)).map(decrit);
+  return {sites:classes.filter(s=>s.adherents>=seuil).slice(0,n),meilleur:classes[0]||null};
 }
 const fmtAdh=v=>(Math.round(v/10)*10).toLocaleString('fr');
+const fourchette=st=>`${fmtAdh(st.min)} – ${fmtAdh(st.max)}`;
 const projetLbl=()=>`club ${projet.segment} de ${projet.m2.toLocaleString('fr')} m²`;
 function capSitePopup(st,rank,ll){
+  const nv=nVar(),atteint=st.variantes.filter(v=>v>=projet.seuil).length;
+  const rob=st.robustesse===null?`non mesurée <small>(moins de ${CAP.topRobustesse} sites dans la vue)</small>`
+    :`${st.robustesse}/${nv} <small>variantes dans le top ${CAP.topRobustesse} de la vue</small>`;
   return `<div class="gp">
     <div class="gp-name">Site n° ${rank}</div>
     <div class="gp-sub">${projetLbl()} · classé sur les adhérents attendus</div>
     <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(st.adherents)}</span></div>
+    <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(st)} <small>(${nv} variantes)</small></span></div>
+    <div class="kv"><span class="k">Robustesse</span><span class="v">${rob}</span></div>
+    ${projet.seuil>0?`<div class="kv"><span class="k">Seuil de ${projet.seuil.toLocaleString('fr')}</span><span class="v">atteint dans ${atteint}/${nv} <small>variantes</small></span></div>`:''}
     <div class="kv"><span class="k">Habitants à ≤ ${CAP.tCoupure} min</span><span class="v">~${Math.round(st.habitants).toLocaleString('fr')}</span></div>
-    <div class="gp-note">Modèle de capture, temps de trajet du modèle. Chaque site est évalué seul, comme une alternative aux autres. Présélection à vérifier sur le terrain.</div>
+    <div class="gp-note">Modèle de capture, temps de trajet du modèle. Fourchette : ${CAP.famille.length} jeux de paramètres équivalents (non-recours W₀ = ${CAP.famille.map(p=>p.nonRecours).join(', ')}) × poids des concurrents × ${CAP.ks.map(k=>String(k).replace('.',',')).join(' / ')}. Chaque site est évalué seul, comme une alternative aux autres. Présélection à vérifier sur le terrain.</div>
     <button class="iso-btn" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
   </div>`;
 }
@@ -953,9 +986,16 @@ function projetSync(){
   document.getElementById('bp-titre').textContent=`${projet.m2.toLocaleString('fr')} m²`;
   document.getElementById('bp-tailles').innerHTML=CAP.tailles.map(m=>`<button class="bp-opt${m===projet.m2?' on':''}" onclick="glProjet(${m},null)">${m.toLocaleString('fr')}</button>`).join('');
   document.getElementById('bp-segments').innerHTML=['premium','classique'].map(s=>`<button class="bp-opt${s===projet.segment?' on':''}" onclick="glProjet(null,'${s}')">${s==='premium'?'Premium':'Classique'}</button>`).join('');
+  document.getElementById('bp-seuil').value=projet.seuil;
 }
 window.glProjet=function(m2,segment){
   if(m2)projet.m2=m2;if(segment)projet.segment=segment;projetSync();
+  if(document.getElementById('bestpanel').style.display==='block')placeBest();
+};
+// Seuil d'adhérents attendus : pas de 100 (± boutons) ou saisie libre ; 0 = pas de filtre
+window.glSeuil=function(d){
+  const v=Math.round(+document.getElementById('bp-seuil').value)||0;
+  projet.seuil=Math.max(0,v+d);document.getElementById('bp-seuil').value=projet.seuil;
   if(document.getElementById('bestpanel').style.display==='block')placeBest();
 };
 // Ouvre/ferme le panneau ; à l'ouverture, classe les sites de la vue
@@ -971,7 +1011,7 @@ window.glBest=function(){
   if(show)placeBest(); else clearBest();
 };
 window.glBestN=function(d){
-  bestN=Math.max(1,Math.min(20,bestN+d));
+  bestN=Math.max(1,Math.min(CAP.topRobustesse,bestN+d));
   document.getElementById('bp-n').textContent=bestN;
   placeBest();
 };
@@ -988,15 +1028,18 @@ window.placeBest=async function(){
     if(!elig){notif('Vue hors de France','err');return;}
     if(!elig.length){notif('Aucun carreau habité dans cette vue','warn');return;}
     setBar(true,'Adhérents attendus…');await sleep(30);
-    const sites=await capClasser(elig,bestN);
+    const r=await capClasser(elig,bestN,projet.seuil),sites=r.sites,nv=nVar(),sl=projet.seuil.toLocaleString('fr');
     sites.forEach((st,i)=>{
       const ll=laeaInverse(META.E0+(CXA[st.k]+.5)*1000,META.N0+(CYA[st.k]+.5)*1000);
       const ico=L.divIcon({className:'',html:`<div class="bestm">${i+1}</div>`,iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]});
-      bestMarkers.push(L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(capSitePopup(st,i+1,ll),{maxWidth:290}));
+      bestMarkers.push(L.marker(ll,{icon:ico,zIndexOffset:2000}).addTo(bestLayer).bindPopup(capSitePopup(st,i+1,ll),{maxWidth:300}));
     });
-    document.getElementById('bp-list').innerHTML=sites.map((st,i)=>`<div class="bp-item" onclick="glBestGo(${i})"><span class="bp-rk">${i+1}</span><span class="bp-v">≈ ${fmtAdh(st.adherents)} adhérents</span><span class="bp-d">${Math.round(st.habitants/1000).toLocaleString('fr')} k hab. à ≤ ${CAP.tCoupure} min</span></div>`).join('')
-      ||'<div class="bp-vide">Aucun site dans cette vue.</div>';
-    notif(`${sites.length} site${sites.length>1?'s':''} classé${sites.length>1?'s':''} · ${projetLbl()}`,'ok');
+    let html=sites.map((st,i)=>`<div class="bp-item" onclick="glBestGo(${i})"><span class="bp-rk">${i+1}</span><span class="bp-v">≈ ${fmtAdh(st.adherents)}</span><span class="bp-f">${fourchette(st)}</span><span class="bp-d" title="Variantes où le site reste dans le top ${CAP.topRobustesse} de la vue">${st.robustesse===null?'n. m.':`${st.robustesse}/${nv}`}</span></div>`).join('');
+    if(sites.length)html=`<div class="bp-cols"><span>adhérents attendus</span><span>fourchette</span><span>robustesse</span></div>`+html;
+    if(!sites.length)html=`<div class="bp-vide">Aucun site n'atteint ${sl} adhérents attendus dans cette vue${r.meilleur?` (meilleur : ≈ ${fmtAdh(r.meilleur.adherents)})`:''}. Abaissez le seuil ou changez de vue.</div>`;
+    else if(sites.length<bestN&&projet.seuil>0)html+=`<div class="bp-vide">${sites.length} site${sites.length>1?'s':''} seulement ${sites.length>1?'atteignent':'atteint'} ${sl} adhérents attendus dans cette vue.</div>`;
+    document.getElementById('bp-list').innerHTML=html;
+    notif(sites.length?`${sites.length} site${sites.length>1?'s':''} classé${sites.length>1?'s':''} · ${projetLbl()}`:`Aucun site ≥ ${sl} adhérents attendus dans cette vue`,sites.length?'ok':'warn');
   }finally{
     setBar(false);capBusy=false;
     if(capQueued){capQueued=false;placeBest();}
@@ -1160,7 +1203,7 @@ async function loadData(){
     NEW_GYM_M2=M.newGymM2||1200;
     NEW_GYM_ABS=Math.round(NEW_GYM_M2*MEMBERS_PER_M2/AREF);
     if(META.capture)CAP=Object.assign({},CAP,META.capture);
-    projet={m2:CAP.m2Defaut,segment:CAP.segmentDefaut};projetSync();
+    projet={m2:CAP.m2Defaut,segment:CAP.segmentDefaut,seuil:CAP.seuil};projetSync();
     {const pc=CAP.famille[CAP.central],dc=(v,d)=>v.toFixed(d).replace('.',',');
      document.querySelectorAll('.m-tcut').forEach(el=>el.textContent=CAP.tCoupure);
      document.getElementById('m-adh-p').textContent=dc(CAP.adhParM2.premium,2);
@@ -1169,7 +1212,12 @@ async function loadData(){
      document.getElementById('m-t50c').textContent=dc(pc.t50,1);
      document.getElementById('m-beta').textContent=dc(pc.beta,1);
      document.getElementById('m-w0').textContent=pc.nonRecours.toLocaleString('fr');
-     document.getElementById('m-esp').textContent=CAP.espacementKm;}
+     document.getElementById('m-esp').textContent=CAP.espacementKm;
+     document.getElementById('m-w0s').textContent=CAP.famille.map(q=>q.nonRecours.toLocaleString('fr')).join(', ');
+     document.getElementById('m-ks').textContent=CAP.ks.map(k=>String(k).replace('.',',')).join(', ');
+     document.getElementById('m-nvar').textContent=CAP.famille.length*CAP.ks.length;
+     document.getElementById('m-top').textContent=CAP.topRobustesse;
+     document.getElementById('m-seuil').textContent=CAP.seuil.toLocaleString('fr');}
     // chiffres réels injectés dans la modale Méthode
     document.getElementById('m-date').textContent=META.generated;
     document.getElementById('m-aref').textContent=META.Aref.toFixed(2).replace('.',',');

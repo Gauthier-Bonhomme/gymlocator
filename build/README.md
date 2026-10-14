@@ -229,7 +229,7 @@ node capture.mjs --lat 43.80749 --lon 4.22952 --exacte                      # + 
 npm run capture:hallb                                                       # test : Hall b, 2 400 m², premium
 npm run capture:sites                                                       # test : 12 sites, de Paris aux bourgs isolés
 node capture.mjs --classement --m2 2000 --segment premium --n 20            # meilleurs sites de France
-node capture.mjs --classement --cadre 43.2,3.2,44.4,4.9                     # … ou d'un cadre lat,lon,lat,lon
+node capture.mjs --classement --cadre 43.2,3.2,44.4,4.9 --seuil 1600        # … d'un cadre, au moins 1 600
 ```
 
 **Classement des sites** (`--classement`, panneau « Meilleurs sites » du front) : adhérents captés en
@@ -244,8 +244,16 @@ sur ~350 voisins à 30 min) prendrait 15 à 30 s ; la recherche est grossière p
    est évalué) ;
 3. sélection gloutonne espacée de 2 km.
 
-Validée le 14/10/2026 contre le calcul exhaustif : même top 20 dans le même ordre sur la France,
-l'Île-de-France, la Bretagne, le Massif central, le Gard-Hérault et Lyon. Le noyau et la vitesse sont
+Pour chaque site : **estimation centrale** (jeu central de `FAMILLE`, concurrents × 1), **fourchette**
+(min et max des 9 `VARIANTES` : 3 jeux de `FAMILLE` × poids des concurrents × 0,5 / 1 / 2) et
+**robustesse**, le nombre de variantes où sa valeur atteint celle du 20ᵉ site du classement de cette
+variante dans la même zone (`TOP_ROBUSTESSE` ; non mesurée sous 20 sites). Le **seuil** (`SEUIL`,
+1 600 adhérents par défaut dans le front, `--seuil` ici) ne garde que les sites dont l'estimation
+centrale l'atteint.
+
+Validée le 14/10/2026 contre le calcul exhaustif : même top 20 dans le même ordre, mêmes seuils de
+robustesse des 9 variantes, sur la France, l'Île-de-France, la Bretagne, le Massif central, le
+Gard-Hérault et Lyon. Le noyau et la vitesse sont
 lus dans des tables interpolées (`tablesCapture`), à moins de 2·10⁻⁵ près du calcul exact de
 `capture()`. Le front calcule sur `grid.bin` (habitants arrondis à l'unité) et `gyms.json` (surfaces
 arrondies) : même top 20, valeurs à 0,02 % près. France entière : ~1 s en Node, quelques secondes

@@ -37,8 +37,10 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
 - **Meilleurs sites pour un club de X m²** → classement des sites de la vue sur les **adhérents
   attendus** d'un club dont on choisit la taille (1 200, 2 000 ou 2 400 m²) et le segment (premium ou
   classique) : modèle de capture (Huff avec option « pas de salle ») sur les habitants à ≤ 30 min, face
-  aux salles existantes ; sites espacés d'au moins 2 km, jamais sur un carreau sans habitant — une
-  présélection à vérifier, pas une recommandation d'emplacement.
+  aux salles existantes ; sites espacés d'au moins 2 km, jamais sur un carreau sans habitant. Pour
+  chaque site : estimation centrale, fourchette (3 jeux de paramètres × poids des concurrents) et
+  robustesse (variantes où il reste dans le top 20 de la vue) ; filtre « adhérents attendus ≥ seuil »
+  (1 600 par défaut) — une présélection à vérifier, pas une recommandation d'emplacement.
 - **Analyse exacte** → isochrone détaillée sur les mêmes couches et les mêmes unités que
   l'estimation (pas de mélange pondéré/brut).
 - **Cases à cocher par type de salle** (chaînes, indépendants, équipements publics…) →

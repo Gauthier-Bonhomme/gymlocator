@@ -3,7 +3,7 @@
 //   node capture.mjs --lat 43.80749 --lon 4.22952 [--m2 2000] [--segment premium|classique] [--exacte]
 //   node capture.mjs --hallb      test sur Hall b : 2 400 m², premium, sans elle dans la concurrence
 //   node capture.mjs --sites      test sur 12 sites variés (Paris, banlieue, villes, bourgs isolés), mode national
-//   node capture.mjs --classement [--m2 2000] [--segment premium] [--n 20] [--cadre lat1,lon1,lat2,lon2]
+//   node capture.mjs --classement [--m2 2000] [--segment premium] [--n 20] [--seuil 0] [--cadre lat1,lon1,lat2,lon2]
 //                                 meilleurs sites de la France (ou du cadre) : le classement du front
 //
 // Mode national : temps du modèle calé pour le projet et pour les salles existantes. --exacte (et
@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { toLaea, densityField, speedKmh, T_ACCESS } from './lib-e2sfca.mjs';
 import { CAPTURE, FAMILLE, BANDES, CONTOURS, grilleDe, concurrence, capture, poidsSalle, tempsIsochrones, rapportLocal,
-  attractivite, tablesCapture, classerSites } from './lib-capture.mjs';
+  attractivite, tablesCapture, classerSites, KS, VARIANTES, TOP_ROBUSTESSE } from './lib-capture.mjs';
 
 const DATA = new URL('../data/', import.meta.url);
 const readJson = u => JSON.parse(readFileSync(u, 'utf8'));
@@ -29,7 +29,7 @@ const site = TEST ? { lat: HALLB.lat, lon: HALLB.lon, m2: HALLB.m2, segment: 'pr
 if (!SITES && (CLASSEMENT ? !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment]
   : !Number.isFinite(site.lat) || !Number.isFinite(site.lon) || !(site.m2 > 0) || !CAPTURE.adhParM2[site.segment])) {
   console.log('usage : node capture.mjs --lat <lat> --lon <lon> [--m2 2000] [--segment premium|classique] [--exacte]  |  --hallb  |  --sites'
-    + '  |  --classement [--m2 2000] [--segment premium|classique] [--n 20] [--cadre lat1,lon1,lat2,lon2]');
+    + '  |  --classement [--m2 2000] [--segment premium|classique] [--n 20] [--seuil 0] [--cadre lat1,lon1,lat2,lon2]');
   process.exit(1);
 }
 
@@ -54,8 +54,7 @@ function concurrenceDe(p, facteur = 1, sansHallb = TEST) {
 // Marché : habitants × P (central), ou demande du modèle (âge, revenu) ramenée au même total national
 const PEN = cells.reduce((s, c) => s + c.dem, 0) / cells.reduce((s, c) => s + c.ind, 0);   // 10 % (01-demand.mjs)
 const MARCHES = { habitants: (c, p) => c.ind * p.pratiqueMax, demande: (c, p) => c.dem / PEN * p.pratiqueMax };
-const KS = [0.5, 1, 2];
-const evaluer = ({ lat, lon, m2, segment, temps = null, facteur = 1, p = CAPTURE, k = 1, marche = MARCHES.habitants, sansHallb = TEST }) =>
+const evaluer =({ lat, lon, m2, segment, temps = null, facteur = 1, p = CAPTURE, k = 1, marche = MARCHES.habitants, sansHallb = TEST }) =>
   capture(G, field, concurrenceDe(p, facteur, sansHallb), { lat, lon, m2, segment, temps, marche, k, p });
 // Variantes de la fourchette : FAMILLE × poids des concurrents
 const variantes = FAMILLE.flatMap(p => KS.map(k => ({ p, k, nom: `${p.nom} ×${dec(k, 1).replace(',0', '')}` })));
@@ -65,15 +64,17 @@ console.log(`Modèle : ${parametres(CAPTURE)}`);
 
 if (CLASSEMENT) {
   // ── Meilleurs sites : le classement du front (panneau « Meilleurs sites »), sur la France ou un cadre ──
-  const n = +arg('n', 20), cadre = arg('cadre', null)?.split(',').map(Number);
+  const n = +arg('n', 20), seuil = +arg('seuil', 0), cadre = arg('cadre', null)?.split(',').map(Number);
   const dans = c => !cadre || (c.lat >= Math.min(cadre[0], cadre[2]) && c.lat <= Math.max(cadre[0], cadre[2]) && c.lon >= Math.min(cadre[1], cadre[3]) && c.lon <= Math.max(cadre[1], cadre[3]));
   const eligibles = []; cells.forEach((c, i) => { if (dans(c)) eligibles.push(i); });
   const t0 = Date.now(), T = tablesCapture(G, field), W = attractivite(site.m2, site.segment);
-  const r = classerSites(T, concurrenceDe(CAPTURE, 1, false), W, eligibles, { n });
+  const r = classerSites(T, FAMILLE.map(p => concurrenceDe(p, 1, false)), W, eligibles, { n, seuil });
   console.log(`\n══ Meilleurs sites · club ${site.segment} de ${fmt(site.m2)} m² (attractivité ${fmt(W)}) · ${cadre ? `cadre ${cadre.join(', ')}` : 'France'} · mode national ══`);
   console.log(`${fmt(eligibles.length)} carreaux habités éligibles · ${fmt(r.evaluations)} évaluations · ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  console.log(`Fourchette : ${VARIANTES.length} variantes (${FAMILLE.length} jeux × concurrents × ${KS.map(k => dec(k, 1)).join(' / ')}) · robustesse : variantes où le site reste dans le top ${TOP_ROBUSTESSE}${seuil ? ` · seuil ${fmt(seuil)} (central)` : ''}`);
   r.sites.forEach((s, k) => { const c = cells[s.i];
-    console.log(`  ${String(k + 1).padStart(2)}. ${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}   ${fmt(s.adherents).padStart(6)} adhérents   ${fmt(s.habitants).padStart(9)} hab. à ≤ ${CAPTURE.tCoupure} min   carreau ${fmt(c.ind)} hab.`); });
+    console.log(`  ${String(k + 1).padStart(2)}. ${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}   ${fmt(s.adherents).padStart(6)} adhérents   ${`${fmt(s.min)} – ${fmt(s.max)}`.padStart(15)}   robustesse ${s.robustesse === null ? 'n. m.' : `${s.robustesse}/${VARIANTES.length}`}   ${fmt(s.habitants).padStart(9)} hab. à ≤ ${CAPTURE.tCoupure} min   carreau ${fmt(c.ind)} hab.`); });
+  if (!r.sites.length) console.log(`  Aucun site n'atteint ${fmt(seuil)} (meilleur : ${r.meilleur ? fmt(r.meilleur.adherents) : '–'})`);
   process.exit(0);
 }
 console.log(`Attractivité = surface × adhérents/m² : premium ${dec(CAPTURE.adhParM2.premium)}, classique ${dec(CAPTURE.adhParM2.classique, 1)}`);

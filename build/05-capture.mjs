@@ -3,7 +3,7 @@
 // comme ceux de meta.modele (03), une seule source, build/lib-capture.mjs. À lancer après 03 et 04,
 // qui réécrivent meta.json.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CAPTURE, FAMILLE, SURF_MAX, TAILLES, ESPACEMENT_KM, RECHERCHE } from './lib-capture.mjs';
+import { CAPTURE, FAMILLE, SURF_MAX, TAILLES, ESPACEMENT_KM, RECHERCHE, KS, SEUIL, TOP_ROBUSTESSE } from './lib-capture.mjs';
 
 const metaPath = new URL('../meta.json', import.meta.url);
 const meta = JSON.parse(readFileSync(metaPath, 'utf8'));
@@ -12,6 +12,8 @@ if (central < 0) { console.log('!! ÉCHEC : le jeu central (CAPTURE) n\'est pas 
 
 meta.capture = {
   famille: FAMILLE, central,                       // jeux de paramètres (W_0, t50, β, P) ; central = CAPTURE
+  ks: KS,                                          // poids des concurrents : fourchette = famille × ks
+  seuil: SEUIL, topRobustesse: TOP_ROBUSTESSE,     // filtre par défaut ; robustesse = variantes restant dans ce top
   tCoupure: CAPTURE.tCoupure,                      // min : noyau nul au-delà
   adhParM2: CAPTURE.adhParM2, surfMax: SURF_MAX,   // attractivité = min(surface, surfMax) × adhérents/m²
   tailles: TAILLES, m2Defaut: CAPTURE.m2Defaut, segmentDefaut: CAPTURE.segmentDefaut,

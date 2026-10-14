@@ -10,13 +10,15 @@ _Rien pour l'instant._
 
 ## Prochaines (dans cet ordre)
 
-- [ ] **d. Calibrer la décroissance et la pénétration** sur les codes postaux des adhérents de
-  Hall b (c est fait ; reste l'export depuis le logiciel de gestion). Mesurer la zone et les temps
-  de Hall b directement avec Valhalla, pas avec le modèle : sa vitesse fonction de la densité y
-  sous-estime la zone de 15 min de 29 % (23 523 habitants contre 33 331 dans l'isochrone), car
-  Hall b est reliée à Vergèze, Uchaud et Bernis par des axes rapides (N113, A9, D40).
 - [ ] **e. Étape 5** (Huff, verdict absolu) : taille de projet réglable (défaut 2 000 m², objectif
   1 600 adhérents ou plus), segment haut de gamme, revenu pondéré.
+  - Classer Hall b en premium : sans enseigne reconnue, `02-supply.mjs` la range en « classic »
+    (catégorie par défaut des indépendants).
+  - Tester sur la zone exacte de Hall b (isochrone Valhalla), pas sur la zone estimée du modèle,
+    29 % trop petite autour de Hall b (voir c).
+  - Rappel : avec un seul club, la validation est circulaire. Les paramètres premium de d viennent
+    de Hall b ; les retrouver sur Hall b ne prouve rien. Il faut d'autres salles (« Calibrer aussi
+    sur une ou deux autres salles », dans « Plus tard »).
 
 ## Plus tard
 
@@ -100,6 +102,15 @@ Le reste de l'audit n° 2, sans ordre.
 
 ## Fait
 
+- [x] **d. Décroissance et pénétration calées sur les adhérents de Hall b** : fait le 13/10/2026.
+  La mesure détaillée reste hors du dépôt public (`docs-private/`, non versionné). Paramètres
+  **premium** proposés, propres à un club haut de gamme et **non appliqués** : le modèle garde la
+  gaussienne σ = 6 min coupée à 15 min pour tous les clubs.
+  - Décroissance log-logistique f(t) = 1 / (1 + (t / t50)^β), t50 = 7,3 min, β = 4 (temps en
+    voiture Valhalla).
+  - Coupure : 30 min.
+  - Pénétration : 114 ‰ des habitants au pied du club (adhérents attendus = 0,114 × Σ habitants
+    × f(t), hors concurrence).
 - [x] **c. Vitesse recalée par classe de densité lissée (N1, action 3)** : fait et publié le
   13/10/2026 (commit `d30b24f` ; CI `9b20d32` : 10 556 salles, 6 réseaux au-dessus de leur seuil,
   backtest 43,6). Démo en ligne vérifiée : modale Méthode « calée sur les temps en voiture de

@@ -31,8 +31,9 @@ const SURF_MIN = 40, SURF_MAX = 6000;
 // d'adhérents constaté, PAS surface × MEMBERS_PER_M2 : Hall b compte 1 600 adhérents pour 2 400 m²
 // (0,67 adh/m² ; la règle en donnerait 3 360). Sans cette table, Hall b (« non employeur » dans
 // SIRENE) était estimée à 240 m² / 336 places (600 m² × 0,4 × 1,4).
+// cat : segment déclaré par l'exploitant ; sans enseigne reconnue, un indépendant serait « classic ».
 const REELLES = {
-  '94409256800012': { nom: 'Hall b', m2: 2400, adherents: 1600 },   // exploitant, 10/2026
+  '94409256800012': { nom: 'Hall b', m2: 2400, adherents: 1600, cat: 'premium' },   // exploitant, 10/2026
 };
 
 // Multiplicateur de surface selon la tranche d'effectifs SIRENE — appliqué UNIQUEMENT
@@ -179,7 +180,8 @@ for (const r of [...sirene, ...sireneAutres.map(r => ({ ...r, autreNaf: true }))
   if (!g || g.lat == null) { if (!r.autreNaf) noGeo++; continue; }
   if (!inMet(g)) continue;
   const rec = {
-    lat: +g.lat.toFixed(5), lon: +g.lon.toFixed(5), name, cat: enseigne ? enseigne.cat : classify(name).cat, enseigne,
+    lat: +g.lat.toFixed(5), lon: +g.lon.toFixed(5), name,
+    cat: REELLES[r.siret]?.cat ?? (enseigne ? enseigne.cat : classify(name).cat), enseigne,
     enseigneSrc: enseigne ? 'nom' : null,
     src: 'sirene', naf: r.autreNaf ? r.activiteprincipaleetablissement : '93.13Z', sansNom: !nom,
     date: r.datecreationetablissement || null,
@@ -487,7 +489,7 @@ for (const r of RESEAUX) {
 // Hall b (Saint-Dionisy) : seul point de calibration réel — elle ne doit jamais tomber dans une règle
 const hallb = gyms.find(g => /^hall ?b$/i.test(g.name) && g.cp === '30980');
 const hbReel = hallb?.surfSrc === 'reel' ? '' : ' !! valeurs réelles non appliquées — SIRET changé ?';
-console.log(`  Hall b : ${hallb ? `${hallb.surf} m² · ${hallb.cap} places (${hallb.surfSrc})${hbReel}` : '!! ABSENTE — vérifier le journal'}`);
+console.log(`  Hall b : ${hallb ? `${hallb.surf} m² · ${hallb.cap} places (${hallb.surfSrc}) · ${hallb.cat}${hbReel}` : '!! ABSENTE — vérifier le journal'}`);
 
 writeFileSync(new URL('../data/gyms-fused.json', import.meta.url), JSON.stringify(gyms));
 writeFileSync(new URL('../data/offre-journal.json', import.meta.url), '[\n' + journal.map(j => JSON.stringify(j)).join(',\n') + '\n]\n');

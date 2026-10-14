@@ -75,7 +75,8 @@ function evalSet(set, label) {
 }
 console.time('Ucatch ouvertures');
 const all = evalSet(openings, 'Toutes ouvertures');
-const chains = evalSet(openings.filter(o => o.cat === 'lowcost' || o.cat === 'premium'), 'Chaînes (low-cost/premium)');
+// enseigne exigée : un indépendant déclaré premium par son exploitant (Hall b) n'est pas une chaîne
+const chains = evalSet(openings.filter(o => o.enseigne && (o.cat === 'lowcost' || o.cat === 'premium')), 'Chaînes (low-cost/premium)');
 const bigOnly = evalSet(openings.filter(o => o.surfSrc === 'dataes' || o.cat === 'lowcost'), 'Vraies salles (surface connue ou low-cost)');
 console.timeEnd('Ucatch ouvertures');
 const { percentileMedian: median, partTop20: top20, partTop10: top10 } = all;

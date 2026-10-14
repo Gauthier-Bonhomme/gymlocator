@@ -349,8 +349,8 @@ const hbOffre = supply.hallb;
 const SITES_VIDES_MAX = 2;
 const controles = [
   ['Reproduction de grid.bin', reproduction === 'identique à grid.bin', reproduction],
-  ['Hall b : 2 400 m² et 1 600 adhérents réels', hbOffre?.surface === 2400 && hbOffre.capacite === 1600 && hbOffre.source === 'reel',
-    hbOffre ? `${hbOffre.surface} m² · ${hbOffre.capacite} places (${hbOffre.source})` : 'absente'],
+  ['Hall b : 2 400 m², 1 600 adhérents réels, premium', hbOffre?.surface === 2400 && hbOffre.capacite === 1600 && hbOffre.source === 'reel'
+    && hbOffre.type === 'premium', hbOffre ? `${hbOffre.surface} m² · ${hbOffre.capacite} places (${hbOffre.source}) · ${hbOffre.type}` : 'absente'],
   [`Top 30 sites sur un carreau < ${VIDE} hab/km² : au plus ${SITES_VIDES_MAX}`, model.top30Vides <= SITES_VIDES_MAX, `${model.top30Vides}/30`],
   ['Réseaux de franchise au-dessus des seuils (reseaux.mjs)', chains.every(c => c.n >= c.min),
     chains.filter(c => c.n < c.min).map(c => `${c.nom} ${c.n} < ${c.min}`).join(', ') || `${chains.length}/${chains.length}`],
@@ -377,7 +377,7 @@ line('SIRENE sans salarié', `${fmt(nonEmp.length)} · ${pct(supply.partCapacite
 line('Salles empilées sur un même point (≥ 3)', `${fmt(stacked.length)} · ${fmt(supply.capaciteEmpilee)} places`);
 line('Jointure avec les sources', `SIRENE ${pct(supply.jointure.sirene, 0)} · Data ES ${pct(supply.jointure.dataes, 0)}`);
 for (const c of chains) line(`  ${c.nom}`, `${c.n} clubs (publiés ${c.publie}, seuil ${c.min}) · surface médiane ${c.surfMesuree == null ? '–' : fmt(c.surfMesuree)} m² mesurée (${c.mesurees}) / ${fmt(c.surfRetenue ?? c.surfDefaut)} m² retenue`);
-line('Hall b dans l\'offre', supply.hallb ? `${supply.hallb.surface} m² · ${supply.hallb.capacite} places (${supply.hallb.source})` : 'absente');
+line('Hall b dans l\'offre', supply.hallb ? `${supply.hallb.surface} m² · ${supply.hallb.capacite} places (${supply.hallb.source}) · ${supply.hallb.type}` : 'absente');
 console.log('\nModèle');
 line('Aref (couverture moyenne nationale)', dec(M.Aref, 4));
 line('Déficit relatif national', fmt(totU));

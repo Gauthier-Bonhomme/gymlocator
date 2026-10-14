@@ -213,6 +213,41 @@ export function captureCarreau(T, Ds, W, s, toutes = true) {
   return out;
 }
 
+// Estimation centrale de projets d'attractivités Ws au centre de CHAQUE carreau habité (calcul
+// exhaustif ; temps et noyau partagés entre les projets) : un Float32Array par projet. Sert au rang
+// national du front (05-capture.mjs) et à la stabilité du classement dans l'audit.
+export function champCentral(T, Ds, Ws) {
+  const { G: { KIDX, cols, rows }, dens, ind, CX, CY, dxy, km, dMin, dMax, minParKm, noyaux } = T;
+  const { ip, p } = VARIANTES[CENTRALE], F = noyaux[ip], D = Ds[ip], P = p.pratiqueMax, W0 = p.nonRecours, tCut = CAPTURE.tCoupure;
+  const n = ind.length, nw = Ws.length, out = Ws.map(() => new Float32Array(n)), a = new Float64Array(nw);
+  for (let s = 0; s < n; s++) {
+    a.fill(0);
+    const x0 = CX[s], y0 = CY[s], dS = dens[s];
+    for (let o = 0; o < km.length; o++) {
+      const x = x0 + dxy[2 * o], y = y0 + dxy[2 * o + 1];
+      if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+      const j = KIDX[x + y * cols]; if (j < 0) continue;
+      const dm = (dens[j] + dS) / 2;
+      let mpk;
+      if (dm >= dMax) mpk = minParKm[dMax]; else if (dm <= dMin) mpk = minParKm[0];
+      else { const i = dm | 0; mpk = minParKm[i] + (minParKm[i + 1] - minParKm[i]) * (dm - i); }
+      const t = T_ACCESS + km[o] * mpk; if (t > tCut) continue;
+      const u = t * PAS_NOYAU, k = u | 0, f = F[k] + (F[k + 1] - F[k]) * (u - k), hP = ind[j] * P, Dj = D[j];
+      for (let w = 0; w < nw; w++) { const Wf = Ws[w] * f; a[w] += hP * Wf / (W0 + Wf + Dj); }
+    }
+    for (let w = 0; w < nw; w++) out[w][s] = a[w];
+  }
+  return out;
+}
+// Points de la distribution publiés pour le rang national : percentiles 0 à 99, puis plus fins en tête
+// (99,1 … 99,9 ; 99,91 … 99,99), puis 100. Valeur au percentile q : q % des carreaux font au plus autant.
+export const RANGS = [...Array.from({ length: 100 }, (_, i) => i), ...Array.from({ length: 9 }, (_, i) => 99.1 + i / 10),
+  ...Array.from({ length: 9 }, (_, i) => 99.91 + i / 100), 100].map(q => Math.round(q * 100) / 100);
+export function quantiles(valeurs) {
+  const v = Float32Array.from(valeurs).sort(), n = v.length;
+  return RANGS.map(q => Math.round(v[Math.min(n - 1, Math.max(0, Math.ceil(q / 100 * n) - 1))]));
+}
+
 // Classement des sites d'un ensemble de carreaux habités (le front : ceux de la vue affichée ; ici,
 // toute la France ou un cadre) sur les adhérents captés au centre du carreau, deux sites à au moins
 // ESPACEMENT_KM l'un de l'autre. Recherche grossière puis fine, validée contre le calcul exhaustif le

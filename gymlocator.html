@@ -235,7 +235,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       f(t) = 1 / (1 + (t / <span id="m-t50c">5,0</span> min)<sup><span id="m-beta">3,4</span></sup>), nulle au-delà de <span class="m-tcut">30</span> min · non-recours W₀ = <span id="m-w0">400</span></div>
       <p>Le noyau f, la pratique maximale et le non-recours W₀ sont calés ensemble sur la répartition des adhérents d'un club réel par temps de trajet et sur le taux de pratique national (10 %). Le classement utilise les temps de trajet du modèle (mode national) ; deux sites retenus sont à au moins <span id="m-esp">2</span> km l'un de l'autre, jamais sur un carreau sans habitant. La concurrence prise en compte est celle de la légende (types de salles cochés, salles non retirées).</p>
       <p><b>Fourchette et robustesse.</b> Un seul club ne départage pas les paramètres : trois jeux équivalents pour ce club (non-recours W₀ = <span id="m-w0s">200, 400, 800</span>, chacun avec son noyau et sa pratique maximale) sont croisés avec le poids des concurrents (× <span id="m-ks">0,5, 1, 2</span>). Les <span id="m-nvar">9</span> variantes donnent la <b>fourchette</b> ; l'estimation centrale est le jeu du milieu, concurrents × 1. La <b>robustesse</b> d'un site est le nombre de variantes où il reste parmi les <span id="m-top">20</span> meilleurs sites de la vue. Le seuil (<span id="m-seuil">1 600</span> adhérents attendus par défaut) ne garde que les sites dont l'estimation centrale l'atteint.</p>
-      <p><b>Un point, une zone exacte.</b> Un clic sur la carte donne la même estimation, avec sa fourchette, pour le projet réglé dans « Meilleurs sites ». Le bouton « Zone exacte » demande six isochrones routières Valhalla (5 à 30 min, une requête par contour, à la file) et recalcule l'estimation avec les vrais temps de trajet du projet ; les concurrents gardent les temps du modèle. Les contours sont gardés en cache dans le navigateur.</p>
+      <p><b>Un point, une zone exacte.</b> Un clic sur la carte donne la même estimation, avec sa fourchette, pour le projet réglé dans « Meilleurs sites ». Le <b>rang national</b> situe l'estimation centrale parmi celles du même projet placé dans chacun des carreaux habités de France, avec toute l'offre (il n'est pas calculé quand la légende retire des salles). Le bouton « Zone exacte » demande six isochrones routières Valhalla (5 à 30 min, une requête par contour, à la file) et recalcule l'estimation avec les vrais temps de trajet du projet ; les concurrents gardent les temps du modèle. Les contours sont gardés en cache dans le navigateur.</p>
 
       <h3>Comment l'utiliser</h3>
       <ol>
@@ -254,8 +254,8 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       <div class="src"><span>—</span><span><b>Salles</b> : SIRENE (établissements actifs géolocalisés, NAF 93.13Z ; 93.11Z, 93.12Z, 85.51Z filtrés par nom) ∪ Data ES ministère des Sports ∪ clubs de chaîne OpenStreetMap (© contributeurs OpenStreetMap, ODbL)</span></div>
       <div class="src"><span>—</span><span><b>Isochrones exactes</b> : Valhalla / OpenStreetMap (service tiers, tentative opportuniste) · <b>Fond de carte</b> : OpenStreetMap</span></div>
 
-      <h3>Validation — ce que le score dit (et ne dit pas)</h3>
-      <div class="val">Backtest : les <b id="m-bt-n">–</b> créations de salles depuis 2023 (SIRENE) se situent au <b id="m-bt-med">–</b>ᵉ percentile médian du déficit calculé avec l'offre antérieure (hasard = 50ᵉ). Les ouvertures réelles <b>ne ciblent donc pas</b> les zones les plus déficitaires : les enseignes arbitrent d'abord sur le foncier commercial et la co-implantation. Le score mesure le manque <b>du point de vue de l'habitant</b> — un filtre de marché — pas la probabilité qu'une chaîne s'installe.</div>
+      <h3>Validation — ce que la carte dit (et ne dit pas)</h3>
+      <div class="val">Backtest : les <b id="m-bt-n">–</b> créations de salles depuis 2023 (SIRENE) se situent au <b id="m-bt-med">–</b>ᵉ percentile médian du déficit calculé avec l'offre antérieure (hasard = 50ᵉ). Les ouvertures réelles <b>ne ciblent donc pas</b> les zones les plus déficitaires : les enseignes arbitrent d'abord sur le foncier commercial et la co-implantation. Le déficit relatif mesure le manque <b>du point de vue de l'habitant</b> — un filtre de marché — pas la probabilité qu'une chaîne s'installe.</div>
       <div class="warn">Limites : indicateur relatif à la moyenne nationale (ne mesure pas la saturation absolue d'un marché) · temps de trajet estimés par une vitesse moyenne selon la densité, pas par le réseau routier (près d'un axe rapide, la zone réelle de 15 min peut être 40 % plus peuplée que l'estimation) · modèle voiture uniquement (marche et transports sous-estimés en hyper-centre) · capacités estimées pour les salles sans surface connue · millésime population 2021 · foncier, loyers et visibilité non modélisés. Toujours valider un site sur le terrain.</div>
     </div>
   </div>
@@ -442,9 +442,6 @@ function rgb(s){
 }
 const sDef=u=>Math.max(0,Math.min(1,(Math.log1p(u)-COLOR.min)/(COLOR.max-COLOR.min)));
 const sZone=v=>Math.max(0,Math.min(1,(Math.log1p(v)-COLORZ.min)/(COLORZ.max-COLORZ.min)));
-// Libellé de l'indice /100 (intensité de la couleur « Déficit 15 min », échelle log) :
-// décrit un niveau de déficit relatif, pas un potentiel commercial.
-function slbl(p){return p>=75?'Déficit relatif très élevé':p>=50?'Déficit relatif élevé':p>=25?'Déficit relatif modéré':'Déficit relatif faible';}
 function tR(z){return z>=14?96:z>=12?64:z>=10?40:z>=9?28:18;}
 
 // ── Heatmap ────────────────────────────────────────────────────────────────────
@@ -658,18 +655,17 @@ function initClick(){
     const lat=e.latlng.lat,lng=e.latlng.lng;
     const smp=sample2(lat,lng);if(!smp)return;
     const z=zoneStats(lat,lng);
-    // indice /100 = intensité de la vue « déficit 15 min » (le même nombre que « Déficit relatif »)
-    const s=sZone(smp[3]),p=Math.round(s*100);
-    const col='rgb('+rgb(s).join(',')+')';
     const vd=verdict(z.u,z.dem,z.wbar);
-    // Projet du panneau « Meilleurs sites » placé au point : même estimation que le classement
+    // Projet du panneau « Meilleurs sites » placé au point : même estimation que le classement.
+    // Couleur : seuil atteint par l'estimation centrale (vert), par une partie de la fourchette (ambre).
     const pr=capResume(capPoint(lat,lng));
+    const col=projet.seuil>0?(pr.adherents>=projet.seuil?'#34d399':pr.max>=projet.seuil?'#fbbf24':'#8b93a7'):'#6e8bff';
     L.circleMarker([lat,lng],{radius:8,color:'white',fillColor:col,fillOpacity:1,weight:2.5})
      .addTo(clkLayer).bindPopup(`<div class="gp">
-       <div class="gp-score"><b style="color:${col}">${p}<span style="font-size:13px;color:var(--txt3);font-weight:400">/100</span></b><span style="color:${col}">${slbl(p)}</span></div>
-       <div class="gp-sep">Projet : ${projetLbl()} · temps du modèle</div>
-       <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(pr.adherents)}</span></div>
+       <div class="gp-score"><b style="color:${col}">≈ ${fmtAdh(pr.adherents)}</b><span style="color:${col}">adhérents attendus</span></div>
+       <div class="gp-sub">${projetLbl()} · temps du modèle</div>
        <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(pr)} <small>(${nVar()} variantes)</small></span></div>
+       ${rangKv(pr.adherents)}
        ${seuilKv(pr)}
        <button class="iso-btn" onclick="glExacte(${lat},${lng})">Zone exacte · isochrones Valhalla</button>
        <div class="gp-sep">Zone accessible en ≤ 15 min · déficit relatif</div>
@@ -1078,6 +1074,23 @@ window.glExacte=async function(lat,lon){
 };
 const fmtAdh=v=>(Math.round(v/10)*10).toLocaleString('fr');
 const fourchette=st=>`${fmtAdh(st.min)} – ${fmtAdh(st.max)}`;
+// Rang national d'une estimation centrale : part des carreaux habités de France où le même projet
+// ferait moins, d'après la distribution de meta.capture (offre complète). null si elle manque (ancien
+// meta.json) ; « concurrence filtrée » si la légende retire des salles (la distribution ne vaut plus).
+function rangNational(v){
+  const q=CAP.distribution&&CAP.distribution[`${projet.segment}-${projet.m2}`],R=CAP.rangs;
+  if(!q||!R)return null;
+  if(!(Object.values(catActive).every(Boolean)&&excluded.size===0))return 'filtre';
+  if(v<q[0])return 0;if(v>=q[q.length-1])return 100;
+  let i=0;while(i<q.length-2&&q[i+1]<=v)i++;
+  return q[i+1]>q[i]?R[i]+(v-q[i])/(q[i+1]-q[i])*(R[i+1]-R[i]):R[i];
+}
+function rangKv(v){
+  const r=rangNational(v);if(r===null)return '';
+  const txt=r==='filtre'?'non calculé <small>(concurrence filtrée)</small>'
+    :`mieux que ${r>=99?(Math.min(99.99,Math.floor(r*10)/10)).toLocaleString('fr'):Math.floor(r)} % <small>des carreaux habités</small>`;
+  return `<div class="kv"><span class="k">Rang national</span><span class="v">${txt}</span></div>`;
+}
 // Seuil du panneau atteint par combien de variantes (rien si le filtre est à 0)
 const seuilKv=st=>projet.seuil>0?`<div class="kv"><span class="k">Seuil de ${projet.seuil.toLocaleString('fr')}</span><span class="v">atteint dans ${st.variantes.filter(v=>v>=projet.seuil).length}/${nVar()} <small>variantes</small></span></div>`:'';
 const projetLbl=()=>`club ${projet.segment} de ${projet.m2.toLocaleString('fr')} m²`;
@@ -1091,6 +1104,7 @@ function capSitePopup(st,rank,ll){
     <div class="kv"><span class="k">Adhérents attendus</span><span class="v">≈ ${fmtAdh(st.adherents)}</span></div>
     <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(st)} <small>(${nv} variantes)</small></span></div>
     <div class="kv"><span class="k">Robustesse</span><span class="v">${rob}</span></div>
+    ${rangKv(st.adherents)}
     ${seuilKv(st)}
     <div class="kv"><span class="k">Habitants à ≤ ${CAP.tCoupure} min</span><span class="v">~${Math.round(st.habitants).toLocaleString('fr')}</span></div>
     <div class="gp-note">Modèle de capture, temps de trajet du modèle. Fourchette : ${CAP.famille.length} jeux de paramètres équivalents (non-recours W₀ = ${CAP.famille.map(p=>p.nonRecours).join(', ')}) × poids des concurrents × ${CAP.ks.map(k=>String(k).replace('.',',')).join(' / ')}. Chaque site est évalué seul, comme une alternative aux autres. Présélection à vérifier sur le terrain.</div>

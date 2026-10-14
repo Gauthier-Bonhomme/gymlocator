@@ -44,7 +44,7 @@ node 01-demand.mjs     # demande par carreau (pénétration par âge ancrée 10 
 node 02-supply.mjs     # offre fusionnée SIRENE ∪ Data ES ∪ OSM → ../gyms.json
 node 03-e2sfca.mjs     # E2SFCA national → ../grid.bin + ../meta.json
 node 04-backtest.mjs   # validation ouvertures ≥ 2023 → complète ../meta.json
-node 05-capture.mjs    # paramètres du modèle de capture (lib-capture.mjs) → bloc capture de ../meta.json
+node 05-capture.mjs    # modèle de capture (lib-capture.mjs) : paramètres et rang national → bloc capture de ../meta.json
 ```
 
 Chaque script affiche des contrôles (population totale ≈ 63 M, etc.). 02 échoue si un grand
@@ -258,6 +258,14 @@ lus dans des tables interpolées (`tablesCapture`), à moins de 2·10⁻⁵ prè
 `capture()`. Le front calcule sur `grid.bin` (habitants arrondis à l'unité) et `gyms.json` (surfaces
 arrondies) : même top 20, valeurs à 0,02 % près. France entière : ~1 s en Node, quelques secondes
 dans un navigateur.
+
+**Rang national** : `05-capture.mjs` calcule l'estimation centrale de chacun des 6 projets (3 tailles ×
+2 segments) au centre de chaque carreau habité, avec toute l'offre (`champCentral`, calcul exhaustif,
+~15 s), et publie leur distribution dans `meta.json` (`capture.distribution`, aux percentiles
+`capture.rangs`, plus fins au-dessus du 99ᵉ). Le front en tire « mieux que N % des carreaux
+habités » ; il ne l'affiche pas quand la légende retire des salles (la distribution ne vaut plus).
+Elle remplace le score /100 du clic, qui disait « élevé » ou « très élevé » sans lien avec un
+nombre d'adhérents.
 
 Le front estime aussi un point cliqué (mode national, depuis le point exact, comme `capture()`) et sa
 **zone exacte** : isochrones Valhalla de 5 à 30 min, une requête par contour, comme `--exacte`

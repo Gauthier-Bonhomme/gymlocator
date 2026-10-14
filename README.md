@@ -48,7 +48,7 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
 - **Analyse exacte** → isochrone détaillée sur les mêmes couches et les mêmes unités que
   l'estimation (pas de mélange pondéré/brut).
 - **Cases à cocher par type de salle** (chaînes, indépendants, équipements publics…) →
-  le score E2SFCA national est **recalculé côté client** sur le sous-ensemble (~2,5 s),
+  le modèle E2SFCA national est **recalculé côté client** sur le sous-ensemble (~2,5 s),
   échelle de couleur et référence comprises ; la concurrence des meilleurs sites suit le même filtre.
 - **Permalien** `#lat,lon,zoom,vue` pour partager une analyse.
 - **Modale « Méthode »** : mode d'emploi complet et limites du modèle, en 6 sections.
@@ -56,14 +56,14 @@ il n'y a donc qu'une seule source de vérité (chiffres de la modale « Méthode
 Aucun serveur : la page charge `grid.bin.gz` (2,4 Mo, décompressé nativement par le navigateur
 via `DecompressionStream`, repli `grid.bin` 4,5 Mo), `gyms.json` et `meta.json`.
 
-## Validation — ce que le score dit, et ce qu'il ne dit pas
+## Validation — ce que la carte dit, et ce qu'elle ne dit pas
 
 Backtest sur les **≈ 2 000 ouvertures de salles depuis 2023** (SIRENE, après nettoyage de l'offre)
 contre la carte de déficit calculée sur les données antérieures : les ouvertures se situent autour
 du **44ᵉ percentile médian** du déficit (un tirage au hasard donnerait 50).
 
 Autrement dit : **les opérateurs ne ciblent pas les zones les plus déficitaires** — leurs choix
-suivent d'autres logiques (foncier, visibilité, zones commerciales). Le score GymLocator doit donc
+suivent d'autres logiques (foncier, visibilité, zones commerciales). Le déficit relatif de GymLocator doit donc
 se lire comme un **filtre de marché côté habitant** (où la demande est-elle mal servie ?), pas
 comme un prédicteur des implantations réelles. Les chiffres détaillés du backtest sont dans
 `meta.json` et affichés dans la modale Méthode.

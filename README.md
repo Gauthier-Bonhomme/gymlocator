@@ -68,6 +68,11 @@ se lire comme un **filtre de marché côté habitant** (où la demande est-elle 
 comme un prédicteur des implantations réelles. Les chiffres détaillés du backtest sont dans
 `meta.json` et affichés dans la modale Méthode.
 
+Les **adhérents attendus** (meilleurs sites, clic, zone exacte) viennent d'un modèle de capture
+ajusté sur **un seul club**, sans second club de validation : retrouver ses adhérents ne prouverait
+rien, puisque ses paramètres en viennent. Loyer, visibilité, parking et population de jour ne sont
+pas modélisés. L'interface le rappelle à côté de chaque estimation : c'est un outil de présélection.
+
 ## Architecture
 
 ```

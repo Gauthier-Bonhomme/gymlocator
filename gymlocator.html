@@ -50,6 +50,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 .gp-score span{font-size:12px;font-weight:600}
 .gp-verdict{font-size:12px;font-weight:700;margin-top:8px}
 .gp-note{font-size:10px;color:var(--txt3);margin-top:5px;line-height:1.5}
+.gp-warn{font-size:10px;color:#e5c25b;margin-top:6px;line-height:1.5}
 .gp-sep{font-size:9px;color:var(--txt3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 3px;padding-top:8px;border-top:1px solid var(--border2)}
 .iso-btn{margin-top:9px;width:100%;padding:7px 8px;font-size:11px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;letter-spacing:.01em}
 .iso-btn:hover{background:#5d7cf7}
@@ -137,6 +138,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 .bp-in{width:66px;height:27px;border:1px solid var(--border2);background:var(--panel2);color:var(--txt);border-radius:6px;font-family:inherit;font-size:13px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .bp-in::-webkit-inner-spin-button,.bp-in::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .bp-in:focus{outline:none;border-color:var(--accent)}
+.bp-warn{margin-top:10px;background:#251d0c;border:1px solid #574a1d;border-radius:7px;padding:7px 9px;color:#e5c25b;font-size:10px;line-height:1.5}
 .bp-vide{font-size:11px;color:var(--txt2);line-height:1.5;padding:7px 3px;border-top:1px solid var(--border)}
 /* Mobile : header sur deux rangées, panneaux compacts */
 @media (max-width:680px){
@@ -201,7 +203,8 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
     <div class="bp-row"><span class="bp-l">Afficher</span><button class="bp-step" onclick="glBestN(-1)">−</button><span class="bp-n" id="bp-n">5</span><button class="bp-step" onclick="glBestN(1)">+</button><span>sites</span></div>
     <div class="bp-btns"><button class="iso-btn" onclick="placeBest()">Classer</button><button class="iso-btn sec" onclick="clearBest()">Effacer</button></div>
     <div id="bp-list"></div>
-    <div class="bp-sub">Classés sur les <b>adhérents attendus</b> du club : habitants à ≤ 30 min, concurrence des salles existantes et part de non-inscrits (modèle de capture, temps de trajet du modèle). Sites de la vue affichée, à au moins 2 km l'un de l'autre, jamais sur un carreau sans habitant ; seuls ceux dont l'estimation centrale atteint le seuil sont gardés. <b>Fourchette</b> : 9 variantes (3 jeux de paramètres × poids des concurrents) ; <b>robustesse</b> : nombre de variantes où le site reste dans les 20 meilleurs de la vue. <b>Présélection à vérifier</b>, pas une recommandation d'emplacement.</div>
+    <div class="bp-sub">Classés sur les <b>adhérents attendus</b> du club : habitants à ≤ 30 min, concurrence des salles existantes et part de non-inscrits (modèle de capture, temps de trajet du modèle). Sites de la vue affichée, à au moins 2 km l'un de l'autre, jamais sur un carreau sans habitant ; seuls ceux dont l'estimation centrale atteint le seuil sont gardés. <b>Fourchette</b> : 9 variantes (3 jeux de paramètres × poids des concurrents) ; <b>robustesse</b> : nombre de variantes où le site reste dans les 20 meilleurs de la vue.</div>
+    <div class="bp-warn">Modèle ajusté sur un seul club, sans second club de validation. Loyer, visibilité, parking et population de jour ne sont pas modélisés : outil de présélection, à vérifier sur le terrain.</div>
   </div>
 
   <!-- Méthode & mode d'emploi -->
@@ -213,7 +216,7 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
 
       <h3>Ce que fait l'outil</h3>
       <p>GymLocator répond à une question : <b>où l'offre de salles est-elle la plus faible par rapport aux pratiquants potentiels, comparée à la moyenne nationale ?</b> Ce n'est ni un annuaire, ni un prédicteur de rentabilité : c'est un <b>filtre de marché</b>, conçu pour présélectionner des zones avant l'étude d'un emplacement précis.</p>
-      <p>Il estime aussi les <b>adhérents attendus d'un projet</b> (un club de la taille et du segment choisis) et classe sur ce chiffre les <b>meilleurs sites</b> de la vue affichée.</p>
+      <p>Il estime aussi les <b>adhérents attendus d'un projet</b> (un club de la taille et du segment choisis) et classe sur ce chiffre les <b>meilleurs sites</b> de la vue affichée. Dans les deux cas, c'est un <b>outil de présélection</b>.</p>
 
       <h3>Le modèle, en trois couches</h3>
       <p><b>1 · La demande.</b> La France est découpée en <b id="m-cells">–</b> carreaux de 1 km (INSEE Filosofi 2021 : habitants, âges, niveau de vie). On applique un taux de pratique de 10 % (moyenne nationale), <b>modulé par l'âge</b> — ≈ 22 % chez les 18-24 ans, ≈ 4 % chez les 65-79 ans — et légèrement par le revenu (± 15 %). Chaque carreau porte ainsi un nombre d'<b>adhérents potentiels</b>.</p>
@@ -237,13 +240,15 @@ body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--
       <p><b>Fourchette et robustesse.</b> Un seul club ne départage pas les paramètres : trois jeux équivalents pour ce club (non-recours W₀ = <span id="m-w0s">200, 400, 800</span>, chacun avec son noyau et sa pratique maximale) sont croisés avec le poids des concurrents (× <span id="m-ks">0,5, 1, 2</span>). Les <span id="m-nvar">9</span> variantes donnent la <b>fourchette</b> ; l'estimation centrale est le jeu du milieu, concurrents × 1. La <b>robustesse</b> d'un site est le nombre de variantes où il reste parmi les <span id="m-top">20</span> meilleurs sites de la vue. Le seuil (<span id="m-seuil">1 600</span> adhérents attendus par défaut) ne garde que les sites dont l'estimation centrale l'atteint.</p>
       <p><b>Un point, une zone exacte.</b> Un clic sur la carte donne la même estimation, avec sa fourchette, pour le projet réglé dans « Meilleurs sites ». Le <b>rang national</b> situe l'estimation centrale parmi celles du même projet placé dans chacun des carreaux habités de France, avec toute l'offre (il n'est pas calculé quand la légende retire des salles). Le bouton « Zone exacte » demande six isochrones routières Valhalla (5 à 30 min, une requête par contour, à la file) et recalcule l'estimation avec les vrais temps de trajet du projet ; les concurrents gardent les temps du modèle. Les contours sont gardés en cache dans le navigateur.</p>
 
+      <div class="warn"><b>Limites des adhérents attendus.</b> Le modèle de capture est ajusté sur <b>un seul club</b> (Hall b, périurbain, peu concurrencé, clientèle aisée) et n'a <b>pas de second club de validation</b> : retrouver ses adhérents ne prouverait rien, puisque ses paramètres en viennent. Le <b>loyer</b>, la <b>visibilité</b>, le <b>parking</b> et la <b>population de jour</b> (personnes qui travaillent ou étudient dans la zone) ne sont pas modélisés. C'est un <b>outil de présélection</b> : un site classé est à étudier sur le terrain, pas à retenir sur ce seul chiffre.</div>
+
       <h3>Comment l'utiliser</h3>
       <ol>
         <li><b>Repérage national.</b> La vue par défaut « <b>Déficit 15 min</b> » colore chaque point selon le <b>déficit relatif cumulé dans sa zone de chalandise</b>, pondéré par le temps de trajet — c'est le même chiffre que le clic et l'analyse de zone. La vue « Déficit local » montre où vivent précisément ces personnes (carreau par carreau) ; « Couverture » donne la lecture relative (rouge = sous-équipé, bleu = au-dessus de la moyenne).</li>
         <li><b>Exploration &amp; meilleurs sites.</b> Recherchez une ville ou zoomez ; dès le zoom 10 les salles s'affichent, colorées par type. « Meilleurs sites » classe les sites de la vue affichée sur les <b>adhérents attendus</b> d'un club dont vous choisissez la taille (1 200, 2 000 ou 2 400 m²) et le segment (premium ou classique). Chaque site est évalué seul, comme une alternative aux autres. Le calcul se fait sur la grille nationale de 1 km : pour une même zone, les résultats ne dépendent pas du cadrage. C'est une présélection, pas une recommandation d'emplacement.</li>
         <li><b>Filtrage de la concurrence.</b> Dans la légende (fermable via le ×, réouvrable par le bouton « Légende &amp; filtres »), décochez les <b>types</b> de salles non concurrents de votre projet, ou retirez une <b>salle précise</b> via son popup (« Retirer cette salle du calcul »). Le modèle est <b>recalculé en direct</b> sur toute la France.</li>
         <li><b>Analyse d'un point.</b> Un clic donne l'estimation de la zone accessible en 15 min : demande, couverture, déficit relatif, écart à la moyenne nationale. « Analyser la zone » trace le périmètre, détaille la concurrence par segment, et tente en arrière-plan le <b>tracé routier exact</b> (service tiers).</li>
-        <li><b>Le terrain.</b> L'outil s'arrête là, volontairement : foncier, loyer, visibilité, parking ne sont pas dans les données. Présélectionnez 3-4 zones ici, départagez-les sur place.</li>
+        <li><b>Le terrain.</b> L'outil s'arrête là, volontairement : foncier, loyer, visibilité, parking et population de jour ne sont pas dans les données. Présélectionnez 3-4 zones ici, départagez-les sur place.</li>
       </ol>
 
       <h3>Périmètre modélisé et tracé routier exact</h3>
@@ -667,6 +672,7 @@ function initClick(){
        <div class="kv"><span class="k">Fourchette</span><span class="v">${fourchette(pr)} <small>(${nVar()} variantes)</small></span></div>
        ${rangKv(pr.adherents)}
        ${seuilKv(pr)}
+       ${MENTION}
        <button class="iso-btn" onclick="glExacte(${lat},${lng})">Zone exacte · isochrones Valhalla</button>
        <div class="gp-sep">Zone accessible en ≤ 15 min · déficit relatif</div>
        <div class="kv"><span class="k">Habitants</span><span class="v">~${Math.round(z.pop).toLocaleString('fr')}</span></div>
@@ -1070,9 +1076,12 @@ window.glExacte=async function(lat,lon){
     ${seuilKv(zx)}
     <div class="kv"><span class="k">Habitants à ≤ 15 / 30 min</span><span class="v">~${Math.round(z.pop[15]).toLocaleString('fr')} / ~${Math.round(z.pop[30]).toLocaleString('fr')}</span></div>
     <div class="gp-note">Temps du projet lus dans six isochrones Valhalla (5 à 30 min, une requête par contour ; chaque carreau prend le milieu de sa bande de 5 min). Les concurrents gardent les temps du modèle. Contours gardés en cache dans ce navigateur.</div>
+    ${MENTION}
   </div>`).openOn(map);
 };
 const fmtAdh=v=>(Math.round(v/10)*10).toLocaleString('fr');
+// Limites à afficher avec toute estimation en adhérents
+const MENTION='<div class="gp-warn">Modèle ajusté sur un seul club, sans second club de validation. Loyer, visibilité, parking et population de jour ne sont pas modélisés : outil de présélection, à vérifier sur le terrain.</div>';
 const fourchette=st=>`${fmtAdh(st.min)} – ${fmtAdh(st.max)}`;
 // Rang national d'une estimation centrale : part des carreaux habités de France où le même projet
 // ferait moins, d'après la distribution de meta.capture (offre complète). null si elle manque (ancien
@@ -1107,7 +1116,8 @@ function capSitePopup(st,rank,ll){
     ${rangKv(st.adherents)}
     ${seuilKv(st)}
     <div class="kv"><span class="k">Habitants à ≤ ${CAP.tCoupure} min</span><span class="v">~${Math.round(st.habitants).toLocaleString('fr')}</span></div>
-    <div class="gp-note">Modèle de capture, temps de trajet du modèle. Fourchette : ${CAP.famille.length} jeux de paramètres équivalents (non-recours W₀ = ${CAP.famille.map(p=>p.nonRecours).join(', ')}) × poids des concurrents × ${CAP.ks.map(k=>String(k).replace('.',',')).join(' / ')}. Chaque site est évalué seul, comme une alternative aux autres. Présélection à vérifier sur le terrain.</div>
+    <div class="gp-note">Modèle de capture, temps de trajet du modèle. Fourchette : ${CAP.famille.length} jeux de paramètres équivalents (non-recours W₀ = ${CAP.famille.map(p=>p.nonRecours).join(', ')}) × poids des concurrents × ${CAP.ks.map(k=>String(k).replace('.',',')).join(' / ')}. Chaque site est évalué seul, comme une alternative aux autres.</div>
+    ${MENTION}
     <button class="iso-btn" onclick="glExacte(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Zone exacte · isochrones Valhalla</button>
     <button class="iso-btn sec" onclick="glIso(${ll[0].toFixed(5)},${ll[1].toFixed(5)})">Analyser la zone · 15 min voiture</button>
   </div>`;

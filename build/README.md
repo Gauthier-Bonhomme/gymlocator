@@ -183,3 +183,37 @@ Ce que disent les mesures du 13/10/2026 :
 
 Raffinement possible : remplacer `speedKmh` par les temps d'un moteur de routage (API `table`
 d'un OSRM ou d'un Valhalla local) ; le reste du pipeline et le front sont inchangés.
+
+## Adhérents attendus d'un projet : `capture.mjs`
+
+Modèle de capture (étape e de `ROADMAP.md`, première moitié), dans `lib-capture.mjs`. Il ne touche
+ni aux couches (`grid.bin`), ni au classement des zones, ni au front.
+
+```text
+adhérents = Σ_c  habitants_c × pénétration × part_c                      carreaux c à ≤ 30 min du projet
+part_c    = W_p f(t_pc) / (W_p f(t_pc) + k Σ_g W_g f(t_gc))              salles g à ≤ 30 min de c
+```
+
+- **f** : log-logistique f(t) = 1 / (1 + (t / 7,3)⁴), nulle au-delà de 30 min (paramètres premium
+  de l'étape d), pour le projet comme pour les salles existantes.
+- **W** : attractivité = capacité en adhérents d'une salle de cette taille et de ce segment, soit
+  surface × adhérents/m² : premium 0,67 (Hall b, 1 600 adhérents pour 2 400 m²), classique 1,4 (règle
+  de l'offre, appliquée à tous les segments non premium). Les adhérents réels priment.
+- **Pénétration** : 114 ‰ des habitants (p0 de l'étape d). Variante : demande du modèle (10 %,
+  modulée par l'âge et le revenu).
+- **k** : poids des concurrents, 1 par défaut ; variantes × 0,5 et × 2. Seul compte le rapport
+  W_p / k : un projet deux fois plus petit équivaut à des concurrents deux fois plus lourds.
+- **Temps** : mode national, temps du modèle calé pour tous. Zone exacte (`--exacte`), temps du
+  projet lus dans des isochrones Valhalla de 5 à 30 min, au milieu de la bande de 5 min (une requête
+  par contour, 5 s de pause, cache dans `data/isochrones/`) ; les concurrents gardent les temps du
+  modèle, d'où une variante où ils roulent au rapport local Valhalla / modèle mesuré autour du site.
+
+```bash
+node capture.mjs --lat 43.80749 --lon 4.22952 --m2 2000 --segment premium   # mode national
+node capture.mjs --lat 43.80749 --lon 4.22952 --exacte                      # + zone exacte (Valhalla)
+npm run capture:hallb                                                       # test : Hall b, 2 400 m², premium
+```
+
+Le résultat est une **fourchette** : pénétration × poids des concurrents, pour la taille demandée,
+1 200 et 2 000 m². Le test sur Hall b (exclue de la concurrence) est en partie circulaire : f, la
+pénétration et la densité premium viennent de ce club. Il ne valide pas le modèle.

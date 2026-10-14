@@ -6,7 +6,9 @@
   "scripts": {
     "audit": "node audit.mjs",
     "audit:figer": "node audit.mjs --figer",
-    "audit:sensibilite": "node audit.mjs --sensibilite"
+    "audit:sensibilite": "node audit.mjs --sensibilite",
+    "capture": "node capture.mjs",
+    "capture:hallb": "node capture.mjs --hallb"
   },
   "keywords": [],
   "author": "",
